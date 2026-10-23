@@ -1,0 +1,23 @@
+name: health360
+description: "Health360 - Healthcare for the Future. Patient mobile app (CC 207B Final Project)."
+publish_to: "none"
+version: 0.3.1+4
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # DM Sans is the typeface used in the Health360 prototype.
+  google_fonts: ^6.2.1
+  # Small key-value storage: remembers which medication doses were taken today.
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
