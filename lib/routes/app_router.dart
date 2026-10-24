@@ -2,9 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:websupark/routes/app_routes.dart';
 import 'package:websupark/screens/driver/driver_shell.dart';
 import 'package:websupark/screens/guard/guard_flow_screen.dart';
-
+import 'package:websupark/screens/head_security/head_shell.dart';
 /// Connects each route name (from AppRoutes) to the screen it opens.
-/// Head-security routes are added in the next step.
+/// All three interfaces are connected here.
 class AppRouter {
   AppRouter._();
 
@@ -54,5 +54,14 @@ class AppRouter {
           nextRoute: AppRoutes.guardConsole,
           nextLabel: 'Return to Patrol',
         ),
+    
+    // Head security: all six sidebar names open the same shell,
+    // on a different sidebar item.
+    AppRoutes.headOverview: (_) => const HeadShell(initialIndex: 0),
+    AppRoutes.headVehicles: (_) => const HeadShell(initialIndex: 1),
+    AppRoutes.headParking: (_) => const HeadShell(initialIndex: 2),
+    AppRoutes.headViolations: (_) => const HeadShell(initialIndex: 3),
+    AppRoutes.headYellowPass: (_) => const HeadShell(initialIndex: 4),
+    AppRoutes.headOutsideVehicles: (_) => const HeadShell(initialIndex: 5),
   };
 }

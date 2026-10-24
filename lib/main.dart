@@ -43,7 +43,7 @@ class PlaceholderScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             SizedBox(
-              width: 240,
+              width: 280,
               child: ElevatedButton(
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.driverHome),
@@ -52,11 +52,20 @@ class PlaceholderScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              width: 240,
+              width: 280,
               child: ElevatedButton(
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.guardConsole),
                 child: const Text('Open Guard (temporary)'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: 280,
+              child: ElevatedButton(
+                onPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.headOverview),
+                child: const Text('Open Head Security (temporary)'),
               ),
             ),
           ],
