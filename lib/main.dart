@@ -25,7 +25,7 @@ class WebsuParkApp extends StatelessWidget {
 }
 
 // Temporary start page. It will be replaced by login / role selection.
-// The button below lets us open the driver interface while we build it.
+// The buttons below open each interface while we build them.
 class PlaceholderScreen extends StatelessWidget {
   const PlaceholderScreen({super.key});
 
@@ -48,6 +48,15 @@ class PlaceholderScreen extends StatelessWidget {
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.driverHome),
                 child: const Text('Open Driver (temporary)'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: 240,
+              child: ElevatedButton(
+                onPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.guardConsole),
+                child: const Text('Open Guard (temporary)'),
               ),
             ),
           ],
