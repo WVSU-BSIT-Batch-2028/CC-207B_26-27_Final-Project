@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:websupark/theme/app_theme.dart';
 
 // Entry point: Flutter starts running the app from here.
 void main() {
@@ -15,10 +16,7 @@ class WebsuParkApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'WEBSUPARK',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B4F8F)),
-      ),
+        theme: AppTheme.light,
       home: const PlaceholderScreen(),
     );
   }
