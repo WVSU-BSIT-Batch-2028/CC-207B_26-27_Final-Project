@@ -42,7 +42,7 @@ class AssistantPromoCard extends StatelessWidget {
                 SizedBox(height: 4),
                 Text(
                   'Describe how you feel and get guidance on what to do next.',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12.5, height: 1.35),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13.5, height: 1.35),
                 ),
               ],
             ),

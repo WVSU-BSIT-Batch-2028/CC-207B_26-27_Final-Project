@@ -51,7 +51,7 @@ class MenuTile extends StatelessWidget {
                   if (subtitle != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(subtitle!, style: TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                      child: Text(subtitle!, style: TextStyle(fontSize: 13.5, color: AppColors.textMuted)),
                     ),
                 ],
               ),

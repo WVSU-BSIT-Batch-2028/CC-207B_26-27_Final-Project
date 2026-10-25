@@ -9,10 +9,12 @@ import '../../services/doctor_service.dart';
 import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/demo_scenario_sheet.dart';
 import '../../widgets/fade_slide_in.dart';
+import '../../widgets/h360_card.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/hero_panel.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
+import 'widgets/appointment_row.dart';
 import 'widgets/overview_tile.dart';
 
 enum _LoadStatus { loading, ready, error }
@@ -177,7 +179,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                         Expanded(
                           child: Text(
                             'Next up: ${d.nextUp}',
-                            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
+                            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 14),
                           ),
                         ),
                       ],
@@ -248,6 +250,37 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 ),
               ],
             ),
+          ),
+          // Today's appointments with Confirmed / Pending / Cancelled labels
+          SectionHeader(
+            title: "Today's Appointments",
+            subtitle: d.appointments.isEmpty ? null : 'Showing ${d.appointments.length} of ${d.todayAppointments}',
+            actionLabel: 'View all',
+            onAction: () => widget.onNavigate(1),
+          ),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 260),
+            child: d.appointments.isEmpty
+                ? H360Card(
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_busy_rounded, color: AppColors.textMuted),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text('No appointments today.', style: TextStyle(color: AppColors.textMuted)),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (final a in d.appointments)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: AppointmentRow(appointment: a, onTap: () => widget.onNavigate(1)),
+                        ),
+                    ],
+                  ),
           ),
         ];
     }

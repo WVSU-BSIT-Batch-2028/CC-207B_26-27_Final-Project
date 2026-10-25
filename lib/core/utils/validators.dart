@@ -29,4 +29,26 @@ class Validators {
     if (text.length < 5) return 'Please enter a more complete address.';
     return null;
   }
+
+  /// A number between [min] and [max]. [label] is used in the messages,
+  /// e.g. "heart rate". Set [wholeNumber] to reject decimals.
+  static String? number(
+    String? value, {
+    required String label,
+    required double min,
+    required double max,
+    bool wholeNumber = false,
+  }) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) return 'Please enter your $label.';
+    final parsed = double.tryParse(text);
+    if (parsed == null) return 'Enter numbers only.';
+    if (wholeNumber && parsed != parsed.roundToDouble()) return 'Use a whole number.';
+    if (parsed < min || parsed > max) {
+      return 'Enter a $label between ${_plain(min)} and ${_plain(max)}.';
+    }
+    return null;
+  }
+
+  static String _plain(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 }

@@ -11,6 +11,7 @@ class NavDestination {
 
 /// Custom bottom navigation with an animated "pill" behind the active icon.
 /// Tabs come from the prototype: pass [patientItems] or [doctorItems].
+/// Icons and labels are large on purpose (validators found the old ones hard to read).
 class H360BottomNav extends StatelessWidget {
   const H360BottomNav({
     super.key,
@@ -46,26 +47,30 @@ class H360BottomNav extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: [
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        boxShadow: const [
           BoxShadow(color: Color(0x181D4ED8), blurRadius: 22, offset: Offset(0, -6)),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: _NavButton(
-                    item: items[i],
-                    selected: i == currentIndex,
-                    onTap: () => onTap(i),
+        // Labels follow the user's text size, but stop at 1.15x so the bar keeps its shape.
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.15,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+            child: Row(
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  Expanded(
+                    child: _NavButton(
+                      item: items[i],
+                      selected: i == currentIndex,
+                      onTap: () => onTap(i),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -96,13 +101,13 @@ class _NavButton extends StatelessWidget {
             AnimatedContainer(
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,
-              width: selected ? 58 : 40,
-              height: 32,
+              width: selected ? 66 : 46,
+              height: 36,
               decoration: BoxDecoration(
-                color: selected ? AppColors.primary.withOpacity(0.12) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+                color: selected ? AppColors.primary.withOpacity(0.14) : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(item.icon, size: 24, color: color),
+              child: Icon(item.icon, size: 28, color: color),
             ),
             const SizedBox(height: 3),
             Text(
@@ -110,9 +115,9 @@ class _NavButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 12,
                 color: color,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ],

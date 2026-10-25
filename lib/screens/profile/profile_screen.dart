@@ -110,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 2),
                       Text(
                         _isDoctor ? DoctorService.specialty : profile.email,
-                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
                       ),
                     ],
                   ),
@@ -144,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (context, _) => MenuTile(
                     icon: Icons.palette_outlined,
                     title: 'App Theme',
-                    subtitle: ThemeController.instance.isDark ? 'Dark' : 'Light',
+                    subtitle: '${ThemeController.instance.isDark ? "Dark" : "Light"} · ${ThemeController.instance.textSize.label} text',
                     onTap: () => showThemeSheet(context),
                   ),
                 ),

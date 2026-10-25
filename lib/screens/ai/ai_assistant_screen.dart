@@ -249,7 +249,7 @@ class _DisclaimerBanner extends StatelessWidget {
             child: Text(
               'AI-generated guidance, not a medical diagnosis. Please avoid sharing your '
               'full name or ID numbers. In an emergency, call 911.',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
             ),
           ),
         ],
@@ -312,7 +312,7 @@ class _MessageBubble extends StatelessWidget {
             padding: EdgeInsets.only(top: 4, right: 4),
             child: Text(
               'Edit & resend',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w600),
             ),
           ),
         ),

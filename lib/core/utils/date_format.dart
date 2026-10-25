@@ -45,3 +45,26 @@ String dateKey(DateTime d) =>
 
 /// September 10, 2026
 String formatLongDate(DateTime d) => '${_months[d.month - 1]} ${d.day}, ${d.year}';
+
+const List<String> _monthsShort = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const List<String> _weekdaysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// Oct 23
+String formatShortDate(DateTime d) => '${_monthsShort[d.month - 1]} ${d.day}';
+
+/// Mon, Tue, ...
+String weekdayShort(DateTime d) => _weekdaysShort[d.weekday - 1];
+
+/// "Today, 9:00 AM" / "Yesterday, 4:30 PM" / "Oct 21, 11:15 AM"
+String formatActivityTime(DateTime t, {DateTime? now}) {
+  final n = now ?? DateTime.now();
+  final today = DateTime(n.year, n.month, n.day);
+  final day = DateTime(t.year, t.month, t.day);
+  final diff = today.difference(day).inDays;
+  if (diff <= 0) return 'Today, ${formatTime(t)}';
+  if (diff == 1) return 'Yesterday, ${formatTime(t)}';
+  return '${formatShortDate(t)}, ${formatTime(t)}';
+}

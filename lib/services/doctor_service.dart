@@ -1,3 +1,4 @@
+import '../models/appointment_status.dart';
 import '../models/doctor_dashboard_data.dart';
 import 'dashboard_service.dart';
 
@@ -27,6 +28,7 @@ class DoctorService {
           prescriptions: 0,
           labResults: 0,
           nextUp: null,
+          appointments: [],
           activities: [],
         );
       case DemoScenario.normal:
@@ -37,7 +39,41 @@ class DoctorService {
           patients: 12,
           prescriptions: 5,
           labResults: 3,
-          nextUp: '2:30 PM · General Consultation',
+          nextUp: '1:30 PM · Lab Result Review',
+          appointments: [
+            DoctorAppointment(
+              id: 'a1',
+              time: '9:00 AM',
+              patientName: 'Ana Dela Cruz',
+              reason: 'General Consultation',
+              isVideo: false,
+              status: AppointmentStatus.confirmed,
+            ),
+            DoctorAppointment(
+              id: 'a2',
+              time: '10:30 AM',
+              patientName: 'Paolo Mendoza',
+              reason: 'Follow-up',
+              isVideo: true,
+              status: AppointmentStatus.confirmed,
+            ),
+            DoctorAppointment(
+              id: 'a3',
+              time: '1:30 PM',
+              patientName: 'Mark Villanueva',
+              reason: 'Lab Result Review',
+              isVideo: false,
+              status: AppointmentStatus.pending,
+            ),
+            DoctorAppointment(
+              id: 'a4',
+              time: '3:00 PM',
+              patientName: 'Liza Ramos',
+              reason: 'General Consultation',
+              isVideo: false,
+              status: AppointmentStatus.cancelled,
+            ),
+          ],
           activities: [
             ActivityItem(
               type: ActivityType.labResult,

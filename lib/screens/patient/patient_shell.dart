@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../models/user_role.dart';
+import '../../services/guide_service.dart';
 import '../../widgets/h360_bottom_nav.dart';
 import '../ai/ai_assistant_screen.dart';
+import '../onboarding/how_to_use_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'home/home_screen.dart';
@@ -19,6 +21,23 @@ class PatientShell extends StatefulWidget {
 
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show the "How to use" guide the first time the patient side opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showGuideIfFirstTime());
+  }
+
+  Future<void> _showGuideIfFirstTime() async {
+    if (await GuideService.instance.hasSeen(UserRole.patient)) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => const HowToUseScreen(role: UserRole.patient),
+    ));
+    await GuideService.instance.markSeen(UserRole.patient);
+  }
 
   void _goTo(int index) => setState(() => _index = index);
 

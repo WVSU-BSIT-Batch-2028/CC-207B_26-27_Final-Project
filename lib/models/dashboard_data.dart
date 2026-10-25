@@ -21,6 +21,17 @@ class DashboardData {
 
   int get takenCount => doses.where((d) => d.taken).length;
 
+  /// Returns a copy where the vital of the same type is replaced by [updated].
+  DashboardData withVital(VitalSign updated) => DashboardData(
+        patientFirstName: patientFirstName,
+        nextAppointment: nextAppointment,
+        vitals: [
+          for (final v in vitals)
+            if (v.type == updated.type) updated else v,
+        ],
+        doses: doses,
+      );
+
   DashboardData withDoseToggled(String doseId) => DashboardData(
         patientFirstName: patientFirstName,
         nextAppointment: nextAppointment,

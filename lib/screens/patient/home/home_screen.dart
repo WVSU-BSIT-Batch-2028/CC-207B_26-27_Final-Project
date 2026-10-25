@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../services/dashboard_service.dart';
 import '../../../models/dashboard_data.dart';
+import '../../../models/vital_sign.dart';
 import '../../../widgets/demo_scenario_sheet.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/section_header.dart';
@@ -13,6 +14,7 @@ import 'widgets/greeting_header.dart';
 import 'widgets/medication_checklist.dart';
 import 'widgets/next_appointment_card.dart';
 import 'widgets/quick_actions.dart';
+import 'widgets/vital_detail_sheet.dart';
 import 'widgets/vital_tile.dart';
 
 enum _LoadStatus { loading, ready, error }
@@ -61,6 +63,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _status = _LoadStatus.error;
       });
     }
+  }
+
+  /// Opens the detail sheet for one vital; refreshes the tile after a new reading.
+  void _openVital(VitalSign vital) {
+    showVitalDetailSheet(
+      context,
+      vital: vital,
+      onChanged: (updated) {
+        final current = _data;
+        if (current == null || !mounted) return;
+        setState(() => _data = current.withVital(updated));
+      },
+    );
   }
 
   void _toggleDose(String id) {
@@ -145,10 +160,13 @@ class _HomeScreenState extends State<HomeScreen> {
               onAskAi: widget.onOpenAssistant,
             ),
           ),
-          const SectionHeader(title: 'Health at a Glance'),
+          const SectionHeader(
+            title: 'Health at a Glance',
+            subtitle: 'Sample data for now. Tap a card for its trend, or to add your own reading.',
+          ),
           FadeSlideIn(
             delay: const Duration(milliseconds: 240),
-            child: VitalsGrid(vitals: data.vitals),
+            child: VitalsGrid(vitals: data.vitals, onTap: _openVital),
           ),
           SectionHeader(
             title: "Today's Medications",

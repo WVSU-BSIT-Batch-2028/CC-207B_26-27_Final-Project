@@ -19,8 +19,8 @@ class DashboardException implements Exception {
 ///
 /// For now this is a MOCK that simulates network latency and returns sample
 /// data, so the UI can be built and demoed before the backend exists.
-/// When the Firebase / MySQL API is ready, replace the body of
-/// [fetchDashboard] - the screens do not need to change.
+/// When the Firebase / MySQL API is ready, replace the bodies of
+/// [fetchDashboard] and [addReading]; the screens do not need to change.
 class DashboardService {
   DashboardService._();
   static final DashboardService instance = DashboardService._();
@@ -28,6 +28,7 @@ class DashboardService {
   DemoScenario scenario = DemoScenario.normal;
 
   static const String _takenKeyPrefix = 'taken_doses_';
+  static const String _vitalKeyPrefix = 'vital_entries_';
 
   /// Asynchronous call with simulated latency (shows the loading state).
   Future<DashboardData> fetchDashboard() async {
@@ -63,10 +64,63 @@ class DashboardService {
     await prefs.setStringList(key, ids.toList());
   }
 
+  /// Saves a reading the patient entered themselves (local persistence).
+  /// Stored as "milliseconds|value|secondary" text, one entry per reading.
+  Future<void> addReading(VitalType type, VitalReading reading) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400)); // simulated network
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_vitalKeyPrefix${type.name}';
+    final entries = List<String>.from(prefs.getStringList(key) ?? const <String>[]);
+    entries.add('${reading.date.millisecondsSinceEpoch}|${reading.value}|${reading.secondary ?? ''}');
+    await prefs.setStringList(key, entries);
+  }
+
   Future<Set<String>> _takenToday() async {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_takenKeyPrefix${dateKey(DateTime.now())}';
     return (prefs.getStringList(key) ?? <String>[]).toSet();
+  }
+
+  /// Reads back the patient's own entries for one vital type.
+  Future<List<VitalReading>> _loadUserReadings(VitalType type) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList('$_vitalKeyPrefix${type.name}') ?? const <String>[];
+    final readings = <VitalReading>[];
+    for (final entry in entries) {
+      final parts = entry.split('|');
+      if (parts.length != 3) continue;
+      final millis = int.tryParse(parts[0]);
+      final value = double.tryParse(parts[1]);
+      if (millis == null || value == null) continue;
+      readings.add(VitalReading(
+        date: DateTime.fromMillisecondsSinceEpoch(millis),
+        value: value,
+        secondary: double.tryParse(parts[2]),
+        source: ReadingSource.you,
+      ));
+    }
+    return readings;
+  }
+
+  /// Builds a 7-day sample history ending today, then adds the user's entries.
+  Future<VitalSign> _vital(
+    VitalType type,
+    String label,
+    String unit,
+    List<double> values, {
+    List<double>? secondary,
+  }) async {
+    final now = DateTime.now();
+    final sample = <VitalReading>[
+      for (var i = 0; i < values.length; i++)
+        VitalReading(
+          date: DateTime(now.year, now.month, now.day - (values.length - 1 - i), 8),
+          value: values[i],
+          secondary: secondary?[i],
+        ),
+    ];
+    final mine = await _loadUserReadings(type);
+    return VitalSign(type: type, label: label, unit: unit, readings: [...sample, ...mine]);
   }
 
   Future<DashboardData> _sample() async {
@@ -104,36 +158,17 @@ class DashboardService {
         dateTime: DateTime(now.year, now.month, now.day + 3, 10, 0),
         location: 'Main Clinic',
       ),
-      vitals: const [
-        VitalSign(
-          type: VitalType.heartRate,
-          label: 'Heart Rate',
-          value: '72',
-          unit: 'bpm',
-          trend: [70, 74, 71, 76, 73, 72, 72],
+      vitals: [
+        await _vital(VitalType.heartRate, 'Heart Rate', 'bpm', [70, 74, 71, 76, 73, 72, 72]),
+        await _vital(
+          VitalType.bloodPressure,
+          'Blood Pressure',
+          'mmHg',
+          [118, 121, 119, 124, 120, 122, 120],
+          secondary: [76, 80, 78, 82, 79, 81, 80],
         ),
-        VitalSign(
-          type: VitalType.bloodPressure,
-          label: 'Blood Pressure',
-          value: '120/80',
-          unit: 'mmHg',
-          trend: [118, 121, 119, 124, 120, 122, 120],
-        ),
-        VitalSign(
-          type: VitalType.weight,
-          label: 'Weight',
-          value: '58.4',
-          unit: 'kg',
-          trend: [58.9, 58.8, 58.7, 58.6, 58.5, 58.4, 58.4],
-        ),
-        VitalSign(
-          type: VitalType.sleep,
-          label: 'Sleep',
-          value: '6h 30m',
-          unit: 'avg',
-          trend: [7.1, 6.4, 6.8, 5.9, 6.6, 7.0, 6.5],
-          status: VitalStatus.watch,
-        ),
+        await _vital(VitalType.weight, 'Weight', 'kg', [58.9, 58.8, 58.7, 58.6, 58.5, 58.4, 58.4]),
+        await _vital(VitalType.sleep, 'Sleep', 'last night', [7.1, 6.4, 6.8, 5.9, 6.6, 7.0, 6.5]),
       ],
       doses: [for (final d in doses) d.copyWith(taken: taken.contains(d.id))],
     );

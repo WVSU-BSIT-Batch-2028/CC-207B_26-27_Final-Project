@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../services/doctor_service.dart';
+import '../../services/guide_service.dart';
 import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/h360_bottom_nav.dart';
 import '../profile/help_support_screen.dart';
 import '../profile/logout_dialog.dart';
 import '../profile/profile_screen.dart';
 import '../../models/user_role.dart';
+import '../onboarding/how_to_use_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'doctor_dashboard_screen.dart';
 import 'doctor_drawer.dart';
@@ -26,6 +28,23 @@ class _DoctorShellState extends State<DoctorShell> {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show the "How to use" guide the first time the doctor side opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showGuideIfFirstTime());
+  }
+
+  Future<void> _showGuideIfFirstTime() async {
+    if (await GuideService.instance.hasSeen(UserRole.doctor)) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => const HowToUseScreen(role: UserRole.doctor),
+    ));
+    await GuideService.instance.markSeen(UserRole.doctor);
+  }
 
   void _goTo(int index) {
     if (index == _menuTab) {

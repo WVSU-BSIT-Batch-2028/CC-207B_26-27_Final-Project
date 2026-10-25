@@ -163,7 +163,7 @@ class _ActionTile extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy, fontSize: 13),
+            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy, fontSize: 14),
           ),
         ],
       ),
@@ -203,12 +203,12 @@ class _ActivityRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                Text(item.subtitle, style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(item.subtitle, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               ],
             ),
           ),
-          Text(item.time, style: TextStyle(color: AppColors.textMuted, fontSize: 11.5)),
+          Text(item.time, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
         ],
       ),
     );

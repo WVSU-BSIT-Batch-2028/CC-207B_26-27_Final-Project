@@ -28,7 +28,7 @@ class AppPalette {
     border: Color(0xFFD4E0F7),
     skeleton: Color(0xFFDCE6FA),
     textPrimary: Color(0xFF0F1F4D),
-    textMuted: Color(0xFF61719A),
+    textMuted: Color(0xFF4A5A80),
     navy: Color(0xFF12296B),
     primary: Color(0xFF1D4ED8),
   );
@@ -39,7 +39,7 @@ class AppPalette {
     border: Color(0xFF263759),
     skeleton: Color(0xFF1D2B4A),
     textPrimary: Color(0xFFE9EFFF),
-    textMuted: Color(0xFF9DADCF),
+    textMuted: Color(0xFFB0BEDC),
     navy: Color(0xFFD7E3FF),
     primary: Color(0xFF4A7BF7),
   );

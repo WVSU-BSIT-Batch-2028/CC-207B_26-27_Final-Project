@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/constants/contact_info.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/user_role.dart';
 import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/menu_tile.dart';
+import '../onboarding/how_to_use_screen.dart';
 import 'faq_screen.dart';
+import 'troubleshooting_screen.dart';
 
 /// Help & Support: FAQs, Contact Us, Call Us, Live Chat.
 /// For patients, Live Chat opens the AI assistant.
@@ -15,8 +18,8 @@ class HelpSupportScreen extends StatelessWidget {
 
   final UserRole role;
 
-  static const String _email = 'support@health360.example';
-  static const String _phone = '(033) 000-0000';
+  static const String _email = ContactInfo.supportEmail;
+  static const String _phone = ContactInfo.supportPhone;
 
   void _copy(BuildContext context, String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
@@ -37,9 +40,28 @@ class HelpSupportScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xl),
         children: [
           MenuTile(
+            icon: Icons.menu_book_rounded,
+            title: 'How to Use Health360',
+            subtitle: 'A quick step-by-step guide',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (_) => HowToUseScreen(role: role),
+              ),
+            ),
+          ),
+          MenuTile(
             icon: Icons.quiz_rounded,
             title: 'FAQs',
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
+          ),
+          MenuTile(
+            icon: Icons.build_circle_outlined,
+            title: 'Common Problems',
+            subtitle: 'Step-by-step fixes',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const TroubleshootingScreen()),
+            ),
           ),
           MenuTile(
             icon: Icons.mail_outline_rounded,

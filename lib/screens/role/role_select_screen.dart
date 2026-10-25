@@ -88,7 +88,7 @@ class RoleSelectScreen extends StatelessWidget {
                           child: Text(
                             'Demo access: login is not built yet. You can switch sides any time '
                             'from Profile > Switch view.',
-                            style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+                            style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
                           ),
                         ),
                       ],
@@ -135,7 +135,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.navy)),
                 const SizedBox(height: 4),
-                Text(description, style: TextStyle(color: AppColors.textMuted, fontSize: 12.5, height: 1.35)),
+                Text(description, style: TextStyle(color: AppColors.textMuted, fontSize: 13.5, height: 1.35)),
               ],
             ),
           ),

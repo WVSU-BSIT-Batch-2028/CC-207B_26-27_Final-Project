@@ -96,7 +96,7 @@ Do not hard-code colours, spacing or radii. Use:
 Reusable widgets in `lib/widgets/`:
 `H360Card`, `H360Button` (`inverted` for dark surfaces), `StatusChip`, `SectionHeader`, `MenuTile`, `HeroPanel` (gradient panel),
 `FadeSlideIn` (entrance animation), `SkeletonBox` / `DashboardSkeleton` / `EmptyState` / `ErrorState`, `showComingSoonSheet`,
-`H360BottomNav`, `Sparkline`. Check here before writing a new widget.
+`H360BottomNav`, `Sparkline`, `AppointmentStatusChip`. Check here before writing a new widget.
 
 **Reference screens to copy from:**
 | Need | Copy the pattern from |
@@ -115,6 +115,7 @@ Reusable widgets in `lib/widgets/`:
 - [ ] Uses `H360Card`, `H360Button`, `MenuTile`, etc. instead of new look-alikes.
 - [ ] Loading, empty and error states exist and were tested.
 - [ ] Looks right in **light and dark mode**, on a **phone width and a wide browser window** (no overflow, nothing stuck to one edge).
+- [ ] Still readable and not overflowing with **Text size: Large and Extra large** (Profile > App Theme). Body text is at least 14, small labels at least 13; no tiny gray text.
 - [ ] Forms validate and show clear messages.
 - [ ] Comments and file header are present; the author can explain every line.
 
@@ -122,19 +123,74 @@ Reusable widgets in `lib/widgets/`:
 
 Replace the `ModulePlaceholder` for your tab in `patient_shell.dart` / `doctor_shell.dart` (search for `TODO(`).
 
-| Module | Patient screens (Flutter) | Doctor screens |
-|---|---|---|
-| **Foundation, dashboards, AI, profiles** (done) | Dashboard, AI assistant, Profile set | Landing page, Dashboard, Menu, Profile set |
-| **Auth** | Get Started, Create Account, Input Information, Create Password, Insert Profile Picture, Account Created, Log In, Logout confirm/success | Splash/loading, Login |
-| **Appointments** | Overview, Book Appointment (set date and time), Appointment Details, Confirmation, Video Consultation (Google Meet link) | Appointment Overview (Upcoming/Past), Patient Overview, Patient Details, Video Consultation |
-| **Prescriptions** | Prescriptions, Prescription Details, Set a Reminder, Prescription History, History Details | Prescriptions, Prescription Details, Add Prescription |
-| **Records / Patients** | Records Overview, Consultations, Consultation Details, Laboratory Results, Lab Result Details | Patients page, Patient Details, Patient Records, Lab Results, View Lab Results, Patient Prescriptions, Add Prescription, Prescription Added |
+| Module | Owner | Patient screens (Flutter) | Doctor screens |
+|---|---|---|---|
+| **Foundation, dashboards, AI, profiles** (done) | Ysai | Dashboard, AI assistant, Profile set, first-time guide | Landing page, Dashboard, Menu, Profile set |
+| **Authentication** | Aecielle Cervantes | Get Started, Create Account, Input Information, Create Password, Insert Profile Picture, Account Created, Log In, Logout confirm/success | Splash/loading, Login |
+| **Appointments** | Jahna Lagne | Overview, Book Appointment (set date and time), Appointment Details, Confirmation, Video Consultation (Google Meet link) | Appointment Overview (Upcoming/Past), Patient Overview, Patient Details, Video Consultation |
+| **Prescriptions** | Carl Calotes | Prescriptions, Prescription Details, Set a Reminder, Prescription History, History Details | Prescriptions, Prescription Details, Add Prescription |
+| **Records and Patients** | Gian Fernandez | Records Overview, Consultations, Consultation Details, Laboratory Results, Lab Result Details | Patients page, Patient Details, Patient Records, Lab Results, View Lab Results, Patient Prescriptions, Add Prescription, Prescription Added |
 
 Ideas for core features to hit the 6 required (confirm as a team): book and track appointments, prescription reminders,
 refill request, records search/filter, AI assistant (done), and one more of the team's choosing.
 
 Open decision to confirm with the team: the **doctor side** is scaffolded in Flutter so both roles can be demoed in one app.
 If the doctor portal is built in React for the Web System subject, the Flutter doctor screens can stay as a demo or be removed.
+
+### 5.1 Requirements from the HCI validator feedback (do not miss these)
+
+Five validators tested the prototype (a doctor, two nurses and two patients). Their feedback became requirements.
+**Each owner must build their checklist below into their module**, or write the reason in Known Limitations if something cannot be done.
+Tick the boxes as you finish. The "who said it" names are only for reference. See `docs/hci_feedback_actions.md` for the full table.
+
+**Jahna Lagne: Appointments**
+- [ ] Patient can **cancel and reschedule** an appointment from the patient side (Ian). A cancelled appointment shows the red *Cancelled* label.
+- [ ] Show the **consultation fee** before the patient confirms a booking (Thaddeus).
+- [ ] **Reminder one day before** the appointment: let the patient switch it on when booking (Luke). The Notifications history already has a sample "Appointment tomorrow" entry.
+- [ ] **Video consultation**: add clear "How to join" steps (opens in Google Meet, may need the Meet app or the phone browser, allow camera and microphone) and a note that a **stable internet connection** is needed (Ivy, Luke).
+- [ ] Add a **Contact Clinic** button or phone number in the appointment details (Luke). Use `ContactInfo` in `lib/core/constants/contact_info.dart`.
+- [ ] **Search or filter doctors by specialty** in the booking flow (Luke).
+- [ ] Use the shared **`AppointmentStatusChip`** (Confirmed / Pending / Cancelled) wherever appointments are listed, on both the patient and doctor side (Ian). Do not make a new one.
+- [ ] Doctor side: a short **consultation notes** section after each appointment. Save it and show it to the patient under Records > Consultations (Ava). Coordinate with Gian.
+- [ ] Keep the main buttons (for example Book Appointment) large and bright: use `H360Button` and do not shrink it (Ivy).
+
+**Carl Calotes: Prescriptions**
+- [ ] Show a short **confirmation message** when a reminder is set, so patients know it worked (Ian).
+- [ ] **"Mark as Taken" history** that patients and doctors can both see (Ian). The Home medication checklist already saves taken doses per day in `DashboardService.setDoseTaken` (key `taken_doses_<date>` in shared_preferences). Build the history on that instead of creating a second store, and show it on the doctor's patient prescription screens.
+- [ ] Doctor's **Add Prescription** form needs a **notes / instructions** field, e.g. "take after meals" (Ava). Show the notes in the patient's prescription details.
+- [ ] **Refill request** flow (submit, then track the status) is one of our core feature ideas.
+- [ ] Reminder text must be easy to read for older users: body text at least 14, nothing tiny (Ivy).
+
+**Gian Fernandez: Records and Patients**
+- [ ] **Lab results**: highlight **abnormal values** with colour **and** a label such as "High" or "Low" (not colour alone), and break the text into clear cards or rows instead of one packed block (Ian).
+- [ ] Lab result details must not use small text: at least 14 (Luke).
+- [ ] Doctor's **patient list**: add a **search bar and a filter** (for example by condition) (Ava).
+- [ ] Make it clear whether the doctor can **request** lab tests or only **view** results: add a "View only" label or a Request action (Ava).
+- [ ] Keep the **patient overview** with history, allergies, vitals, active prescriptions and lab results together in one place (Ava liked this).
+- [ ] **Records > Consultations** shows the doctor's consultation notes (coordinate with Jahna).
+- [ ] If you show vitals, reuse `VitalSign` and its readings (`lib/models/vital_sign.dart`) so the numbers match patient Home.
+
+**Aecielle Cervantes: Authentication**
+- [ ] **Fewer registration steps** or a clear **progress indicator** ("Step 2 of 5"); make the profile picture step **skippable** (Ivy and Thaddeus needed help at registration).
+- [ ] Large, bright primary buttons (Ivy).
+- [ ] Replace `RoleSelectScreen` (`lib/screens/role/`) with the real login. After login, route to `AppRoutes.patientShell` or `AppRoutes.doctorShell` by role. `confirmLogout` (`lib/screens/profile/logout_dialog.dart`) must also clear the session. Keep the demo switch until login works.
+- [ ] Build **Change Password** (it is a "coming soon" row under Personal Information) and **Forgot password** (the Common Problems guide already mentions it).
+- [ ] Collect only the personal data you need and show a short privacy note (Data Privacy Act of 2012, RA 10173).
+
+### 5.2 Rules for everyone (from the same feedback)
+
+- **Readability for older users:** body text at least 14, small labels at least 13, no small gray text. Use `AppColors.textMuted` and the theme. Test with **Profile > App Theme > Text size: Extra large**.
+- **Status labels:** use `AppointmentStatusChip`; never rely on colour alone (always an icon or text).
+- **Loading, empty and error states** on every async screen (already required).
+- **First-time guide:** if your module adds a major feature, add or update a page in `lib/screens/onboarding/how_to_use_screen.dart` and tell Ysai.
+- **Notifications:** new reminder types should add a toggle in `ProfileService.notificationOptions` and sample items in `loadNotificationHistory`, so they appear on the Notifications screen.
+- **Help:** if your feature has a common failure (for example joining a video call), add a step list to `lib/screens/profile/troubleshooting_screen.dart`.
+
+### 5.3 Deferred (do not build; list under Known Limitations or Future Enhancements)
+
+- Online payment such as GCash (Thaddeus).
+- Download or share lab results as a PDF (Thaddeus).
+- Calendar view on the home page (Thaddeus).
 
 ## 6. How to add a screen (step by step)
 

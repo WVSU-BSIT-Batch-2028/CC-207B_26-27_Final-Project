@@ -22,7 +22,7 @@ class StatusChip extends StatelessWidget {
           if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 4)],
           Text(
             label,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700),
+            style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
           ),
         ],
       ),

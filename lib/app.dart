@@ -25,10 +25,19 @@ class Health360App extends StatelessWidget {
           initialRoute: AppRoutes.initialRoute,
           onGenerateRoute: AppRoutes.onGenerateRoute,
           // Status-bar icons: dark on light mode, light on dark mode.
-          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-            value: controller.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-            child: child ?? const SizedBox.shrink(),
-          ),
+          builder: (context, child) {
+            // Apply the user's text size on top of the device's own setting.
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: TextScaler.linear(media.textScaler.scale(1) * controller.textSize.factor),
+              ),
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: controller.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
         );
       },
     );

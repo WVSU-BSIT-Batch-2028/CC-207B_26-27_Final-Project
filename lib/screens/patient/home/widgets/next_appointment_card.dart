@@ -90,7 +90,7 @@ class NextAppointmentCard extends StatelessWidget {
                               ),
                               Text(
                                 a.specialty,
-                                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12.5),
+                                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 13.5),
                               ),
                             ],
                           ),
@@ -200,7 +200,7 @@ class _Pill extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[Icon(icon, size: 14, color: foreground), const SizedBox(width: 6)],
-            Text(label, style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w800)),
+            Text(label, style: TextStyle(color: foreground, fontSize: 13, fontWeight: FontWeight.w800)),
           ],
         ),
       );
@@ -216,7 +216,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white.withOpacity(0.8)),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13.5))),
+          Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 14))),
         ],
       );
 }
