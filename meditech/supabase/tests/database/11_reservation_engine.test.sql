@@ -244,12 +244,13 @@ select ok(
   'staff were notified about the new reservation');
 
 -- Idempotency: the same key can't create a second reservation
-select set_auth_user('a1000000-0000-0000-0000-000000000001');
--- Refill the cart for the retry
+-- Refill the cart for the retry (as superuser before switching auth)
 insert into public.carts (customer_id, branch_id)
 values ('a1000000-0000-0000-0000-000000000001', 'a2000000-0000-0000-0000-000000000001');
 insert into public.cart_items (customer_id, medicine_id, quantity)
 values ('a1000000-0000-0000-0000-000000000001', 'a5000000-0000-0000-0000-000000000001', 5);
+
+select set_auth_user('a1000000-0000-0000-0000-000000000001');
 select throws_ok(
   $$ select * from public.submit_reservation('22222222-0000-0000-0000-000000000001', true) $$,
   '23505', null,
