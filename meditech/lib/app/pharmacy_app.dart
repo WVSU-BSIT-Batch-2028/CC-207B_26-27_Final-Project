@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import '../screens/shared/connection_check_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// The pharmacy app
-class PharmacyApp extends StatelessWidget {
+import '../routes/pharmacy_routes.dart';
+import '../widgets/theme/app_theme.dart';
+
+class PharmacyApp extends ConsumerWidget {
   const PharmacyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
       title: 'MediTech Pharmacy',
-      home: ConnectionCheckScreen(appName: 'MediTech Pharmacy'),
+      theme: AppTheme.light,
+      routerConfig: ref.watch(pharmacyRouterProvider),
     );
   }
 }
