@@ -570,7 +570,7 @@ begin
   end if;
 
   -- Compare the code
-  if upper(trim(p_code)) = v_pickup.code_suffix then
+  if p_code is not null and upper(trim(p_code)) = v_pickup.code_suffix then
     -- Correct: reset failed attempts (but don't mark as used; that's complete_reservation)
     update public.pickup_codes
     set failed_attempts = 0, locked_until = null
@@ -670,7 +670,7 @@ begin
   end if;
 
   -- Compare the code
-  if upper(trim(p_code)) <> v_pickup.code_suffix then
+  if p_code is null or upper(trim(p_code)) <> v_pickup.code_suffix then
     -- Wrong: count failed attempt, then raise
     update public.pickup_codes
     set failed_attempts = failed_attempts + 1,

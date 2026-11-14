@@ -126,6 +126,15 @@ begin
 end
 $$;
 
+-- helper to read the pickup code (as superuser, since RLS blocks pharmacy staff from reading it)
+create or replace function get_test_pickup_code(p_idempotency_key uuid)
+returns text language sql security definer set search_path = '' as $$
+  select pc.code_suffix
+  from public.pickup_codes pc
+  join public.reservations r on r.id = pc.reservation_id
+  where r.idempotency_key = p_idempotency_key;
+$$;
+
 -- =====================================================================
 -- 1. SUBMIT RESERVATION TESTS
 -- =====================================================================
@@ -401,9 +410,7 @@ select set_auth_user('a3000000-0000-0000-0000-000000000003');
     public.check_pickup_code(
       (select id from public.reservations
        where idempotency_key = '22222222-0000-0000-0000-000000000001'),
-      (select code_suffix from public.pickup_codes
-       where reservation_id = (select id from public.reservations
-                                where idempotency_key = '22222222-0000-0000-0000-000000000001'))),
+      get_test_pickup_code('22222222-0000-0000-0000-000000000001')),
     'correct pickup code returns true');
 select reset_auth();
 
@@ -429,9 +436,7 @@ select lives_ok(
     'select public.complete_reservation(%L, %L)',
     (select id from public.reservations
      where idempotency_key = '22222222-0000-0000-0000-000000000001'),
-    (select code_suffix from public.pickup_codes
-     where reservation_id = (select id from public.reservations
-                              where idempotency_key = '22222222-0000-0000-0000-000000000001'))
+    get_test_pickup_code('22222222-0000-0000-0000-000000000001')
   ),
   'reservation completes with the correct pickup code');
 select reset_auth();
