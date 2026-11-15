@@ -64,6 +64,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final signedIn = ref.watch(sessionProvider) != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Sign in')),
       body: Column(
@@ -96,6 +97,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       : const Text('Sign in'),
                 ),
+                if (signedIn) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton(
+                    onPressed: () => context.push('/profile'),
+                    child: const Text('Profile'),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 TextButton(
                   onPressed: () => context.push('/forgot-password'),
