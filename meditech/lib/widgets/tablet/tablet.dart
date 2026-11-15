@@ -1,0 +1,10 @@
+export 'admin_frame.dart';
+export 'pharmacy_frame.dart';
+export 'tablet_data_table.dart';
+export 'tablet_details_drawer.dart';
+export 'tablet_dialogs.dart';
+export 'tablet_filter_panel.dart';
+export 'tablet_frame.dart';
+export 'tablet_header.dart';
+export 'tablet_navigation_item.dart';
+export 'tablet_sidebar.dart';
