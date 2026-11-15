@@ -11,6 +11,7 @@ import '../providers/session_providers.dart';
 import '../screens/customer/profile/privacy_notice_screen.dart';
 import '../screens/customer/profile/profile_screen.dart';
 import '../screens/shared/notification_list_screen.dart';
+import '../screens/customer/assistant/assistant_screen.dart';
 
 // Pages a customer can open
 final customerRouterProvider = Provider<GoRouter>((ref) {
@@ -34,6 +35,7 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
       GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
+      GoRoute(path: '/assistant', builder: (context, state) => const AssistantScreen()),
       GoRoute(path: '/privacy', builder: (context, state) => const PrivacyNoticeScreen()),
       GoRoute(
         path: '/change-password',

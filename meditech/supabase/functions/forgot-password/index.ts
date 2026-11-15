@@ -1,5 +1,17 @@
 // Send a reset code, then save a new password after the code is checked
+/// <reference path="./supabase-js.d.ts" />
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+// This file runs on the Supabase Edge runtime. Declare the globals it uses so
+// the editor's TypeScript checker recognizes them.
+declare namespace Deno {
+  export const env: {
+    get(key: string): string | undefined;
+  };
+  export function serve(
+    handler: (req: Request) => Response | Promise<Response>,
+  ): void;
+}
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;

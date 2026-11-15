@@ -109,6 +109,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () => context.push('/profile'),
                     child: const Text('Profile'),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton(
+                    onPressed: () => context.push('/assistant'),
+                    child: const Text('Assistant'),
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 TextButton(
