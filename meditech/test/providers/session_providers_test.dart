@@ -8,7 +8,7 @@ import 'package:mocktail/mocktail.dart';
 class MockAuthService extends Mock implements AuthService {}
 
 void main() {
-  // A locked account stays signed out and keeps the 15-minute message
+  
   test('a lockout does not sign anyone in', () async {
     final fake = MockAuthService();
     when(
