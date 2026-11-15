@@ -1,5 +1,5 @@
 // Answer from MediTech facts only, using the free Gemini API
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { hasInventedFact, refuseReason, type AiFacts } from "./guard.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 });
 
 // Read medicines, offers, and this customer's reservations. Nothing is written.
-async function loadFacts(server: ReturnType<typeof createClient>, userId: string, message: string) {
+async function loadFacts(server: SupabaseClient, userId: string, message: string) {
   const words = message
     .toLowerCase()
     .split(/[^a-z0-9]+/)
