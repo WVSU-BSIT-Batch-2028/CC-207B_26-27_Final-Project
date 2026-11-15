@@ -28,6 +28,14 @@ abstract class AuthService {
     required String newPassword,
   });
 
+  Future<void> sendPasswordReset({required String identifier});
+
+  Future<void> resetPassword({
+    required String identifier,
+    required String code,
+    required String newPassword,
+  });
+
   Future<void> signOut();
 }
 
@@ -141,6 +149,41 @@ class SupabaseAuthService implements AuthService {
         .eq('id', id)
         .maybeSingle();
     return row?['must_change_password'] == true;
+  }
+
+  // Ask for a reset code. The same reply is used when no account exists.
+  @override
+  Future<void> sendPasswordReset({required String identifier}) async {
+    try {
+      await _client.functions.invoke(
+        'forgot-password',
+        body: {'action': 'send', 'identifier': identifier.trim()},
+      );
+    } on FunctionException catch (error) {
+      throw AppFailure.fromEdge(error);
+    }
+  }
+
+  // Check the emailed code, then save the new password
+  @override
+  Future<void> resetPassword({
+    required String identifier,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _client.functions.invoke(
+        'forgot-password',
+        body: {
+          'action': 'reset',
+          'identifier': identifier.trim(),
+          'code': code.trim(),
+          'password': newPassword,
+        },
+      );
+    } on FunctionException catch (error) {
+      throw AppFailure.fromEdge(error);
+    }
   }
 
   @override

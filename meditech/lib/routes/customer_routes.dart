@@ -5,6 +5,7 @@ import '../screens/customer/landing/landing_screen.dart';
 import '../screens/customer/login/login_screen.dart';
 import '../screens/customer/sign_up/sign_up_screen.dart';
 import '../screens/shared/change_password_screen.dart';
+import '../screens/customer/forgot_password/forgot_password_screen.dart';
 import 'password_redirect.dart';
 import '../providers/session_providers.dart';
 
@@ -24,6 +25,10 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
       GoRoute(path: '/sign-in', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
       GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
       GoRoute(
         path: '/change-password',
