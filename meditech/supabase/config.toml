@@ -447,6 +447,12 @@ verify_jwt = true
 import_map = "./functions/ai-assistant/deno.json"
 entrypoint = "./functions/ai-assistant/index.ts"
 
+[functions.audit-export]
+enabled = true
+verify_jwt = true
+import_map = "./functions/audit-export/deno.json"
+entrypoint = "./functions/audit-export/index.ts"
+
 [functions.submit-application]
 enabled = true
 verify_jwt = false
