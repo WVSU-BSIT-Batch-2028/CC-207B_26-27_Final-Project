@@ -6,6 +6,7 @@ import '../../../utils/app_failure.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../../shared/notification_bell.dart';
 
 // A pharmacy user signs in with a username
 class PharmacySignInScreen extends ConsumerStatefulWidget {
@@ -66,8 +67,14 @@ class _PharmacySignInScreenState extends ConsumerState<PharmacySignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final signedIn = ref.watch(sessionProvider) != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Pharmacy sign in')),
+      appBar: AppBar(
+        title: const Text('Pharmacy sign in'),
+        actions: [
+          if (signedIn) const NotificationBell(),
+        ],
+      ),
       body: Column(
         children: [
           if (_offline) const OfflineBanner(),

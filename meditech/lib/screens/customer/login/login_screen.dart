@@ -7,6 +7,7 @@ import '../../../utils/app_failure.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../../shared/notification_bell.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -66,7 +67,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final signedIn = ref.watch(sessionProvider) != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign in')),
+      appBar: AppBar(
+        title: const Text('Sign in'),
+        actions: [
+          if (signedIn) const NotificationBell(),
+        ],
+      ),
       body: Column(
         children: [
           if (_offline) const OfflineBanner(),

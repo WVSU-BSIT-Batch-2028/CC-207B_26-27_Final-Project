@@ -10,6 +10,7 @@ import 'password_redirect.dart';
 import '../providers/session_providers.dart';
 import '../screens/customer/profile/privacy_notice_screen.dart';
 import '../screens/customer/profile/profile_screen.dart';
+import '../screens/shared/notification_list_screen.dart';
 
 // Pages a customer can open
 final customerRouterProvider = Provider<GoRouter>((ref) {
@@ -37,6 +38,10 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/change-password',
         builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationListScreen(),
       ),
     ],
   );
