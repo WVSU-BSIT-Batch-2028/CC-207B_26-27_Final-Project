@@ -16,6 +16,8 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Inter',
+      fontFamilyFallback: const ['sans-serif'],
       colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary).copyWith(
         primary: AppColors.primary,
         onPrimary: Colors.white,
@@ -74,6 +76,28 @@ class AppTheme {
         focusedBorder: outline(AppColors.primary, 2),
         errorBorder: outline(AppColors.danger),
         focusedErrorBorder: outline(AppColors.danger, 2),
+      ),
+
+      // Filter chips and category tags
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.neutralLight,
+        selectedColor: AppColors.primaryLight,
+        labelStyle: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w500),
+        secondaryLabelStyle: const TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+        side: BorderSide.none,
+      ),
+
+      // Bottom sheets: rounded top corners and clean surface
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        ),
+        showDragHandle: true,
       ),
 
       // Cards: white with a thin border, no shadow
