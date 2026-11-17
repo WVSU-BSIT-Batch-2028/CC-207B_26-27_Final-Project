@@ -46,11 +46,6 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
         icon: Icons.receipt_long_outlined,
       ),
       const _CustomerTabPlaceholder(
-        title: 'Notifications',
-        description: 'Order status updates and reminders will appear here.',
-        icon: Icons.notifications_none,
-      ),
-      const _CustomerTabPlaceholder(
         title: 'Profile',
         description: 'Manage personal details, saved prescriptions, and security.',
         icon: Icons.person_outline,
@@ -82,7 +77,11 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
             icon: const Badge(
               child: Icon(Icons.notifications_none, color: AppColors.text),
             ),
-            onPressed: () => _onTabSelected(3),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notifications coming soon.')),
+              );
+            },
           ),
           IconButton(
             tooltip: 'Cart',
@@ -121,12 +120,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long, color: AppColors.primary),
-            label: 'Reservations',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_none),
-            selectedIcon: Icon(Icons.notifications, color: AppColors.primary),
-            label: 'Alerts',
+            label: 'My Reservations',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
