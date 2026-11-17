@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../screens/customer/login/login_screen.dart';
 import '../widgets/theme/app_theme.dart';
 
-class CustomerApp extends StatelessWidget {
+class CustomerApp extends ConsumerWidget {
   const CustomerApp({super.key});
 
   @override
@@ -12,7 +11,6 @@ class CustomerApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'MediTech',
       theme: AppTheme.light,
-      home: const LoginScreen(),
     );
   }
 }
