@@ -6,9 +6,10 @@ import '../../../providers/session_providers.dart';
 import '../../../utils/app_failure.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
-import '../../shared/notification_bell.dart';
 
+// Customer signs in, then goes to home
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -53,6 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: password,
             app: 'customer',
           );
+      if (mounted) context.go('/home');
     } on AppFailure catch (error) {
       setState(() {
         _offline = error.message == 'Could not reach Supabase.';
@@ -65,13 +67,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final signedIn = ref.watch(sessionProvider) != null;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign in'),
-        actions: [
-          if (signedIn) const NotificationBell(),
-        ],
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+          icon: const Icon(Icons.arrow_back),
+        ),
       ),
       body: Column(
         children: [
@@ -80,9 +82,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
+                Text(
+                  'Welcome back',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'Sign in to continue managing your medicines.',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 15),
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 AppTextField(
                   label: 'Email or mobile',
                   controller: _identifier,
+                  hint: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                 ),
@@ -92,7 +108,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _password,
                   errorText: _error,
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/forgot-password'),
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
                 FilledButton(
                   onPressed: _busy ? null : _signIn,
                   child: _busy
@@ -103,26 +126,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       : const Text('Sign in'),
                 ),
-                if (signedIn) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: () => context.push('/profile'),
-                    child: const Text('Profile'),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: () => context.push('/assistant'),
-                    child: const Text('Assistant'),
-                  ),
-                ],
                 const SizedBox(height: AppSpacing.md),
                 TextButton(
-                  onPressed: () => context.push('/forgot-password'),
-                  child: const Text('Forgot password'),
-                ),
-                TextButton(
                   onPressed: () => context.push('/sign-up'),
-                  child: const Text('Create an account'),
+                  child: const Text('New to MediTech? Create an account'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Your health information stays private and protected.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                 ),
               ],
             ),

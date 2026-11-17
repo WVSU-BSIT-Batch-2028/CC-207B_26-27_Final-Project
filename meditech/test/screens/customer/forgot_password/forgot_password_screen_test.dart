@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meditech/providers/session_providers.dart';
-import 'package:meditech/screens/customer/forgot_password/forgot_password_screen.dart';
+import 'package:meditech/screens/customer/forgot_password/reset_password_screen.dart';
 import 'package:meditech/services/auth_service.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -12,18 +12,16 @@ void main() {
   // Different new passwords stay on the screen and are not saved
   testWidgets('mismatched passwords are not saved', (tester) async {
     final fake = MockAuthService();
-    when(() => fake.sendPasswordReset(identifier: any(named: 'identifier'))).thenAnswer((_) async {});
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [authServiceProvider.overrideWithValue(fake)],
-        child: const MaterialApp(home: ForgotPasswordScreen()),
+        child: const MaterialApp(
+          home: ResetPasswordScreen(identifier: 'juan@demo.meditech.dev'),
+        ),
       ),
     );
 
-    await tester.enterText(find.byType(TextFormField).at(0), 'juan@demo.meditech.dev');
-    await tester.tap(find.widgetWithText(FilledButton, 'Send code'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).at(1), '123456');
     await tester.enterText(find.byType(TextFormField).at(2), 'Newpass1');
     await tester.enterText(find.byType(TextFormField).at(3), 'Otherpass1');

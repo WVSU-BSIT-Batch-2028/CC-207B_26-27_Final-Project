@@ -17,12 +17,13 @@ void main() {
     await tester.enterText(find.byType(TextFormField).at(2), 'Reyes');
     await tester.enterText(find.byType(TextFormField).at(3), '09178880009');
     await tester.enterText(find.byType(TextFormField).at(4), 'ana@test.com');
-    await tester.tap(find.text('Choose birthdate'));
+    await tester.tap(find.text('mm/dd/yyyy'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).at(5), 'Demo1234');
     await tester.enterText(find.byType(TextFormField).at(6), 'Demo1235');
+    await tester.tap(find.byType(Checkbox));
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle();
 

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'search/search_screen.dart';
 
+import '../../providers/notification_providers.dart';
 import '../../widgets/theme/app_colors.dart';
 import 'home/home_screen.dart';
+
 
 // Main navigation frame for the customer app with header badges and bottom tabs
 class CustomerFrame extends ConsumerStatefulWidget {
@@ -63,22 +66,16 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
           IconButton(
             tooltip: 'AI Assistant',
             icon: const Icon(Icons.auto_awesome, color: AppColors.primary),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('MediTech AI Assistant coming soon.')),
-              );
-            },
+            onPressed: () => context.push('/assistant'),
           ),
           IconButton(
             tooltip: 'Notifications',
-            icon: const Badge(
-              child: Icon(Icons.notifications_none, color: AppColors.text),
+            icon: Badge(
+              isLabelVisible: ref.watch(unreadNotificationCountProvider) > 0,
+              label: Text('${ref.watch(unreadNotificationCountProvider)}'),
+              child: const Icon(Icons.notifications_none, color: AppColors.text),
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications coming soon.')),
-              );
-            },
+            onPressed: () => context.push('/notifications'),
           ),
           IconButton(
             tooltip: 'Cart',
