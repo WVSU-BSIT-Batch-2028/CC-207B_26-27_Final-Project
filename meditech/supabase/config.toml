@@ -453,6 +453,12 @@ verify_jwt = true
 import_map = "./functions/audit-export/deno.json"
 entrypoint = "./functions/audit-export/index.ts"
 
+[functions.staff-accounts]
+enabled = true
+verify_jwt = true
+import_map = "./functions/staff-accounts/deno.json"
+entrypoint = "./functions/staff-accounts/index.ts"
+
 [functions.submit-application]
 enabled = true
 verify_jwt = false
