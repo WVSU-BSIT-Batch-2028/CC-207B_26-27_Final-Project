@@ -2,6 +2,7 @@
 class Employee {
   final String accountId;
   final String displayId;
+  final String? username;
   final String role;
   final String firstName;
   final String? middleName;
@@ -14,6 +15,7 @@ class Employee {
   const Employee({
     required this.accountId,
     required this.displayId,
+    this.username,
     required this.role,
     required this.firstName,
     this.middleName,
@@ -33,6 +35,12 @@ class Employee {
   bool get isOwner => role == 'owner';
   bool get isPharmacist => role == 'pharmacist';
 
+  String get roleLabel => switch (role) {
+        'owner' => 'Owner',
+        'pharmacist' => 'Pharmacist',
+        _ => 'Staff',
+      };
+
   // Only a verified license that has not run out lets someone confirm or release
   bool hasValidLicense(DateTime today) {
     final expiry = prcLicenseExpiry;
@@ -46,6 +54,7 @@ class Employee {
     return Employee(
       accountId: json['account_id'] as String,
       displayId: json['display_id'] as String,
+      username: json['username'] as String?,
       role: json['role'] as String,
       firstName: json['first_name'] as String,
       middleName: json['middle_name'] as String?,

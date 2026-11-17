@@ -186,7 +186,8 @@ Deno.serve(async (req) => {
     if (d.middle_name && !nameRule.test(d.middle_name)) {
       errors.middle_name = "Middle name: 2 to 50 letters.";
     }
-    if (!emailRule.test(d.email ?? "")) errors.email = "Enter a valid email.";
+    const rawEmail = (d.email ?? "").trim();
+    if (rawEmail && !emailRule.test(rawEmail)) errors.email = "Enter a valid email.";
     if (!usernameRule.test(d.username ?? "")) {
       errors.username = "Username: 4 to 20 letters, numbers, or underscores.";
     }
@@ -207,14 +208,19 @@ Deno.serve(async (req) => {
       return reply(400, { error: "Check the highlighted fields.", fields: errors });
     }
 
+    // Staff accounts sign in by username; use an internal address if no email is given
+    const authEmail = rawEmail || `${d.username!.toLowerCase()}@staff.meditech.internal`;
     const password = temporaryPassword();
     const { data: created, error: userError } = await db.auth.admin.createUser({
-      email: d.email,
+      email: authEmail,
       password,
       email_confirm: true,
     });
     if (userError) {
-      return reply(409, { error: "This email is already registered.", fields: { email: "Already registered." } });
+      return reply(409, {
+        error: rawEmail ? "This email is already registered." : "This username is taken.",
+        fields: rawEmail ? { email: "Already registered." } : { username: "Already taken." },
+      });
     }
     const newId: string = created.user.id;
 
