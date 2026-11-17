@@ -7,6 +7,7 @@ import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../../shared/notification_bell.dart';
+import 'package:go_router/go_router.dart';
 
 // A pharmacy user signs in with a username
 class PharmacySignInScreen extends ConsumerStatefulWidget {
@@ -104,6 +105,22 @@ class _PharmacySignInScreenState extends ConsumerState<PharmacySignInScreen> {
                         )
                       : const Text('Sign in'),
                 ),
+                if (signedIn) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  if (ref.watch(sessionProvider)?.role == 'owner')
+                    FilledButton(
+                      onPressed: () => context.push('/activity-log'),
+                      child: const Text('Activity log'),
+                    ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextButton(
+                    onPressed: () async {
+                      await ref.read(sessionProvider.notifier).signOut();
+                      if (context.mounted) context.go('/');
+                    },
+                    child: const Text('Switch user'),
+                  ),
+                ],
               ],
             ),
           ),

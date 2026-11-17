@@ -6,6 +6,7 @@ import '../screens/pharmacy/sign_in/pharmacy_sign_in_screen.dart';
 import '../screens/shared/change_password_screen.dart';
 import 'password_redirect.dart';
 import '../screens/shared/notification_list_screen.dart';
+import '../screens/pharmacy/activity_log/activity_log_screen.dart';
 
 // Pages a pharmacy user can open
 final pharmacyRouterProvider = Provider<GoRouter>((ref) {
@@ -32,6 +33,10 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationListScreen(),
+      ),
+      GoRoute(
+        path: '/activity-log',
+        builder: (context, state) => const ActivityLogScreen(),
       ),
     ],
   );
