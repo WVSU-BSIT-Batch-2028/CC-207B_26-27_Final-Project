@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../routes/pharmacy_routes.dart';
+import '../screens/shared/idle_sign_out.dart';
 import '../widgets/theme/app_theme.dart';
 
 class PharmacyApp extends ConsumerWidget {
@@ -9,10 +10,12 @@ class PharmacyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp.router(
-      title: 'MediTech Pharmacy',
-      theme: AppTheme.light,
-      routerConfig: ref.watch(pharmacyRouterProvider),
+    return IdleSignOut(
+      child: MaterialApp.router(
+        title: 'MediTech Pharmacy',
+        theme: AppTheme.light,
+        routerConfig: ref.watch(pharmacyRouterProvider),
+      ),
     );
   }
 }
