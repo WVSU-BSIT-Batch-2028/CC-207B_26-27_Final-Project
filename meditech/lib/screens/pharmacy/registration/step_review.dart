@@ -27,20 +27,44 @@ class _StepReviewState extends State<StepReview> {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           children: [
-            Row(children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              const Spacer(),
-              TextButton(onPressed: () => widget.onEdit(step), child: const Text('Edit')),
-            ]),
+            Row(
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => widget.onEdit(step),
+                  child: const Text('Edit'),
+                ),
+              ],
+            ),
             for (final (label, value) in rows)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SizedBox(width: 140,
-                      child: Text(label, style: const TextStyle(color: AppColors.textMuted))),
-                  Expanded(child: Text(value, textAlign: TextAlign.right,
-                      style: const TextStyle(fontWeight: FontWeight.w600))),
-                ]),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      child: Text(
+                        label,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        value,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -50,8 +74,15 @@ class _StepReviewState extends State<StepReview> {
 
   @override
   Widget build(BuildContext context) {
-    final days = (d.openDays.toList()..sort()).map((i) => _days[i]).join(', ');
-    final hours = '$days · ${d.opensAt.format(context)} – ${d.closesAt.format(context)}';
+    const order = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+    final hours = order
+        .map((i) {
+          final day = d.days[i];
+          return day.isOpen
+              ? '${_days[i]} ${day.opensAt.format(context)} – ${day.closesAt.format(context)}'
+              : '${_days[i]} closed';
+        })
+        .join('\n');
     final expiry = d.ltoExpiry == null
         ? '-'
         : MaterialLocalizations.of(context).formatMediumDate(d.ltoExpiry!);
@@ -60,10 +91,15 @@ class _StepReviewState extends State<StepReview> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Review and submit', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        const Text(
+          'Review and submit',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        const Text('Check everything before you submit. You can still edit any part.',
-            style: TextStyle(color: AppColors.textMuted)),
+        const Text(
+          'Check everything before you submit. You can still edit any part.',
+          style: TextStyle(color: AppColors.textMuted),
+        ),
         const SizedBox(height: AppSpacing.lg),
 
         _section('Pharmacy', 0, [
@@ -77,11 +113,21 @@ class _StepReviewState extends State<StepReview> {
         _section('License', 1, [
           ('FDA LTO number', d.ltoNumber.text),
           ('Expires', expiry),
-          ('Documents', '${d.ltoFile?.name ?? '-'}, ${d.storefrontFile?.name ?? '-'}'),
+          (
+            'Documents',
+            '${d.ltoFile?.name ?? '-'}, ${d.storefrontFile?.name ?? '-'}',
+          ),
         ]),
         const SizedBox(height: AppSpacing.md),
         _section('Owner account', 2, [
-          ('Name', [d.firstName.text, middle, d.lastName.text].where((s) => s.isNotEmpty).join(' ')),
+          (
+            'Name',
+            [
+              d.firstName.text,
+              middle,
+              d.lastName.text,
+            ].where((s) => s.isNotEmpty).join(' '),
+          ),
           ('Mobile', d.mobile.text),
           ('Email', d.email.text),
           ('Username', d.username.text),
@@ -109,7 +155,10 @@ class _StepReviewState extends State<StepReview> {
                 ),
               ),
               if (field.errorText != null)
-                Text(field.errorText!, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                Text(
+                  field.errorText!,
+                  style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                ),
             ],
           ),
         ),

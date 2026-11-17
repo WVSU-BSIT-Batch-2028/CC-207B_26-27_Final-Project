@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../utils/validators.dart';
 import '../../../widgets/common/app_text_field.dart';
@@ -38,8 +39,12 @@ class StepOwner extends StatelessWidget {
         AppTextField(label: 'Last name', controller: d.lastName,
             errorText: e['last_name'], validator: Validators.name),
         gap,
-        AppTextField(label: 'Mobile number', hint: '09XX XXX XXXX', controller: d.mobile,
-            errorText: e['mobile'], keyboardType: TextInputType.phone, validator: Validators.mobile),
+                AppTextField(label: 'Contact number', hint: '0333201234 or 09171234567',
+            controller: d.contactNumber, errorText: e['contact_number'],
+            keyboardType: TextInputType.phone,
+            maxLength: 11,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            validator: Validators.contactNumber),
         gap,
         AppTextField(label: 'Email', controller: d.email, errorText: e['email'],
             keyboardType: TextInputType.emailAddress, validator: Validators.email),
