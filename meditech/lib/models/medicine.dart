@@ -54,6 +54,9 @@ class MedicineSearchResult {
   final int pharmacyCount;
   final double? nearestKm;
 
+  String get formattedLowestPrice =>
+      'From ₱${lowestPrice.toStringAsFixed(2)} / $unitSold';
+
   factory MedicineSearchResult.fromJson(Map<String, dynamic> json) {
     return MedicineSearchResult(
       medicineId: json['medicine_id'] as String,
