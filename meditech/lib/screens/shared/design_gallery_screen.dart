@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/async_view.dart';
-import '../../widgets/common/status_badge.dart';
 import '../../widgets/dialogs/confirm_dialog.dart';
 import '../../widgets/dialogs/reason_dialog.dart';
 import '../../widgets/theme/app_spacing.dart';
 import '../../widgets/theme/app_theme.dart';
-
+import '../../widgets/theme/status_badge.dart';
 // Shows every shared component, for checking the design kit
 class DesignGalleryScreen extends StatelessWidget {
   const DesignGalleryScreen({super.key});
