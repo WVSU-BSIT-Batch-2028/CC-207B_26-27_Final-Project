@@ -1,0 +1,63 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:meditech/models/app_notification.dart';
+import 'package:meditech/providers/notification_providers.dart';
+import 'package:meditech/screens/shared/notification_bell.dart';
+import 'package:meditech/screens/shared/notification_list_screen.dart';
+
+void main() {
+  // Mark as read hides the button for that notification
+  testWidgets('mark as read updates the row', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationListProvider.overrideWith(_FixedList.new)],
+        child: const MaterialApp(home: NotificationListScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reservation ready'), findsOneWidget);
+    await tester.tap(find.text('Mark as read'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mark as read'), findsNothing);
+  });
+
+  // The bell shows how many are unread
+  testWidgets('bell shows the unread count', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notificationListProvider.overrideWith(_FixedList.new)],
+        child: const MaterialApp(home: Scaffold(body: NotificationBell())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1'), findsOneWidget);
+  });
+}
+
+class _FixedList extends NotificationListNotifier {
+  @override
+  Future<List<AppNotification>> build() async {
+    return [
+      AppNotification(
+        id: 'one',
+        title: 'Reservation ready',
+        body: 'Pick it up today.',
+        readAt: null,
+        createdAt: DateTime.utc(2026, 11, 15),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> markRead(String id) async {
+    final current = state.value ?? [];
+    state = AsyncData([
+      for (final item in current)
+        if (item.id == id) item.copyWith(readAt: DateTime.utc(2026, 11, 15, 1)) else item,
+    ]);
+  }
+}
