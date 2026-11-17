@@ -1,4 +1,4 @@
-package com.example.meditech
+package ph.meditech
 
 import io.flutter.embedding.android.FlutterActivity
 

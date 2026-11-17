@@ -435,6 +435,24 @@ verify_jwt = false
 import_map = "./functions/sign-in/deno.json"
 entrypoint = "./functions/sign-in/index.ts"
 
+[functions.forgot-password]
+enabled = true
+verify_jwt = false
+import_map = "./functions/forgot-password/deno.json"
+entrypoint = "./functions/forgot-password/index.ts"
+
+[functions.ai-assistant]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ai-assistant/deno.json"
+entrypoint = "./functions/ai-assistant/index.ts"
+
+[functions.audit-export]
+enabled = true
+verify_jwt = true
+import_map = "./functions/audit-export/deno.json"
+entrypoint = "./functions/audit-export/index.ts"
+
 [functions.submit-application]
 enabled = true
 verify_jwt = false

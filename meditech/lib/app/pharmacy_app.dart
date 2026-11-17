@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../screens/pharmacy/registration/registration_screen.dart';
+import '../routes/pharmacy_routes.dart';
+import '../screens/shared/idle_sign_out.dart';
 import '../widgets/theme/app_theme.dart';
 
-// The pharmacy tablet app
-class PharmacyApp extends StatelessWidget {
+class PharmacyApp extends ConsumerWidget {
   const PharmacyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MediTech Pharmacy',
-      theme: AppTheme.light,
-      // Temporary: opens registration directly until sign-in and routing are ready
-      home: const RegistrationScreen(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IdleSignOut(
+      child: MaterialApp.router(
+        title: 'MediTech Pharmacy',
+        theme: AppTheme.light,
+        routerConfig: ref.watch(pharmacyRouterProvider),
+      ),
     );
   }
 }
