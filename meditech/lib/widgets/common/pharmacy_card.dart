@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import 'status_badge.dart';
+import '../theme/status_badge.dart';
 
 // Card showing pharmacy branch details
 class PharmacyCard extends StatelessWidget {
