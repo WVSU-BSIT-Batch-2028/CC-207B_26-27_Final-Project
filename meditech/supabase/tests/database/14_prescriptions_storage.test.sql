@@ -32,15 +32,15 @@ values
 insert into auth.users (id, email) values
   ('cccccccc-1111-0000-0000-000000000001', 'cust.a@test.com'),
   ('cccccccc-2222-0000-0000-000000000002', 'cust.b@test.com'),
-  ('ssssssss-1111-0000-0000-000000000001', 'staff.b1@test.com'),
-  ('ssssssss-2222-0000-0000-000000000002', 'staff.b2@test.com'),
+  ('55555555-1111-0000-0000-000000000001', 'staff.b1@test.com'),
+  ('55555555-2222-0000-0000-000000000002', 'staff.b2@test.com'),
   ('aaaaaaaa-1111-0000-0000-000000000001', 'admin.test@test.com');
 
 insert into public.accounts (id, account_type) values
   ('cccccccc-1111-0000-0000-000000000001', 'customer'),
   ('cccccccc-2222-0000-0000-000000000002', 'customer'),
-  ('ssssssss-1111-0000-0000-000000000001', 'staff'),
-  ('ssssssss-2222-0000-0000-000000000002', 'staff'),
+  ('55555555-1111-0000-0000-000000000001', 'staff'),
+  ('55555555-2222-0000-0000-000000000002', 'staff'),
   ('aaaaaaaa-1111-0000-0000-000000000001', 'admin');
 
 insert into public.customer_profiles
@@ -55,9 +55,9 @@ insert into public.staff_members
   (account_id, branch_id, role, first_name, last_name,
    prc_license_no, prc_license_expiry, license_status)
 values
-  ('ssssssss-1111-0000-0000-000000000001', 'bbbbbbbb-1111-0000-0000-000000000001',
+  ('55555555-1111-0000-0000-000000000001', 'bbbbbbbb-1111-0000-0000-000000000001',
    'pharmacist', 'Jose', 'Reyes', '0123456', '2030-12-31', 'verified'),
-  ('ssssssss-2222-0000-0000-000000000002', 'bbbbbbbb-2222-0000-0000-000000000002',
+  ('55555555-2222-0000-0000-000000000002', 'bbbbbbbb-2222-0000-0000-000000000002',
    'pharmacist', 'Maria', 'Santos', '0654321', '2030-12-31', 'verified');
 
 insert into public.admins (account_id, display_name)
@@ -67,7 +67,7 @@ values ('aaaaaaaa-1111-0000-0000-000000000001', 'Test Admin');
 insert into public.reservations
   (id, reference_no, customer_id, branch_id, total_amount, expires_at, idempotency_key)
 values
-  ('rrrrrrrr-1111-0000-0000-000000000001', 'RM-111726-0001',
+  ('d1000000-1111-0000-0000-000000000001', 'RM-111726-0001',
    'cccccccc-1111-0000-0000-000000000001', 'bbbbbbbb-1111-0000-0000-000000000001',
    50.00, now() + interval '7 days', 'eeeeeeee-1111-0000-0000-000000000001');
 
@@ -75,7 +75,7 @@ values
 insert into public.reservation_prescriptions
   (id, reservation_id, storage_path, mime_type, size_bytes)
 values
-  ('pppppppp-1111-0000-0000-000000000001', 'rrrrrrrr-1111-0000-0000-000000000001',
+  ('d2000000-1111-0000-0000-000000000001', 'd1000000-1111-0000-0000-000000000001',
    'cccccccc-1111-0000-0000-000000000001/rx_sample.jpg', 'image/jpeg', 2048);
 
 -- Add a mock storage object for testing RLS
@@ -112,15 +112,15 @@ $$;
 -- Admin cannot view prescriptions
 select set_auth_user('aaaaaaaa-1111-0000-0000-000000000001');
 select throws_ok(
-  $$ select public.get_prescription_url('pppppppp-1111-0000-0000-000000000001') $$,
+  $$ select public.get_prescription_url('d2000000-1111-0000-0000-000000000001') $$,
   null, 'Admins cannot view prescriptions',
   'admin is refused when requesting a prescription');
 select reset_auth();
 
 -- Staff at Branch 2 cannot view Branch 1 prescriptions
-select set_auth_user('ssssssss-2222-0000-0000-000000000002');
+select set_auth_user('55555555-2222-0000-0000-000000000002');
 select throws_ok(
-  $$ select public.get_prescription_url('pppppppp-1111-0000-0000-000000000001') $$,
+  $$ select public.get_prescription_url('d2000000-1111-0000-0000-000000000001') $$,
   null, 'This prescription belongs to a different branch',
   'staff at another branch cannot view prescriptions');
 select reset_auth();
@@ -128,13 +128,13 @@ select reset_auth();
 -- Another customer cannot view Customer A's prescription
 select set_auth_user('cccccccc-2222-0000-0000-000000000002');
 select throws_ok(
-  $$ select public.get_prescription_url('pppppppp-1111-0000-0000-000000000001') $$,
+  $$ select public.get_prescription_url('d2000000-1111-0000-0000-000000000001') $$,
   null, 'You can only view your own prescriptions',
   'other customer cannot view another customer prescription');
 select reset_auth();
 
 -- Non-existent prescription ID throws
-select set_auth_user('ssssssss-1111-0000-0000-000000000001');
+select set_auth_user('55555555-1111-0000-0000-000000000001');
 select throws_ok(
   $$ select public.get_prescription_url('00000000-0000-0000-0000-000000000000') $$,
   null, 'Prescription not found',
@@ -142,10 +142,10 @@ select throws_ok(
 select reset_auth();
 
 -- Mismatched reservation ID throws
-select set_auth_user('ssssssss-1111-0000-0000-000000000001');
+select set_auth_user('55555555-1111-0000-0000-000000000001');
 select throws_ok(
   $$ select public.get_prescription_url(
-       'pppppppp-1111-0000-0000-000000000001',
+       'd2000000-1111-0000-0000-000000000001',
        '00000000-0000-0000-0000-000000000000') $$,
   null, 'Prescription does not belong to this reservation',
   'mismatched reservation ID is rejected');
@@ -158,15 +158,15 @@ select reset_auth();
 -- Customer A can view their own prescription
 select set_auth_user('cccccccc-1111-0000-0000-000000000001');
 select is(
-  public.get_prescription_url('pppppppp-1111-0000-0000-000000000001'),
+  public.get_prescription_url('d2000000-1111-0000-0000-000000000001'),
   'cccccccc-1111-0000-0000-000000000001/rx_sample.jpg',
   'customer can retrieve their own prescription path');
 select reset_auth();
 
 -- Staff at Branch 1 can view the prescription
-select set_auth_user('ssssssss-1111-0000-0000-000000000001');
+select set_auth_user('55555555-1111-0000-0000-000000000001');
 select is(
-  public.get_prescription_url('pppppppp-1111-0000-0000-000000000001'),
+  public.get_prescription_url('d2000000-1111-0000-0000-000000000001'),
   'cccccccc-1111-0000-0000-000000000001/rx_sample.jpg',
   'branch staff retrieves prescription path successfully');
 select reset_auth();
@@ -202,7 +202,7 @@ select is(
 select reset_auth();
 
 -- Branch 1 staff can see the object (attached to their branch reservation)
-select set_auth_user('ssssssss-1111-0000-0000-000000000001');
+select set_auth_user('55555555-1111-0000-0000-000000000001');
 select is(
   (select count(*) from storage.objects where bucket_id = 'prescriptions'),
   1::bigint,
@@ -210,7 +210,7 @@ select is(
 select reset_auth();
 
 -- Branch 2 staff cannot see the object
-select set_auth_user('ssssssss-2222-0000-0000-000000000002');
+select set_auth_user('55555555-2222-0000-0000-000000000002');
 select is(
   (select count(*) from storage.objects where bucket_id = 'prescriptions'),
   0::bigint,
