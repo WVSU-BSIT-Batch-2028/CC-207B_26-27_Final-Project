@@ -1,0 +1,593 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../models/employee.dart';
+import '../../../providers/employee_providers.dart';
+import '../../../providers/session_providers.dart';
+import '../../../utils/app_failure.dart';
+import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/status_badge.dart';
+import '../../../widgets/tablet/pharmacy_frame.dart';
+import '../../../widgets/tablet/tablet_data_table.dart';
+import '../../../widgets/tablet/tablet_details_drawer.dart';
+import '../../../widgets/tablet/tablet_dialogs.dart';
+import '../../../widgets/tablet/tablet_filter_panel.dart';
+import '../../../widgets/theme/app_colors.dart';
+import '../../../widgets/theme/app_spacing.dart';
+import 'employee_dialogs.dart';
+
+// Ph-33 & Ph-34: Branch owner views employees, adds staff, changes roles,
+// updates/verifies PRC licenses, resets passwords, and toggles account status.
+class EmployeesScreen extends ConsumerStatefulWidget {
+  final String branchName;
+  final String userName;
+
+  const EmployeesScreen({
+    super.key,
+    this.branchName = 'Pharmacy branch',
+    this.userName = 'Branch Owner',
+  });
+
+  @override
+  ConsumerState<EmployeesScreen> createState() => _EmployeesScreenState();
+}
+
+class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
+  String _search = '';
+  String? _roleFilter;
+  bool? _activeFilter;
+  bool _showFilters = false;
+  String? _selectedId;
+  bool _offline = false;
+  bool _busyAction = false;
+
+  void _handleRouteSelection(String id) {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    switch (id) {
+      case 'notifications':
+        router.push('/notifications');
+      case 'employees':
+        break;
+      default:
+        router.go('/');
+    }
+  }
+
+  Future<void> _runAction(Future<void> Function() work) async {
+    setState(() {
+      _busyAction = true;
+      _offline = false;
+    });
+    try {
+      await work();
+    } on AppFailure catch (error) {
+      if (!mounted) return;
+      if (error.message == 'Could not reach Supabase.') {
+        setState(() => _offline = true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busyAction = false);
+    }
+  }
+
+  Future<void> _addEmployee() async {
+    final created = await showAddEmployeeDialog(
+      context,
+      onSubmit: ({
+        required firstName,
+        middleName,
+        required lastName,
+        required username,
+        required role,
+        prcLicenseNo,
+        prcLicenseExpiry,
+      }) {
+        return ref.read(employeesProvider.notifier).createEmployee(
+              firstName: firstName,
+              middleName: middleName,
+              lastName: lastName,
+              username: username,
+              role: role,
+              prcLicenseNo: prcLicenseNo,
+              prcLicenseExpiry: prcLicenseExpiry,
+            );
+      },
+    );
+    if (created == null || !mounted) return;
+    setState(() => _selectedId = created.accountId);
+    await showTemporaryPasswordDialog(
+      context,
+      title: 'Employee added',
+      employeeName: created.displayId,
+      username: null,
+      temporaryPassword: created.temporaryPassword,
+    );
+  }
+
+  Future<void> _resetPassword(Employee employee) async {
+    final confirmed = await showTabletConfirmDialog(
+      context: context,
+      title: 'Reset password?',
+      targetName: '${employee.fullName} · ${employee.displayId}',
+      consequences: const [
+        'Generates a new one-time password for this employee.',
+        'They must change it on their next sign-in.',
+      ],
+      confirmLabel: 'Reset password',
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _runAction(() async {
+      final tempPassword = await ref
+          .read(employeesProvider.notifier)
+          .resetPassword(employeeId: employee.accountId);
+      if (!mounted) return;
+      await showTemporaryPasswordDialog(
+        context,
+        title: 'Password reset',
+        employeeName: employee.fullName,
+        username: employee.username,
+        temporaryPassword: tempPassword,
+      );
+    });
+  }
+
+  Future<void> _toggleActive(Employee employee) async {
+    final nextActive = !employee.isActive;
+    final confirmed = await showTabletConfirmDialog(
+      context: context,
+      title: nextActive ? 'Reactivate employee?' : 'Deactivate employee?',
+      targetName: '${employee.fullName} · ${employee.displayId}',
+      consequences: nextActive
+          ? const [
+              'Allows this employee to sign in again.',
+              'Keeps their previous role and history.',
+            ]
+          : const [
+              'Signs this employee out of all sessions.',
+              'Blocks them from signing in until reactivated.',
+            ],
+      confirmLabel: nextActive ? 'Reactivate' : 'Deactivate',
+      isDanger: !nextActive,
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _runAction(() async {
+      await ref.read(employeesProvider.notifier).setActive(
+            employeeId: employee.accountId,
+            isActive: nextActive,
+          );
+    });
+  }
+
+  Future<void> _changeRole(Employee employee) async {
+    final nextRole = employee.isPharmacist ? 'staff' : 'pharmacist';
+    String? prcNo;
+    DateTime? prcExpiry;
+
+    if (nextRole == 'pharmacist') {
+      final result = await showEmployeeLicenseDialog(
+        context,
+        employee: employee,
+        requireLicenseOnly: true,
+      );
+      if (result == null || !mounted) return;
+      prcNo = result.prcLicenseNo;
+      prcExpiry = result.prcLicenseExpiry;
+    }
+
+    final confirmed = await showTabletConfirmDialog(
+      context: context,
+      title: nextRole == 'pharmacist' ? 'Promote to Pharmacist?' : 'Change role to Staff?',
+      targetName: '${employee.fullName} · ${employee.displayId}',
+      consequences: nextRole == 'pharmacist'
+          ? [
+              'Changes role from Staff to Pharmacist (PRC $prcNo).',
+              'License starts as Pending until verified.',
+            ]
+          : const [
+              'Changes role from Pharmacist to Staff.',
+              'Removes permission to confirm or release Rx reservations.',
+            ],
+      confirmLabel: 'Change role',
+      isDanger: nextRole == 'staff',
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _runAction(() async {
+      await ref.read(employeesProvider.notifier).changeRole(
+            employeeId: employee.accountId,
+            newRole: nextRole,
+            prcLicenseNo: prcNo,
+            prcLicenseExpiry: prcExpiry,
+          );
+    });
+  }
+
+  Future<void> _updateLicense(Employee employee) async {
+    final result = await showEmployeeLicenseDialog(context, employee: employee);
+    if (result == null || !mounted) return;
+
+    // Owner's own license always requires an explicit confirmation step
+    final confirmed = await showTabletConfirmDialog(
+      context: context,
+      title: employee.isOwner ? 'Confirm your own PRC license?' : 'Save license changes?',
+      targetName: '${employee.fullName} · PRC ${result.prcLicenseNo}',
+      consequences: [
+        if (employee.isOwner)
+          'You confirm these PRC license details belong to you and are true.',
+        result.markVerified
+            ? 'Marks the license Verified until ${formatEmployeeDate(result.prcLicenseExpiry)}.'
+            : 'Saves the license as Pending verification.',
+      ],
+      confirmLabel: result.markVerified ? 'Save & verify' : 'Save license',
+    );
+    if (confirmed != true || !mounted) return;
+
+    await _runAction(() async {
+      await ref.read(employeesProvider.notifier).updateLicense(
+            employeeId: employee.accountId,
+            prcLicenseNo: result.prcLicenseNo,
+            prcLicenseExpiry: result.prcLicenseExpiry,
+            markVerified: result.markVerified,
+            ownerConfirmed: employee.isOwner,
+          );
+    });
+  }
+
+  StatusBadge _licenseBadge(Employee employee) {
+    return switch (employee.licenseStatus) {
+      'verified' => const StatusBadge('Verified', tone: BadgeTone.success),
+      'pending' => const StatusBadge('Pending', tone: BadgeTone.warning),
+      'expired' => const StatusBadge('Expired', tone: BadgeTone.danger),
+      _ => const StatusBadge('None', tone: BadgeTone.neutral),
+    };
+  }
+
+  List<Employee> _applyFilters(List<Employee> all) {
+    final q = _search.trim().toLowerCase();
+    return all.where((e) {
+      if (_roleFilter != null && e.role != _roleFilter) return false;
+      if (_activeFilter != null && e.isActive != _activeFilter) return false;
+      if (q.isNotEmpty) {
+        final haystack =
+            '${e.fullName} ${e.displayId} ${e.username ?? ''}'.toLowerCase();
+        if (!haystack.contains(q)) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncEmployees = ref.watch(employeesProvider);
+    final all = asyncEmployees.asData?.value ?? const <Employee>[];
+    final selected = _selectedId == null
+        ? null
+        : all.where((e) => e.accountId == _selectedId).firstOrNull;
+    final filterCount = (_roleFilter != null ? 1 : 0) + (_activeFilter != null ? 1 : 0);
+
+    return PharmacyFrame(
+      branchName: widget.branchName,
+      userName: widget.userName,
+      userRole: ref.watch(sessionProvider)?.role ?? 'owner',
+      selectedNavigationId: 'employees',
+      onNavigationSelected: _handleRouteSelection,
+      onNotificationsTap: () => _handleRouteSelection('notifications'),
+      onLogoutTap: () async {
+        await ref.read(sessionProvider.notifier).signOut();
+        if (context.mounted) GoRouter.maybeOf(context)?.go('/');
+      },
+      rightDrawer: selected == null
+          ? null
+          : _EmployeeDetailsDrawer(
+              employee: selected,
+              busy: _busyAction,
+              licenseBadge: _licenseBadge(selected),
+              onClose: () => setState(() => _selectedId = null),
+              onResetPassword: () => _resetPassword(selected),
+              onToggleActive: () => _toggleActive(selected),
+              onChangeRole: () => _changeRole(selected),
+              onUpdateLicense: () => _updateLicense(selected),
+            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_offline) const OfflineBanner(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Employees',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: _busyAction ? null : _addEmployee,
+                  icon: const Icon(Icons.person_add_alt_1, size: 18),
+                  label: const Text('Add employee'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AsyncView<List<Employee>>(
+              value: asyncEmployees,
+              isEmpty: (items) => items.isEmpty,
+              emptyMessage: 'No employees yet. Add your first team member.',
+              onRetry: () => ref.read(employeesProvider.notifier).reload(),
+              builder: (items) {
+                final filtered = _applyFilters(items);
+                return Stack(
+                  children: [
+                    TabletDataTable<Employee>(
+                      searchHint: 'Search...',
+                      searchQuery: _search,
+                      onSearchChanged: (v) => setState(() => _search = v),
+                      totalCount: items.length,
+                      filteredCount: filtered.length,
+                      countLabel: 'staff',
+                      activeFilterCount: filterCount,
+                      onFiltersTap: () => setState(() => _showFilters = !_showFilters),
+                      columns: const [
+                        TabletColumn(title: 'Employee', flex: 2),
+                        TabletColumn(
+                          title: 'Username',
+                          priority: TabletColumnPriority.medium,
+                        ),
+                        TabletColumn(title: 'Role'),
+                        TabletColumn(
+                          title: 'PRC License',
+                          priority: TabletColumnPriority.medium,
+                          flex: 2,
+                        ),
+                        TabletColumn(title: 'Status'),
+                      ],
+                      items: filtered,
+                      onItemTap: (emp) => setState(() => _selectedId = emp.accountId),
+                      rowBuilder: (context, emp, index) => [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              emp.fullName,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              emp.displayId,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(emp.username != null ? '@${emp.username}' : '—'),
+                        StatusBadge(
+                          emp.roleLabel,
+                          tone: emp.isOwner
+                              ? BadgeTone.info
+                              : emp.isPharmacist
+                                  ? BadgeTone.success
+                                  : BadgeTone.neutral,
+                        ),
+                        emp.prcLicenseNo == null
+                            ? const Text('—')
+                            : Wrap(
+                                spacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(emp.prcLicenseNo!),
+                                  _licenseBadge(emp),
+                                ],
+                              ),
+                        StatusBadge(
+                          emp.isActive ? 'Active' : 'Deactivated',
+                          tone: emp.isActive ? BadgeTone.success : BadgeTone.danger,
+                        ),
+                      ],
+                    ),
+                    if (_showFilters)
+                      Positioned(
+                        top: 52,
+                        left: 160,
+                        child: TabletFilterPanel(
+                          title: 'Filter employees',
+                          activeFilterCount: filterCount,
+                          onReset: () => setState(() {
+                            _roleFilter = null;
+                            _activeFilter = null;
+                            _showFilters = false;
+                          }),
+                          onApply: () => setState(() => _showFilters = false),
+                          content: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Role',
+                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  for (final role in ['owner', 'pharmacist', 'staff'])
+                                    ChoiceChip(
+                                      label: Text(role[0].toUpperCase() + role.substring(1)),
+                                      selected: _roleFilter == role,
+                                      onSelected: (on) => setState(
+                                        () => _roleFilter = on ? role : null,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              const Text('Account status',
+                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('Active'),
+                                    selected: _activeFilter == true,
+                                    onSelected: (on) => setState(
+                                      () => _activeFilter = on ? true : null,
+                                    ),
+                                  ),
+                                  ChoiceChip(
+                                    label: const Text('Deactivated'),
+                                    selected: _activeFilter == false,
+                                    onSelected: (on) => setState(
+                                      () => _activeFilter = on ? false : null,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmployeeDetailsDrawer extends StatelessWidget {
+  final Employee employee;
+  final bool busy;
+  final Widget licenseBadge;
+  final VoidCallback onClose;
+  final VoidCallback onResetPassword;
+  final VoidCallback onToggleActive;
+  final VoidCallback onChangeRole;
+  final VoidCallback onUpdateLicense;
+
+  const _EmployeeDetailsDrawer({
+    required this.employee,
+    required this.busy,
+    required this.licenseBadge,
+    required this.onClose,
+    required this.onResetPassword,
+    required this.onToggleActive,
+    required this.onChangeRole,
+    required this.onUpdateLicense,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TabletDetailsDrawer(
+      title: employee.fullName,
+      subtitle: '${employee.displayId} · ${employee.roleLabel}',
+      statusBadge: StatusBadge(
+        employee.isActive ? 'Active' : 'Deactivated',
+        tone: employee.isActive ? BadgeTone.success : BadgeTone.danger,
+      ),
+      onClose: onClose,
+      actions: employee.isOwner
+          ? [
+              FilledButton(
+                onPressed: busy ? null : onUpdateLicense,
+                child: const Text('Update my license'),
+              ),
+            ]
+          : [
+              OutlinedButton(
+                onPressed: busy ? null : onResetPassword,
+                child: const Text('Reset password'),
+              ),
+              FilledButton(
+                onPressed: busy ? null : onToggleActive,
+                style: employee.isActive
+                    ? FilledButton.styleFrom(backgroundColor: AppColors.danger)
+                    : null,
+                child: Text(employee.isActive ? 'Deactivate' : 'Reactivate'),
+              ),
+            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _DetailRow('Username', employee.username != null ? '@${employee.username}' : '—'),
+          _DetailRow('Role', employee.roleLabel),
+          _DetailRow('PRC license no.', employee.prcLicenseNo ?? 'None'),
+          _DetailRow(
+            'PRC expiry',
+            employee.prcLicenseExpiry != null
+                ? formatEmployeeDate(employee.prcLicenseExpiry!)
+                : '—',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const SizedBox(
+                width: 120,
+                child: Text('License status',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              ),
+              licenseBadge,
+            ],
+          ),
+          if (!employee.isOwner) ...[
+            const SizedBox(height: AppSpacing.xl),
+            const Divider(),
+            const SizedBox(height: AppSpacing.md),
+            OutlinedButton.icon(
+              onPressed: busy ? null : onChangeRole,
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: Text(
+                employee.isPharmacist ? 'Change role to Staff' : 'Promote to Pharmacist',
+              ),
+            ),
+            if (employee.isPharmacist) ...[
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: busy ? null : onUpdateLicense,
+                icon: const Icon(Icons.verified_user_outlined, size: 18),
+                label: const Text('Update / verify PRC license'),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}

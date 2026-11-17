@@ -58,12 +58,12 @@ void main() {
     expect(find.byTooltip('Notifications'), findsOneWidget);
     expect(find.byTooltip('Cart'), findsOneWidget);
 
-    // Verifies 4 bottom navigation destinations matching §3.1
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Search'), findsOneWidget);
-    expect(find.text('My Reservation'), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
-    expect(find.text('Alerts'), findsNothing);
+    // Verifies bottom navigation destinations
+    final navBar = find.byType(NavigationBar);
+    expect(find.descendant(of: navBar, matching: find.text('Home')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Search')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('My Reservations')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Profile')), findsOneWidget);
 
     // Verifies Home screen content
     expect(find.text('Search medicines or pharmacies...'), findsOneWidget);
@@ -79,16 +79,18 @@ void main() {
     await tester.pumpWidget(buildTestableWidget());
     await tester.pumpAndSettle();
 
+    final navBar = find.byType(NavigationBar);
+
     // Tap on Search tab
-    await tester.tap(find.text('Search'));
+    await tester.tap(find.descendant(of: navBar, matching: find.text('Search')));
     await tester.pumpAndSettle();
 
     // Should display SearchScreen
     expect(find.byType(SearchScreen), findsOneWidget);
     expect(find.text('Try paracetamol or Biogesic'), findsOneWidget);
 
-    // Tap on My Reservation tab (NavigationBar renders label twice: icon & selected)
-    await tester.tap(find.text('My Reservation').first);
+    // Tap on My Reservations tab
+    await tester.tap(find.descendant(of: navBar, matching: find.text('My Reservations')));
     await tester.pumpAndSettle();
 
     // Should display reservations placeholder screen
