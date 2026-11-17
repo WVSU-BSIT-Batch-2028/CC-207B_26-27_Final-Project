@@ -6,10 +6,12 @@ Map<String, dynamic> _row({
   String status = 'verified',
   Object? expiry = '2030-12-31',
   String? middle,
+  String? username,
 }) {
   return {
     'account_id': 'a1',
     'display_id': 'EMP-000001',
+    'username': username,
     'role': role,
     'first_name': 'Jose',
     'middle_name': middle,
@@ -23,8 +25,9 @@ Map<String, dynamic> _row({
 
 void main() {
   test('reads a staff row', () {
-    final e = Employee.fromJson(_row());
+    final e = Employee.fromJson(_row(username: 'jreyes'));
     expect(e.displayId, 'EMP-000001');
+    expect(e.username, 'jreyes');
     expect(e.isPharmacist, true);
     expect(e.isOwner, false);
     expect(e.prcLicenseExpiry, DateTime(2030, 12, 31));
