@@ -1,3 +1,4 @@
+
 // One medicine a pharmacy branch stocks, with its price and stock count
 class InventoryItem {
   final String id;
@@ -41,16 +42,22 @@ class InventoryItem {
   // Units a customer could still reserve
   int get availableQuantity => stockQuantity - heldQuantity;
 
-  // The label customers see, in the agreed order
+  // The label code customers see, in the agreed order
   String get availability {
-    if (outOfStock) return 'Unavailable';
-    if (availableQuantity <= 0) return 'Unavailable';
-    if (stockConfirmedAt
-        .isBefore(DateTime.now().subtract(const Duration(days: 7)))) {
-      return 'Unconfirmed';
+    if (outOfStock) return 'unavailable';
+    if (availableQuantity <= 0) return 'unavailable';
+
+    if (stockConfirmedAt.isBefore(
+      DateTime.now().subtract(const Duration(days: 7)),
+    )) {
+      return 'unconfirmed';
     }
-    if (availableQuantity <= lowStockThreshold) return 'Low Stock';
-    return 'Available';
+
+    if (availableQuantity <= lowStockThreshold) {
+      return 'low_stock';
+    }
+
+    return 'available';
   }
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
@@ -58,6 +65,7 @@ class InventoryItem {
     final form = medicine['dosage_forms'] as Map<String, dynamic>;
     final unit = medicine['units'] as Map<String, dynamic>;
     final expiry = json['nearest_expiry'] as String?;
+
     return InventoryItem(
       id: json['id'] as String,
       displayId: json['display_id'] as String,
@@ -75,7 +83,9 @@ class InventoryItem {
       nearestExpiry: expiry == null ? null : DateTime.parse(expiry),
       outOfStock: json['out_of_stock_flag'] as bool,
       isActive: json['is_active'] as bool,
-      stockConfirmedAt: DateTime.parse(json['stock_confirmed_at'] as String),
+      stockConfirmedAt: DateTime.parse(
+        json['stock_confirmed_at'] as String,
+      ),
     );
   }
 }
@@ -105,6 +115,7 @@ class CatalogueMedicine {
   factory CatalogueMedicine.fromJson(Map<String, dynamic> json) {
     final form = json['dosage_forms'] as Map<String, dynamic>;
     final unit = json['units'] as Map<String, dynamic>;
+
     return CatalogueMedicine(
       id: json['id'] as String,
       brandName: json['brand_name'] as String,
