@@ -9,6 +9,7 @@ import '../../../widgets/common/async_view.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import 'pharmacies_screen.dart';
+import 'verification_panel.dart';
 
 // Right-side panel showing one application (wireframes A-05, A-07)
 class ApplicationDrawer extends ConsumerWidget {
@@ -126,6 +127,7 @@ class _DrawerContent extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
+              // Warning if a similar pharmacy exists nearby
               if (d.possibleDuplicate)
                 Container(
                   margin: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -190,16 +192,8 @@ class _DrawerContent extends ConsumerWidget {
                 ),
               const SizedBox(height: AppSpacing.lg),
 
-              // FDA check and approval come in the next task
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.neutralLight,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: const Text('FDA verification and Approve / Reject come next.',
-                    style: TextStyle(color: AppColors.textMuted)),
-              ),
+              // FDA check, history, and the decision
+              VerificationPanel(details: d),
             ],
           ),
         ),

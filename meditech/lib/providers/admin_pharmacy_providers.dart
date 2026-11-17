@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/application_details.dart';
 import '../models/pharmacy_summary.dart';
 import '../services/admin_pharmacy_service.dart';
+import '../models/verification_check.dart';
 
 // Gives screens the admin pharmacy service
 final adminPharmacyServiceProvider = Provider<AdminPharmacyService>(
@@ -56,4 +57,14 @@ final selectedPharmacyProvider =
 final applicationDetailsProvider =
     FutureProvider.autoDispose.family<ApplicationDetails?, String>(
   (ref, id) => ref.read(adminPharmacyServiceProvider).details(id),
+);
+
+// A pharmacy's FDA check history
+final branchChecksProvider = FutureProvider.autoDispose.family<List<VerificationCheck>, String>(
+  (ref, id) => ref.read(adminPharmacyServiceProvider).checks(id),
+);
+
+// Whether the pharmacy can be approved right now
+final branchHasMatchProvider = FutureProvider.autoDispose.family<bool, String>(
+  (ref, id) => ref.read(adminPharmacyServiceProvider).hasCurrentMatch(id),
 );
