@@ -89,7 +89,10 @@ Deno.serve(async (req) => {
   const storefrontError = checkFile(storefrontFile, "Storefront photo");
   if (ltoError) errors.lto_file = ltoError;
   if (storefrontError) errors.storefront_file = storefrontError;
-  if (Object.keys(errors).length > 0) return reply(400, { error: "Fix the highlighted fields.", fields: errors });
+    if (Object.keys(errors).length > 0) {
+    console.error("Invalid fields:", errors);
+    return reply(400, { error: "Fix the highlighted fields.", fields: errors });
+  }
 
   const lto = ltoFile as File;
   const storefront = storefrontFile as File;
