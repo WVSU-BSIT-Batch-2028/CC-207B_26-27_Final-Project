@@ -20,6 +20,7 @@ secrets.json
 key.properties
 google-services.json
 GoogleService-Info.plist
+firebase_config.json
 
 # OS
 .DS_Store
