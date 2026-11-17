@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'search/search_screen.dart';
 
 import '../../widgets/theme/app_colors.dart';
 import 'home/home_screen.dart';
@@ -35,11 +36,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
         onSearchTap: () => _onTabSelected(1),
         onViewAllPharmaciesTap: () => _onTabSelected(1),
       ),
-      const _CustomerTabPlaceholder(
-        title: 'Search Medicines',
-        description: 'Find medicines, compare prices, and locate pharmacies nearby.',
-        icon: Icons.search,
-      ),
+      const SearchScreen(),
       const _CustomerTabPlaceholder(
         title: 'My Reservations',
         description: 'View active orders, pickup codes, and history.',
