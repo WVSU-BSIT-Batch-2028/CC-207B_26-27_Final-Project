@@ -34,6 +34,11 @@ class SessionNotifier extends Notifier<SignedInAccount?> {
     if (current == null) return;
     state = current.copyWith(mustChangePassword: false);
   }
+
+  // Keep the session after sign-up, without asking them to sign in again
+  void setSignedIn(SignedInAccount account) {
+    state = account;
+  }
 }
 
 final sessionProvider =

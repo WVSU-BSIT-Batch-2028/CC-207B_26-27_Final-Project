@@ -7,6 +7,7 @@ import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/common/pharmacy_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../../shared/sign_in_sheet.dart';
 
 // Home screen showing search, categories, guest prompt, and featured items
 class HomeScreen extends ConsumerStatefulWidget {
@@ -128,10 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     FilledButton(
-                      onPressed: () {
-                        // Triggers account sign-in flow
-                        Navigator.of(context).maybePop();
-                      },
+                      onPressed: () => showCustomerSignInSheet(context),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(120, 40),
                       ),

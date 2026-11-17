@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 
@@ -18,6 +19,8 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.obscureText = false,
     this.suffix,
+    this.maxLength,
+    this.inputFormatters,
   });
 
   final String label;
@@ -32,6 +35,8 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
   final Widget? suffix;
+  final int? maxLength; // most characters allowed
+  final List<TextInputFormatter>? inputFormatters; // e.g. digits only
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +55,14 @@ class AppTextField extends StatelessWidget {
           maxLines: maxLines,
           enabled: enabled,
           obscureText: obscureText,
-          decoration: InputDecoration(hintText: hint, errorText: errorText, suffixIcon: suffix),
+          maxLength: maxLength,
+          inputFormatters: inputFormatters,
+          decoration: InputDecoration(
+            hintText: hint,
+            errorText: errorText,
+            suffixIcon: suffix,
+            counterText: maxLength != null ? '' : null, // hide the "0/11" counter
+          ),
         ),
       ],
     );
