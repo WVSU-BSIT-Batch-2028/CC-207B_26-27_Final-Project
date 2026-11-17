@@ -1,2 +1,2 @@
 # WebsuPark
-An AI-Assisted Computer Vision Vehicle Tracking and Parking Verification System
+WebsuPark: An AI-Assisted Computer Vision-Based Vehicle Monitoring and Parking Verification System
