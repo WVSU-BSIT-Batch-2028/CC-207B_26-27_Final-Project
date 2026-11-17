@@ -17,6 +17,9 @@ class LocationSection extends StatefulWidget {
   final RegistrationDraft draft;
   final String? serverError;
 
+  // Tests turn this off, since the map needs the internet
+  static bool showMap = true;
+
   @override
   State<LocationSection> createState() => _LocationSectionState();
 }
@@ -156,56 +159,60 @@ class _LocationSectionState extends State<LocationSection> {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 child: Stack(
                   children: [
-                    FlutterMap(
-                      mapController: _map,
-                      options: MapOptions(
-                        initialCenter: pin ?? _iloilo,
-                        initialZoom: pin != null ? 17 : 14,
-                        // Tap anywhere to move the pin there
-                        onTap: (_, spot) => _setPin(spot, field, moveMap: false),
-                        // Page scrolling with the mouse wheel shouldn't zoom the map
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.all &
-                              ~InteractiveFlag.scrollWheelZoom &
-                              ~InteractiveFlag.rotate,
+                    if (LocationSection.showMap)
+                      FlutterMap(
+                        mapController: _map,
+                        options: MapOptions(
+                          initialCenter: pin ?? _iloilo,
+                          initialZoom: pin != null ? 17 : 14,
+                          // Tap anywhere to move the pin there
+                          onTap: (_, spot) => _setPin(spot, field, moveMap: false),
+                          // Page scrolling with the mouse wheel shouldn't zoom the map
+                          interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.all &
+                                ~InteractiveFlag.scrollWheelZoom &
+                                ~InteractiveFlag.rotate,
+                          ),
                         ),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'ph.meditech',
-                        ),
-                        // Soft green circle around the pin
-                        if (pin != null)
-                          CircleLayer(circles: [
-                            CircleMarker(
-                              point: pin,
-                              radius: 28,
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderColor: AppColors.primary.withValues(alpha: 0.3),
-                              borderStrokeWidth: 1,
-                            ),
-                          ]),
-                        // The pin, with its tip on the exact spot
-                        if (pin != null)
-                          MarkerLayer(markers: [
-                            Marker(
-                              point: pin,
-                              width: 220,
-                              height: 120,
-                              alignment: Alignment.topCenter,
-                              child: _PinWithBubble(
-                                spot: pin,
-                                showBubble: _showBubble,
-                                onCloseBubble: () => setState(() => _showBubble = false),
+                        children: [
+                          TileLayer(
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'ph.meditech',
+                          ),
+                          // Soft green circle around the pin
+                          if (pin != null)
+                            CircleLayer(circles: [
+                              CircleMarker(
+                                point: pin,
+                                radius: 28,
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderColor: AppColors.primary.withValues(alpha: 0.3),
+                                borderStrokeWidth: 1,
                               ),
-                            ),
-                          ]),
-                        const RichAttributionWidget(
-                          attributions: [TextSourceAttribution('OpenStreetMap contributors')],
-                        ),
-                      ],
-                    ),
+                            ]),
+                          // The pin, with its tip on the exact spot
+                          if (pin != null)
+                            MarkerLayer(markers: [
+                              Marker(
+                                point: pin,
+                                width: 220,
+                                height: 120,
+                                alignment: Alignment.topCenter,
+                                child: _PinWithBubble(
+                                  spot: pin,
+                                  showBubble: _showBubble,
+                                  onCloseBubble: () => setState(() => _showBubble = false),
+                                ),
+                              ),
+                            ]),
+                          const RichAttributionWidget(
+                            attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                          ),
+                        ],
+                      )
+                    else
+                      // Plain box shown in tests instead of the map
+                      Container(color: AppColors.neutralLight),
 
                     // Hint before a pin is set
                     if (pin == null)
@@ -243,8 +250,6 @@ class _LocationSectionState extends State<LocationSection> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-
             // Success message once the pin is set
             if (pin != null) ...[
               Container(
