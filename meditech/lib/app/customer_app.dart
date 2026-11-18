@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../screens/shared/connection_check_screen.dart';
+import '../routes/customer_routes.dart';
+import '../widgets/theme/app_theme.dart';
 
-// The customer phone app
-class CustomerApp extends StatelessWidget {
+class CustomerApp extends ConsumerWidget {
   const CustomerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
       title: 'MediTech',
-      home: ConnectionCheckScreen(appName: 'MediTech'),
+      theme: AppTheme.light,
+      routerConfig: ref.watch(customerRouterProvider),
     );
   }
 }

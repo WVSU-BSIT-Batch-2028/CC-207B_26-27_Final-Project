@@ -1,0 +1,79 @@
+import { assertEquals } from "jsr:@std/assert@1";
+import {
+  appHelpAnswer,
+  hasInventedFact,
+  isAppHelp,
+  isMedicineLookup,
+  medicineNotListedAnswer,
+  refuseReason,
+} from "./guard.ts";
+
+Deno.test("refuses dosing", () => {
+  const message = refuseReason("how many tablets should I take") ?? "";
+  assertEquals(message.includes("diagnosis"), true);
+  assertEquals(message.includes("pharmacist"), true);
+});
+
+Deno.test("refuses an outside question", () => {
+  const message = refuseReason("what is the weather today") ?? "";
+  assertEquals(message.includes("MediTech"), true);
+});
+
+Deno.test("allows a medicine question", () => {
+  assertEquals(refuseReason("where can I find paracetamol"), null);
+});
+
+Deno.test("allows an unknown brand medicine question", () => {
+  assertEquals(refuseReason("where can I find aspirin 500mg"), null);
+});
+
+Deno.test("allows an app how-to question", () => {
+  assertEquals(refuseReason("how do I place a reservation"), null);
+});
+
+Deno.test("treats an unknown medicine as a lookup", () => {
+  assertEquals(isMedicineLookup("Is Advil 200mg available?"), true);
+});
+
+Deno.test("does not treat nearby pharmacies as a medicine lookup", () => {
+  assertEquals(isMedicineLookup("Which pharmacies are nearby?"), false);
+});
+
+Deno.test("does not treat app help as a medicine lookup", () => {
+  assertEquals(isMedicineLookup("How do I search for medicine in the app?"), false);
+});
+
+Deno.test("detects app help", () => {
+  assertEquals(isAppHelp("How do I place a reservation?"), true);
+});
+
+Deno.test("app help returns MediTech steps", () => {
+  const answer = appHelpAnswer("How do I place a reservation?");
+  assertEquals(answer.includes("My Reservations"), true);
+  assertEquals(answer.includes("pickup code"), true);
+});
+
+Deno.test("has a clear not-listed answer", () => {
+  assertEquals(
+    medicineNotListedAnswer().includes("not available on MediTech"),
+    true,
+  );
+});
+
+Deno.test("blocks a made-up price", () => {
+  const invented = hasInventedFact("It costs 99.50.", {
+    prices: ["12.00"],
+    referenceNumbers: [],
+    pickupCodes: [],
+  });
+  assertEquals(invented, true);
+});
+
+Deno.test("allows a real price", () => {
+  const invented = hasInventedFact("It costs 12.00.", {
+    prices: ["12.00"],
+    referenceNumbers: [],
+    pickupCodes: [],
+  });
+  assertEquals(invented, false);
+});
