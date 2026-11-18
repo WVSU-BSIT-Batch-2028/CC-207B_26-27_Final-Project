@@ -120,3 +120,33 @@ final medicineSearchResultsProvider =
     longitude: filter.longitude,
   );
 });
+
+// Sort selection on Medicine Details ('price' or 'distance')
+class MedicineOffersSortNotifier extends Notifier<String> {
+  @override
+  String build() => 'price';
+
+  void setSort(String value) {
+    state = value;
+  }
+}
+
+final medicineOffersSortProvider =
+    NotifierProvider<MedicineOffersSortNotifier, String>(
+  MedicineOffersSortNotifier.new,
+);
+
+// Loads approved pharmacy offers for a given medicine ID
+final medicineOffersProvider =
+    FutureProvider.family<List<MedicineOffer>, String>((ref, medicineId) async {
+  final service = ref.watch(medicineServiceProvider);
+  final sort = ref.watch(medicineOffersSortProvider);
+  final filter = ref.watch(medicineSearchFilterProvider);
+
+  return service.getMedicineOffers(
+    medicineId: medicineId,
+    sort: sort,
+    latitude: filter.latitude,
+    longitude: filter.longitude,
+  );
+});

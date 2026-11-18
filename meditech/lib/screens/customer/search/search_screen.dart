@@ -12,6 +12,8 @@ import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
+import '../medicine/medicine_details_screen.dart';
+
 // Customer medicine search screen matching wireframes P-09 and P-10
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({
@@ -218,8 +220,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: () {
-                  final notifier =
-                      ref.read(medicineSearchFilterProvider.notifier);
+                  final notifier = ref.read(
+                    medicineSearchFilterProvider.notifier,
+                  );
                   notifier.setStrength(strengthController.text);
                   notifier.setLocation(locationController.text);
                   Navigator.of(sheetContext).pop();
@@ -273,7 +276,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'Try paracetamol or Biogesic',
-                  prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textMuted,
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           tooltip: 'Clear search',
@@ -365,11 +371,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         widget.onMedicineSelected!(med);
                         return;
                       }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${med.brandName} details coming next.',
-                          ),
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => MedicineDetailsScreen(medicine: med),
                         ),
                       );
                     },

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import 'search/search_screen.dart';
 
 import '../../providers/notification_providers.dart';
+import '../../providers/cart_providers.dart';
 import '../../widgets/theme/app_colors.dart';
 import 'home/home_screen.dart';
-
+import 'cart/cart_screen.dart';
 
 // Main navigation frame for the customer app with header badges and bottom tabs
 class CustomerFrame extends ConsumerStatefulWidget {
@@ -47,7 +49,8 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
       ),
       const _CustomerTabPlaceholder(
         title: 'Profile',
-        description: 'Manage personal details, saved prescriptions, and security.',
+        description:
+            'Manage personal details, saved prescriptions, and security.',
         icon: Icons.person_outline,
       ),
     ];
@@ -73,28 +76,40 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
             icon: Badge(
               isLabelVisible: ref.watch(unreadNotificationCountProvider) > 0,
               label: Text('${ref.watch(unreadNotificationCountProvider)}'),
-              child: const Icon(Icons.notifications_none, color: AppColors.text),
+              child: const Icon(
+                Icons.notifications_none,
+                color: AppColors.text,
+              ),
             ),
             onPressed: () => context.push('/notifications'),
           ),
           IconButton(
             tooltip: 'Cart',
-            icon: const Badge(
-              child: Icon(Icons.shopping_bag_outlined, color: AppColors.text),
+            icon: Badge(
+              isLabelVisible: ref.watch(cartItemCountProvider) > 0,
+              label: Text('${ref.watch(cartItemCountProvider)}'),
+              child: const Icon(
+                Icons.shopping_bag_outlined,
+                color: AppColors.text,
+              ),
             ),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cart is empty.')),
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (cartContext) => CartScreen(
+                    onBrowseMedicines: () {
+                      Navigator.of(cartContext).pop();
+                      _onTabSelected(1);
+                    },
+                  ),
+                ),
               );
             },
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: _onTabSelected,
