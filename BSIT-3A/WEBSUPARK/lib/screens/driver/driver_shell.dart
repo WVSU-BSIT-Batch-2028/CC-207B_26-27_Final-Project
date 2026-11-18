@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:websupark/screens/driver/driver_alerts_screen.dart';
+import 'package:websupark/screens/driver/driver_assignment_screen.dart';
+import 'package:websupark/screens/driver/driver_home_screen.dart';
+import 'package:websupark/screens/driver/driver_vehicle_screen.dart';
+import 'package:websupark/screens/driver/driver_violations_screen.dart';
 import 'package:websupark/theme/app_colors.dart';
-import 'package:websupark/widgets/placeholder_page.dart';
 
 /// Frame of the driver interface: five pages with a bottom navigation bar.
-/// The driver owner replaces each PlaceholderPage with the real screen
-/// (D1 to D5 in the prototype checklist).
+/// Each tab shows one real screen (D1 to D5 in the prototype checklist).
 class DriverShell extends StatefulWidget {
   const DriverShell({super.key, this.initialIndex = 0});
 
@@ -21,23 +24,11 @@ class _DriverShellState extends State<DriverShell> {
 
   // One page per tab, in the same order as the navigation bar.
   final List<Widget> _pages = const [
-    PlaceholderPage(title: 'Home', screenCode: 'D1', owner: 'Driver owner'),
-    PlaceholderPage(
-      title: 'My Parking Assignment',
-      screenCode: 'D2',
-      owner: 'Driver owner',
-    ),
-    PlaceholderPage(
-      title: 'Notifications',
-      screenCode: 'D3',
-      owner: 'Driver owner',
-    ),
-    PlaceholderPage(
-      title: 'My Violations',
-      screenCode: 'D4',
-      owner: 'Driver owner',
-    ),
-    PlaceholderPage(title: 'My Vehicle', screenCode: 'D5', owner: 'Driver owner'),
+    DriverHomeScreen(), // D1
+    DriverAssignmentScreen(), // D2
+    DriverAlertsScreen(), // D3
+    DriverViolationsScreen(), // D4
+    DriverVehicleScreen(), // D5
   ];
 
   @override
