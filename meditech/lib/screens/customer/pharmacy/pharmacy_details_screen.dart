@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../providers/pharmacy_providers.dart';
+import '../../../providers/cart_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -24,7 +25,7 @@ class PharmacyDetailsScreen extends ConsumerStatefulWidget {
   final String? initialTitle;
   final bool isOffline;
   final void Function(PharmacyDetail branch, PharmacyInventoryItem item)?
-      onAddInventoryItem;
+  onAddInventoryItem;
 
   @override
   ConsumerState<PharmacyDetailsScreen> createState() =>
@@ -67,10 +68,12 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(pharmacyDetailProvider(widget.branchId));
     final hoursAsync = ref.watch(pharmacyHoursProvider(widget.branchId));
-    final inventoryAsync =
-        ref.watch(pharmacyInventoryProvider(widget.branchId));
+    final inventoryAsync = ref.watch(
+      pharmacyInventoryProvider(widget.branchId),
+    );
 
-    final title = detailAsync.value?.pharmacyName ??
+    final title =
+        detailAsync.value?.pharmacyName ??
         widget.initialTitle ??
         'Pharmacy Details';
 
@@ -236,8 +239,9 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                                   _searchController.clear();
                                   setState(() {});
                                   ref
-                                      .read(pharmacyInventoryQueryProvider
-                                          .notifier)
+                                      .read(
+                                        pharmacyInventoryQueryProvider.notifier,
+                                      )
                                       .setQuery('');
                                 },
                               )
@@ -278,13 +282,13 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                                         );
                                         return;
                                       }
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Added ${item.brandName} to cart.',
-                                          ),
-                                        ),
+                                      addMedicineToCartWithBranchCheck(
+                                        context: context,
+                                        ref: ref,
+                                        branchId: pharmacy.branchId,
+                                        medicineId: item.medicineId,
+                                        medicineName: item.brandName,
+                                        pharmacyName: pharmacy.pharmacyName,
                                       );
                                     }
                                   : null,

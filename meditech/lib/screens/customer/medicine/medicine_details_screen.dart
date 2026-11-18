@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
+import '../../../providers/cart_providers.dart';
 import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -24,7 +25,7 @@ class MedicineDetailsScreen extends ConsumerWidget {
 
   // Optional callback when customer taps Add to Cart on an available offer
   final void Function(MedicineSearchResult medicine, MedicineOffer offer)?
-      onAddToCart;
+  onAddToCart;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,9 +35,7 @@ class MedicineDetailsScreen extends ConsumerWidget {
     final offersAsync = ref.watch(medicineOffersProvider(medicine.medicineId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Medicine Details'),
-      ),
+      appBar: AppBar(title: const Text('Medicine Details')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -210,12 +209,13 @@ class MedicineDetailsScreen extends ConsumerWidget {
                                 onAddToCart!(medicine, offer);
                                 return;
                               }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Added ${medicine.brandName} from ${offer.pharmacyName}.',
-                                  ),
-                                ),
+                              addMedicineToCartWithBranchCheck(
+                                context: context,
+                                ref: ref,
+                                branchId: offer.branchId,
+                                medicineId: medicine.medicineId,
+                                medicineName: medicine.brandName,
+                                pharmacyName: offer.pharmacyName,
                               );
                             }
                           : null,
@@ -282,9 +282,11 @@ class _MedicineOfferCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  StatusBadge.availability(offer.availability.name == 'lowStock'
-                      ? 'low_stock'
-                      : offer.availability.name),
+                  StatusBadge.availability(
+                    offer.availability.name == 'lowStock'
+                        ? 'low_stock'
+                        : offer.availability.name,
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
