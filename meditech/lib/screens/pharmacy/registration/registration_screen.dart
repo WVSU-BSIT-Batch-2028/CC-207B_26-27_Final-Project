@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/registration_providers.dart';
+import '../../../widgets/common/async_view.dart';
 import '../../../widgets/dialogs/confirm_dialog.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -11,9 +12,11 @@ import 'step_owner.dart';
 import 'step_pharmacy.dart';
 import 'step_review.dart';
 
-// The 4-step "Register your pharmacy" form (wireframes Ph-02 to Ph-08)
+// The 4-step pharmacy form: new registration, or fixing a rejected one (Ph-02 to Ph-08)
 class RegistrationScreen extends ConsumerStatefulWidget {
-  const RegistrationScreen({super.key});
+  const RegistrationScreen({super.key, this.editing = false});
+
+  final bool editing; // true when fixing a rejected application
 
   @override
   ConsumerState<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -47,39 +50,101 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _draft = RegistrationDraft();
   final _forms = List.generate(4, (_) => GlobalKey<FormState>());
 
+  bool _loading = false;
+  String? _loadError;
+  String _displayId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(registrationControllerProvider.notifier).reset(),
+    );
+    _draft.editing = widget.editing;
+    if (widget.editing) _load();
+  }
+
   @override
   void dispose() {
     _draft.dispose();
     super.dispose();
   }
 
-  RegistrationController get _controller => ref.read(registrationControllerProvider.notifier);
+  RegistrationController get _controller =>
+      ref.read(registrationControllerProvider.notifier);
+
+  // Fill the form from the rejected application
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final json = await ref.read(resubmitServiceProvider).load();
+      if (json == null) {
+        setState(() => _loadError = 'No application found for this account.');
+        return;
+      }
+      _draft.fillFrom(json);
+      _displayId = json['display_id'] as String;
+    } catch (_) {
+      setState(
+        () => _loadError = 'Could not load your application. Please try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   // Check this step's fields; true if everything is filled in correctly
   bool _valid(int step) {
     final valid = _forms[step].currentState?.validate() ?? false;
     if (!valid) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fix the highlighted fields to continue.')));
+        const SnackBar(
+          content: Text('Fix the highlighted fields to continue.'),
+        ),
+      );
     }
     return valid;
   }
 
-  // Ask first, then send the application (wireframe Ph-08)
+  // Ask first, then send (new application or resubmission)
   Future<void> _submit() async {
     if (!_valid(3)) return;
     final ok = await showConfirmDialog(
       context,
-      title: 'Submit your application?',
-      whatWillHappen: [
-        'The MediTech administrator checks your LTO on the FDA verification portal.',
-        "Your Owner account stays locked until you're approved. "
-            "You'll get an email at ${_draft.email.text}.",
-        "Patients can't see your pharmacy until it's approved and you add inventory.",
-      ],
-      actionLabel: 'Submit application',
+      title: widget.editing
+          ? 'Resubmit your application?'
+          : 'Submit your application?',
+      whatWillHappen: widget.editing
+          ? const [
+              'Your application goes back to the administrator for review.',
+              'It keeps its original application number and place in line.',
+              "You'll be notified when it's reviewed.",
+            ]
+          : [
+              'The MediTech administrator checks your LTO on the FDA verification portal.',
+              "Your Owner account stays locked until you're approved. "
+                  "You'll get an email at ${_draft.email.text}.",
+              "Patients can't see your pharmacy until it's approved and you add inventory.",
+            ],
+      actionLabel: widget.editing
+          ? 'Resubmit application'
+          : 'Submit application',
     );
-    if (ok) await _controller.submit(_draft.toApplication());
+    if (!ok) return;
+
+    if (widget.editing) {
+      await _controller.resubmit(
+        _draft.toResubmitJson(),
+        ltoFile: _draft.ltoFile,
+        storefrontFile: _draft.storefrontFile,
+        displayId: _displayId,
+      );
+    } else {
+      await _controller.submit(_draft.toApplication());
+    }
   }
 
   @override
@@ -87,9 +152,28 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     final state = ref.watch(registrationControllerProvider);
     final step = state.step;
 
-    // Submitted: show the success view instead of the form
+    // Edit mode: wait for the old application to load
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit and resubmit')),
+        body: StateMessage(
+          icon: Icons.error_outline,
+          message: _loadError!,
+          onRetry: _load,
+        ),
+      );
+    }
+
+    // Done: show the success view instead of the form
     if (state.applicationId != null) {
-      return _SubmittedView(applicationId: state.applicationId!, email: _draft.email.text);
+      return _SubmittedView(
+        applicationId: state.applicationId!,
+        email: _draft.email.text,
+        resubmitted: widget.editing,
+      );
     }
 
     // The current step's fields
@@ -102,7 +186,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register your pharmacy'),
+        title: Text(
+          widget.editing ? 'Edit and resubmit' : 'Register your pharmacy',
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: _StepHeader(current: step, names: _stepNames),
@@ -121,13 +207,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('STEP ${step + 1} OF 4',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted, letterSpacing: 0.5)),
+                      Text(
+                        'STEP ${step + 1} OF 4',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       body,
 
-                    // A problem from the server, with each field listed
+                      // A problem from the server, with each field listed
                       if (state.error != null) ...[
                         const SizedBox(height: AppSpacing.lg),
                         Container(
@@ -140,10 +232,17 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(state.error!, style: const TextStyle(color: AppColors.danger)),
+                              Text(
+                                state.error!,
+                                style: const TextStyle(color: AppColors.danger),
+                              ),
                               for (final entry in state.fieldErrors.entries)
-                                Text('• ${_fieldNames[entry.key] ?? entry.key}: ${entry.value}',
-                                    style: const TextStyle(color: AppColors.danger)),
+                                Text(
+                                  '• ${_fieldNames[entry.key] ?? entry.key}: ${entry.value}',
+                                  style: const TextStyle(
+                                    color: AppColors.danger,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -151,29 +250,43 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
                       // Back, and Continue or Submit
                       const SizedBox(height: AppSpacing.xl),
-                      Row(children: [
-                        if (step > 0)
-                          OutlinedButton(
-                            onPressed: state.submitting ? null : () => _controller.goTo(step - 1),
-                            child: const Text('Back'),
-                          ),
-                        const Spacer(),
-                        if (step < 3)
-                          FilledButton(
-                            onPressed: () {
-                              if (_valid(step)) _controller.goTo(step + 1);
-                            },
-                            child: const Text('Continue'),
-                          )
-                        else
-                          FilledButton(
-                            onPressed: state.submitting ? null : _submit,
-                            child: state.submitting
-                                ? const SizedBox(width: 20, height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Text('Submit application'),
-                          ),
-                      ]),
+                      Row(
+                        children: [
+                          if (step > 0)
+                            OutlinedButton(
+                              onPressed: state.submitting
+                                  ? null
+                                  : () => _controller.goTo(step - 1),
+                              child: const Text('Back'),
+                            ),
+                          const Spacer(),
+                          if (step < 3)
+                            FilledButton(
+                              onPressed: () {
+                                if (_valid(step)) _controller.goTo(step + 1);
+                              },
+                              child: const Text('Continue'),
+                            )
+                          else
+                            FilledButton(
+                              onPressed: state.submitting ? null : _submit,
+                              child: state.submitting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      widget.editing
+                                          ? 'Resubmit application'
+                                          : 'Submit application',
+                                    ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -186,12 +299,17 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 }
 
-// Shown after a successful submit
+// Shown after a successful submit or resubmit
 class _SubmittedView extends StatelessWidget {
-  const _SubmittedView({required this.applicationId, required this.email});
+  const _SubmittedView({
+    required this.applicationId,
+    required this.email,
+    this.resubmitted = false,
+  });
 
   final String applicationId;
   final String email;
+  final bool resubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -208,17 +326,38 @@ class _SubmittedView extends StatelessWidget {
                   const CircleAvatar(
                     radius: 32,
                     backgroundColor: AppColors.primaryLight,
-                    child: Icon(Icons.check, color: AppColors.primary, size: 36),
+                    child: Icon(
+                      Icons.check,
+                      color: AppColors.primary,
+                      size: 36,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  const Text('Application submitted',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                  Text(
+                    resubmitted
+                        ? 'Application resubmitted'
+                        : 'Application submitted',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    "Your application ID is $applicationId. We'll email $email when it's "
-                    'reviewed. Your Owner account stays locked until then.',
+                    resubmitted
+                        ? '$applicationId is back with the administrator for review. '
+                              "You'll be notified when it's reviewed."
+                        : "Your application ID is $applicationId. We'll email $email when it's "
+                              'reviewed. Your Owner account stays locked until then.',
                     textAlign: TextAlign.center,
                   ),
+                  if (resubmitted) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: const Text('Back to status'),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -253,15 +392,26 @@ class _StepHeader extends StatelessWidget {
           for (var i = 0; i < names.length; i++) ...[
             CircleAvatar(
               radius: 12,
-              backgroundColor: i <= current ? AppColors.primary : AppColors.neutralLight,
+              backgroundColor: i <= current
+                  ? AppColors.primary
+                  : AppColors.neutralLight,
               child: i < current
                   ? const Icon(Icons.check, size: 14, color: Colors.white)
-                  : Text('${i + 1}', style: TextStyle(fontSize: 12,
-                      color: i <= current ? Colors.white : AppColors.neutral)),
+                  : Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: i <= current ? Colors.white : AppColors.neutral,
+                      ),
+                    ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Text(names[i],
-                style: TextStyle(fontWeight: i == current ? FontWeight.w700 : FontWeight.w400)),
+            Text(
+              names[i],
+              style: TextStyle(
+                fontWeight: i == current ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
             if (i < names.length - 1) const SizedBox(width: AppSpacing.lg),
           ],
         ],

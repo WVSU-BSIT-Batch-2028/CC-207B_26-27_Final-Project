@@ -53,13 +53,20 @@ class _StepLicenseState extends State<StepLicense> {
     if (bytes.length > _maxBytes) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('That file is over 5 MB. Choose a smaller one.')));
+          const SnackBar(
+            content: Text('That file is over 5 MB. Choose a smaller one.'),
+          ),
+        );
       }
       return null;
     }
 
     final ext = (file.extension ?? '').toLowerCase();
-    final type = ext == 'pdf' ? 'application/pdf' : ext == 'png' ? 'image/png' : 'image/jpeg';
+    final type = ext == 'pdf'
+        ? 'application/pdf'
+        : ext == 'png'
+        ? 'image/png'
+        : 'image/jpeg';
     return PickedDocument(name: file.name, bytes: bytes, mimeType: type);
   }
 
@@ -72,7 +79,8 @@ class _StepLicenseState extends State<StepLicense> {
   }) {
     return FormField<PickedDocument>(
       initialValue: value,
-      validator: (v) => v == null ? 'Upload this file.' : null,
+      validator: (v) =>
+          v == null && !widget.draft.editing ? 'Upload this file.' : null,
       builder: (field) {
         final error = field.errorText ?? serverError;
         return Column(
@@ -85,7 +93,9 @@ class _StepLicenseState extends State<StepLicense> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: error != null ? AppColors.danger : AppColors.border),
+                border: Border.all(
+                  color: error != null ? AppColors.danger : AppColors.border,
+                ),
               ),
               child: field.value == null
                   ? TextButton.icon(
@@ -99,24 +109,37 @@ class _StepLicenseState extends State<StepLicense> {
                         }
                       },
                     )
-                  : Row(children: [
-                      const Icon(Icons.check_circle, color: AppColors.primary),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text(field.value!.name, overflow: TextOverflow.ellipsis)),
-                      IconButton(
-                        tooltip: 'Remove file',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          setState(() => onChanged(null));
-                          field.didChange(null);
-                        },
-                      ),
-                    ]),
+                  : Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            field.value!.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Remove file',
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            setState(() => onChanged(null));
+                            field.didChange(null);
+                          },
+                        ),
+                      ],
+                    ),
             ),
             if (error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 12),
-                child: Text(error, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                child: Text(
+                  error,
+                  style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                ),
               ),
           ],
         );
@@ -132,8 +155,10 @@ class _StepLicenseState extends State<StepLicense> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Upload your FDA License to Operate',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        const Text(
+          'Upload your FDA License to Operate',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: AppSpacing.xs),
         const Text(
           'We use this to check that your pharmacy is licensed. '
@@ -143,8 +168,12 @@ class _StepLicenseState extends State<StepLicense> {
         const SizedBox(height: AppSpacing.lg),
 
         // LTO number
-        AppTextField(label: 'FDA LTO number', controller: d.ltoNumber,
-            errorText: e['lto_number'], validator: (v) => Validators.required(v)),
+        AppTextField(
+          label: 'FDA LTO number',
+          controller: d.ltoNumber,
+          errorText: e['lto_number'],
+          validator: (v) => Validators.required(v),
+        ),
         gap,
 
         // LTO expiry date
@@ -154,20 +183,31 @@ class _StepLicenseState extends State<StepLicense> {
           builder: (field) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('LTO expiry date', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                'LTO expiry date',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 6),
               OutlinedButton.icon(
                 icon: const Icon(Icons.calendar_today, size: 18),
-                label: Text(d.ltoExpiry == null
-                    ? 'Pick a date'
-                    : MaterialLocalizations.of(context).formatMediumDate(d.ltoExpiry!)),
+                label: Text(
+                  d.ltoExpiry == null
+                      ? 'Pick a date'
+                      : MaterialLocalizations.of(context)
+                            .formatMediumDate(d.ltoExpiry!),
+                ),
                 onPressed: () => _pickExpiry(field),
               ),
               if (field.errorText != null || e['lto_expiry'] != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6, left: 12),
-                  child: Text(field.errorText ?? e['lto_expiry']!,
-                      style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                  child: Text(
+                    field.errorText ?? e['lto_expiry']!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -188,6 +228,12 @@ class _StepLicenseState extends State<StepLicense> {
           onChanged: (f) => d.storefrontFile = f,
           serverError: e['storefront_file'],
         ),
+         // While editing, files are optional
+        if (d.editing) ...[
+          gap,
+          const Text('Leave a file empty to keep the one you uploaded before.',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+        ],
         gap,
         const Text(
           'JPG, PNG, or PDF, max 5 MB each. The administrator checks your LTO on the FDA '

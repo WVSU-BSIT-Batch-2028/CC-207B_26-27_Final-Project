@@ -99,6 +99,20 @@ class StepOwner extends StatelessWidget {
           'This becomes the Owner account. It stays locked until your pharmacy is approved.',
           style: TextStyle(color: AppColors.textMuted, fontSize: 13),
         ),
+                if (!d.editing) ...[
+          AppTextField(label: 'Email', controller: d.email, errorText: e['email'],
+              keyboardType: TextInputType.emailAddress, validator: Validators.email),
+          gap,
+          AppTextField(label: 'Username', hint: '4–20 letters, numbers, or _',
+              controller: d.username, errorText: e['username'], validator: Validators.username),
+          gap,
+          AppPasswordField(label: 'Password', controller: d.password,
+              errorText: e['password'], validator: Validators.password),
+          gap,
+          AppPasswordField(label: 'Confirm password', controller: d.confirmPassword,
+              validator: (v) => Validators.confirmPassword(v, d.password.text)),
+          gap,
+        ],
       ],
     );
   }

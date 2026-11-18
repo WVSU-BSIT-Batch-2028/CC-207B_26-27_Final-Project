@@ -115,7 +115,9 @@ class _StepReviewState extends State<StepReview> {
           ('Expires', expiry),
           (
             'Documents',
-            '${d.ltoFile?.name ?? '-'}, ${d.storefrontFile?.name ?? '-'}',
+            d.editing && d.ltoFile == null && d.storefrontFile == null
+                ? 'Keeping your current files'
+                : '${d.ltoFile?.name ?? 'Current LTO'}, ${d.storefrontFile?.name ?? 'Current photo'}',
           ),
         ]),
         const SizedBox(height: AppSpacing.md),
@@ -129,8 +131,8 @@ class _StepReviewState extends State<StepReview> {
             ].where((s) => s.isNotEmpty).join(' '),
           ),
           ('Mobile', d.mobile.text),
-          ('Email', d.email.text),
-          ('Username', d.username.text),
+          if (!d.editing) ('Email', d.email.text),
+          if (!d.editing) ('Username', d.username.text),
         ]),
         const SizedBox(height: AppSpacing.lg),
 
