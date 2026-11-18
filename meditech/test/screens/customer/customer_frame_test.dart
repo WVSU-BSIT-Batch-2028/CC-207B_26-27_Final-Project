@@ -2,19 +2,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meditech/providers/medicine_providers.dart';
+import 'package:meditech/providers/reservation_providers.dart';
 import 'package:meditech/screens/customer/customer_frame.dart';
+import 'package:meditech/screens/customer/reservations/my_reservations_screen.dart';
 import 'package:meditech/screens/customer/search/search_screen.dart';
 import 'package:meditech/services/medicine_service.dart';
+import 'package:meditech/services/reservation_service.dart';
 import 'package:meditech/widgets/theme/app_theme.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockMedicineService extends Mock implements MedicineService {}
 
+class MockReservationService extends Mock implements ReservationService {}
+
 void main() {
   late MockMedicineService mockMedicineService;
+  late MockReservationService mockReservationService;
 
   setUp(() {
     mockMedicineService = MockMedicineService();
+    mockReservationService = MockReservationService();
+
     when(() => mockMedicineService.getDosageForms())
         .thenAnswer((_) async => ['Tablet', 'Capsule']);
     when(
@@ -28,12 +36,15 @@ void main() {
         longitude: any(named: 'longitude'),
       ),
     ).thenAnswer((_) async => const []);
+    when(() => mockReservationService.getMyReservations())
+        .thenAnswer((_) async => const []);
   });
 
   Widget buildTestableWidget() {
     return ProviderScope(
       overrides: [
         medicineServiceProvider.overrideWithValue(mockMedicineService),
+        reservationServiceProvider.overrideWithValue(mockReservationService),
       ],
       child: MaterialApp(
         theme: AppTheme.light,
@@ -93,8 +104,10 @@ void main() {
     await tester.tap(find.descendant(of: navBar, matching: find.text('My Reservations')));
     await tester.pumpAndSettle();
 
-    // Should display reservations placeholder screen
-    expect(find.text('View active orders, pickup codes, and history.'), findsOneWidget);
+    // Should display MyReservationsScreen with status tabs
+    expect(find.byType(MyReservationsScreen), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('No active reservations'), findsOneWidget);
   });
 
   testWidgets('tapping search bar on home switches to search tab', (tester) async {
