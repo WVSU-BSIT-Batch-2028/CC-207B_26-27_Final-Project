@@ -37,7 +37,8 @@ class TabletDataTable<T> extends StatelessWidget {
   final List<Widget>? headerActions;
   final List<TabletColumn> columns;
   final List<T> items;
-  final List<Widget> Function(BuildContext context, T item, int index) rowBuilder;
+  final List<Widget> Function(BuildContext context, T item, int index)
+  rowBuilder;
   final ValueChanged<T>? onItemTap;
   final bool selectable;
   final Set<String> selectedIds;
@@ -71,7 +72,9 @@ class TabletDataTable<T> extends StatelessWidget {
 
   bool _isColumnVisible(TabletColumn col, double availableWidth) {
     if (col.priority == TabletColumnPriority.high) return true;
-    if (col.priority == TabletColumnPriority.medium) return availableWidth >= 700;
+    if (col.priority == TabletColumnPriority.medium) {
+      return availableWidth >= 700;
+    }
     return availableWidth >= 950;
   }
 
@@ -80,11 +83,29 @@ class TabletDataTable<T> extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final visibleColumns = columns
-            .where((col) => _isColumnVisible(col, availableWidth))
-            .toList();
+        final visibleIndexes = <int>[
+          for (int i = 0; i < columns.length; i++)
+            if (_isColumnVisible(columns[i], availableWidth)) i,
+        ];
+        final visibleColumns = visibleIndexes.map((i) => columns[i]).toList();
 
-        final allSelected = items.isNotEmpty &&
+        // Sideways scrolling turns on only when every visible column has a fixed width.
+        final fixedWidthTable = visibleColumns.every((c) => c.width != null);
+        final fixedContentWidth =
+            32.0 +
+            (selectable ? 44.0 : 0.0) +
+            visibleColumns.fold<double>(0, (sum, c) => sum + (c.width ?? 0)) +
+            1;
+
+        Widget scrollSideways(Widget child) => fixedWidthTable
+            ? _HorizontalScrollArea(
+                contentWidth: fixedContentWidth,
+                child: child,
+              )
+            : child;
+
+        final allSelected =
+            items.isNotEmpty &&
             idGetter != null &&
             items.every((it) => selectedIds.contains(idGetter!(it)));
 
@@ -191,7 +212,10 @@ class TabletDataTable<T> extends StatelessWidget {
             if (selectable && selectedIds.isNotEmpty && bulkActions != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF111827),
                   borderRadius: BorderRadius.circular(8),
@@ -231,169 +255,248 @@ class TabletDataTable<T> extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: items.isEmpty
                     ? (emptyState ??
-                        const Center(
-                          child: Text(
-                            'No items found',
-                            style: TextStyle(color: Color(0xFF6B7280)),
-                          ),
-                        ))
-                    : Column(
-                        children: [
-                          // Table Header
-                          Container(
-                            height: 44,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF9FAFB),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Color(0xFFE5E7EB),
-                                  width: 1,
+                          const Center(
+                            child: Text(
+                              'No items found',
+                              style: TextStyle(color: Color(0xFF6B7280)),
+                            ),
+                          ))
+                    : scrollSideways(
+                        Column(
+                          children: [
+                            // Table Header
+                            Container(
+                              height: 44,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF9FAFB),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(0xFFE5E7EB),
+                                    width: 1,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                if (selectable) ...[
-                                  SizedBox(
-                                    width: 36,
-                                    child: Checkbox(
-                                      value: allSelected,
-                                      onChanged: (val) {
-                                        if (idGetter == null) return;
-                                        if (val == true) {
-                                          onSelectionChanged?.call(
-                                            items.map(idGetter!).toSet(),
-                                          );
-                                        } else {
-                                          onSelectionChanged?.call({});
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                                for (final col in visibleColumns)
-                                  col.width != null
-                                      ? SizedBox(
-                                          width: col.width,
-                                          child: Align(
-                                            alignment: col.alignment,
-                                            child: Text(
-                                              col.title,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF4B5563),
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      : Expanded(
-                                          flex: col.flex,
-                                          child: Align(
-                                            alignment: col.alignment,
-                                            child: Text(
-                                              col.title,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF4B5563),
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                              ],
-                            ),
-                          ),
+                              child: Row(
+                                children: [
+                                  if (selectable) ...[
+                                    SizedBox(
+                                      width: 36,
+                                      child: Checkbox(
+                                        value: allSelected,
+                                        onChanged: (val) {
+                                          if (idGetter == null) return;
 
-                          // Table Rows
-                          Expanded(
-                            child: ListView.separated(
-                              itemCount: items.length,
-                              separatorBuilder: (_, _) => const Divider(
-                                height: 1,
-                                color: Color(0xFFF3F4F6),
-                              ),
-                              itemBuilder: (context, index) {
-                                final item = items[index];
-                                final itemId = idGetter?.call(item);
-                                final isSelected = itemId != null &&
-                                    selectedIds.contains(itemId);
-                                final cells = rowBuilder(context, item, index);
-
-                                return InkWell(
-                                  onTap: onItemTap != null
-                                      ? () => onItemTap!(item)
-                                      : null,
-                                  child: Container(
-                                    height: 56,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
+                                          if (val == true) {
+                                            onSelectionChanged?.call(
+                                              items.map(idGetter!).toSet(),
+                                            );
+                                          } else {
+                                            onSelectionChanged?.call({});
+                                          }
+                                        },
+                                      ),
                                     ),
-                                    color: isSelected
-                                        ? const Color(0xFFF0FDF4)
-                                        : Colors.white,
-                                    child: Row(
-                                      children: [
-                                        if (selectable) ...[
-                                          SizedBox(
-                                            width: 36,
-                                            child: Checkbox(
-                                              value: isSelected,
-                                              onChanged: (val) {
-                                                if (itemId == null) return;
-                                                final next =
-                                                    Set<String>.from(selectedIds);
-                                                if (val == true) {
-                                                  next.add(itemId);
-                                                } else {
-                                                  next.remove(itemId);
-                                                }
-                                                onSelectionChanged?.call(next);
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        for (int i = 0;
-                                            i < visibleColumns.length;
-                                            i++)
-                                          visibleColumns[i].width != null
-                                              ? SizedBox(
-                                                  width: visibleColumns[i].width,
-                                                  child: Align(
-                                                    alignment: visibleColumns[i]
-                                                        .alignment,
-                                                    child: i < cells.length
-                                                        ? cells[i]
-                                                        : const SizedBox.shrink(),
-                                                  ),
-                                                )
-                                              : Expanded(
-                                                  flex: visibleColumns[i].flex,
-                                                  child: Align(
-                                                    alignment: visibleColumns[i]
-                                                        .alignment,
-                                                    child: i < cells.length
-                                                        ? cells[i]
-                                                        : const SizedBox.shrink(),
-                                                  ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  for (final col in visibleColumns)
+                                    col.width != null
+                                        ? SizedBox(
+                                            width: col.width,
+                                            child: Align(
+                                              alignment: col.alignment,
+                                              child: Text(
+                                                col.title,
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF4B5563),
+                                                  letterSpacing: 0.5,
                                                 ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
+                                              ),
+                                            ),
+                                          )
+                                        : Expanded(
+                                            flex: col.flex,
+                                            child: Align(
+                                              alignment: col.alignment,
+                                              child: Text(
+                                                col.title,
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF4B5563),
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+
+                            // Table Rows
+                            Expanded(
+                              child: ListView.separated(
+                                itemCount: items.length,
+                                separatorBuilder: (_, _) => const Divider(
+                                  height: 1,
+                                  color: Color(0xFFF3F4F6),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  final itemId = idGetter?.call(item);
+                                  final isSelected =
+                                      itemId != null &&
+                                      selectedIds.contains(itemId);
+                                  final cells = rowBuilder(
+                                    context,
+                                    item,
+                                    index,
+                                  );
+
+                                  return InkWell(
+                                    onTap: onItemTap != null
+                                        ? () => onItemTap!(item)
+                                        : null,
+                                    child: Container(
+                                      height: 56,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      color: isSelected
+                                          ? const Color(0xFFF0FDF4)
+                                          : Colors.white,
+                                      child: Row(
+                                        children: [
+                                          if (selectable) ...[
+                                            SizedBox(
+                                              width: 36,
+                                              child: Checkbox(
+                                                value: isSelected,
+                                                onChanged: (val) {
+                                                  if (itemId == null) return;
+
+                                                  final next = Set<String>.from(
+                                                    selectedIds,
+                                                  );
+
+                                                  if (val == true) {
+                                                    next.add(itemId);
+                                                  } else {
+                                                    next.remove(itemId);
+                                                  }
+
+                                                  onSelectionChanged?.call(
+                                                    next,
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          for (
+                                            int i = 0;
+                                            i < visibleColumns.length;
+                                            i++
+                                          )
+                                            visibleColumns[i].width != null
+                                                ? SizedBox(
+                                                    width:
+                                                        visibleColumns[i].width,
+                                                    child: Align(
+                                                      alignment:
+                                                          visibleColumns[i]
+                                                              .alignment,
+                                                      child:
+                                                          visibleIndexes[i] <
+                                                              cells.length
+                                                          ? cells[visibleIndexes[i]]
+                                                          : const SizedBox.shrink(),
+                                                    ),
+                                                  )
+                                                : Expanded(
+                                                    flex:
+                                                        visibleColumns[i].flex,
+                                                    child: Align(
+                                                      alignment:
+                                                          visibleColumns[i]
+                                                              .alignment,
+                                                      child:
+                                                          visibleIndexes[i] <
+                                                              cells.length
+                                                          ? cells[visibleIndexes[i]]
+                                                          : const SizedBox.shrink(),
+                                                    ),
+                                                  ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+}
+
+// Scrolls wide table content sideways with a scrollbar that is always visible
+class _HorizontalScrollArea extends StatefulWidget {
+  final double contentWidth;
+  final Widget child;
+
+  const _HorizontalScrollArea({
+    required this.contentWidth,
+    required this.child,
+  });
+
+  @override
+  State<_HorizontalScrollArea> createState() => _HorizontalScrollAreaState();
+}
+
+class _HorizontalScrollAreaState extends State<_HorizontalScrollArea> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Use the full box width when the columns are narrower than the screen
+        final width = widget.contentWidth > constraints.maxWidth
+            ? widget.contentWidth
+            : constraints.maxWidth;
+
+        return Scrollbar(
+          controller: _controller,
+          thumbVisibility: true,
+          trackVisibility: true,
+          child: SingleChildScrollView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(width: width, child: widget.child),
+          ),
         );
       },
     );
