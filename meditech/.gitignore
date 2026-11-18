@@ -61,3 +61,6 @@ supabase/.branches/
 # Generated files
 .flutter-plugins
 .packages
+
+# Preview harnesses
+lib/main_*_preview.dart
