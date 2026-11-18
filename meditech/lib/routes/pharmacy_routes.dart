@@ -2,11 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/session_providers.dart';
+import '../screens/pharmacy/activity_log/activity_log_screen.dart';
+import '../screens/pharmacy/registration/registration_screen.dart';
 import '../screens/pharmacy/sign_in/pharmacy_sign_in_screen.dart';
 import '../screens/shared/change_password_screen.dart';
-import 'password_redirect.dart';
 import '../screens/shared/notification_list_screen.dart';
-import '../screens/pharmacy/activity_log/activity_log_screen.dart';
+import 'password_redirect.dart';
 
 // Pages a pharmacy user can open
 final pharmacyRouterProvider = Provider<GoRouter>((ref) {
@@ -25,6 +26,10 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         builder: (context, state) => const PharmacySignInScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegistrationScreen(),
       ),
       GoRoute(
         path: '/change-password',

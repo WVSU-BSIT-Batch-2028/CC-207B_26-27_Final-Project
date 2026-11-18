@@ -7,7 +7,6 @@ import '../../../providers/employee_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../utils/app_failure.dart';
 import '../../../widgets/common/async_view.dart';
-import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/tablet/pharmacy_frame.dart';
 import '../../../widgets/tablet/tablet_data_table.dart';
 import '../../../widgets/tablet/tablet_details_drawer.dart';
@@ -15,6 +14,7 @@ import '../../../widgets/tablet/tablet_dialogs.dart';
 import '../../../widgets/tablet/tablet_filter_panel.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../../../widgets/theme/status_badge.dart';
 import 'employee_dialogs.dart';
 
 // Ph-33 & Ph-34: Branch owner views employees, adds staff, changes roles,

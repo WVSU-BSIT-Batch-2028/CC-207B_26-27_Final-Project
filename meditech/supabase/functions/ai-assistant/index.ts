@@ -1,6 +1,15 @@
 // Answer from MediTech facts only, using the free Gemini API
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { hasInventedFact, refuseReason, type AiFacts } from "./guard.ts";
+import {
+  appGuide,
+  appHelpAnswer,
+  hasInventedFact,
+  isAppHelp,
+  isMedicineLookup,
+  medicineNotListedAnswer,
+  refuseReason,
+  type AiFacts,
+} from "./guard.ts";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -60,30 +69,67 @@ Deno.serve(async (req) => {
   if (limitError) return reply(503, { error: "The assistant is unavailable." });
   if (allowed !== true) return reply(429, { error: "You have reached today's limit of 20 questions." });
 
-  const facts = await loadFacts(server, userId, message);
-  const gemini = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{
-            text: "You are the MediTech assistant. Use only the facts below. If a fact is missing, say you do not have it in MediTech. Do not answer questions outside medicines, pharmacies, offers, and this customer's reservations. Do not give diagnosis or dosing advice. Do not invent a price, availability, reservation status, reference number, or pickup code.\n\nFacts:\n" +
-              JSON.stringify(facts.forModel),
-          }],
-        },
-        contents: [{ role: "user", parts: [{ text: message }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 400 },
-      }),
-    },
-  );
+  // App how-to, steps, and MediTech-only tips
+  if (isAppHelp(message)) {
+    return reply(200, { answer: appHelpAnswer(message) });
+  }
 
-  if (!gemini.ok) return reply(503, { error: "The assistant is unavailable." });
-  const payload = await gemini.json();
-  const parts = payload?.candidates?.[0]?.content?.parts ?? [];
-  const answer = parts.map((part: { text?: string }) => part.text ?? "").join("").trim();
-  if (!answer || hasInventedFact(answer, facts.check)) {
+  const facts = await loadFacts(server, userId, message);
+
+  // No matching medicine in MediTech: say so clearly, without inventing one
+  if (
+    isMedicineLookup(message) &&
+    facts.forModel.medicines.length === 0
+  ) {
+    return reply(200, { answer: medicineNotListedAnswer() });
+  }
+
+  // Prefer the current Gemini flash model; fall back if Google is busy
+  const models = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+  let answer = "";
+  let geminiOk = false;
+  for (const model of models) {
+    const gemini = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{
+              text: [
+                "You are the MediTech customer assistant.",
+                "Stay inside the MediTech customer app only.",
+                "You may explain what MediTech is, step-by-step how to search, compare offers, use the cart, upload a prescription, place a reservation, track My Reservations, and use a pickup code.",
+                "You may recommend pharmacies or next app steps using only the offers and app_guide in the facts.",
+                "Prefer Available over Low Stock. Never recommend Unavailable or Unconfirmed items.",
+                "If medicines is empty for a medicine question, say it is not available on MediTech yet and suggest Search.",
+                "If a live fact is missing, say you do not have it in MediTech.",
+                "Do not give diagnosis, dosing, pregnancy, or treatment advice.",
+                "Do not invent a price, availability, reservation status, reference number, or pickup code.",
+                "Keep answers short, friendly, and focused on the app.",
+                "Facts:",
+                JSON.stringify(facts.forModel),
+              ].join(" "),
+            }],
+          },
+          contents: [{ role: "user", parts: [{ text: message }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
+        }),
+      },
+    );
+    if (!gemini.ok) continue;
+    const payload = await gemini.json();
+    const parts = payload?.candidates?.[0]?.content?.parts ?? [];
+    answer = parts.map((part: { text?: string }) => part.text ?? "").join("").trim();
+    if (answer) {
+      geminiOk = true;
+      break;
+    }
+  }
+
+  if (!geminiOk) return reply(503, { error: "The assistant is unavailable." });
+  if (hasInventedFact(answer, facts.check)) {
     return reply(200, {
       answer: "I can only tell you what is saved in MediTech. Please ask again with a medicine or reservation.",
     });
@@ -164,6 +210,7 @@ async function loadFacts(server: SupabaseClient, userId: string, message: string
   return {
     check,
     forModel: {
+      app_guide: appGuide,
       medicines: medicines.map((medicine) => ({
         brand_name: medicine.brand_name,
         generic_name: medicine.generic_name,

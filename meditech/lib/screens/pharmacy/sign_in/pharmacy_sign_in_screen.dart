@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../providers/session_providers.dart';
 import '../../../utils/app_failure.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../../shared/notification_bell.dart';
-import 'package:go_router/go_router.dart';
 
-// A pharmacy user signs in with a username
+// Pharmacy staff sign in to their branch (Ph-01)
 class PharmacySignInScreen extends ConsumerStatefulWidget {
   const PharmacySignInScreen({super.key});
 
@@ -68,61 +69,179 @@ class _PharmacySignInScreenState extends ConsumerState<PharmacySignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final signedIn = ref.watch(sessionProvider) != null;
+    final account = ref.watch(sessionProvider);
+    final signedIn = account != null;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pharmacy sign in'),
-        actions: [
-          if (signedIn) const NotificationBell(),
-        ],
-      ),
+      backgroundColor: AppColors.surface,
       body: Column(
         children: [
           if (_offline) const OfflineBanner(),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                AppTextField(
-                  label: 'Username',
-                  controller: _username,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppPasswordField(
-                  label: 'Password',
-                  controller: _password,
-                  errorText: _error,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton(
-                  onPressed: _busy ? null : _signIn,
-                  child: _busy
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Sign in'),
-                ),
-                if (signedIn) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  if (ref.watch(sessionProvider)?.role == 'owner')
-                    FilledButton(
-                      onPressed: () => context.push('/activity-log'),
-                      child: const Text('Activity log'),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextButton(
-                    onPressed: () async {
-                      await ref.read(sessionProvider.notifier).signOut();
-                      if (context.mounted) context.go('/');
-                    },
-                    child: const Text('Switch user'),
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    children: [
+                      const SizedBox(height: AppSpacing.lg),
+                      const _MediTechMark(),
+                      const SizedBox(height: AppSpacing.xxl),
+                      Text(
+                        'Sign in to your branch',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      const Text(
+                        "Use your own account. Shared logins aren't allowed.",
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 15),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      if (signedIn) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Signed in as ${account.role ?? account.accountType}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const NotificationBell(),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        if (account.role == 'owner')
+                          FilledButton(
+                            onPressed: () => context.push('/activity-log'),
+                            child: const Text('Activity log'),
+                          ),
+                        if (account.role == 'owner')
+                          const SizedBox(height: AppSpacing.md),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await ref.read(sessionProvider.notifier).signOut();
+                            if (context.mounted) context.go('/');
+                          },
+                          child: const Text('Switch user'),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                      ] else ...[
+                        AppTextField(
+                          label: 'Username',
+                          controller: _username,
+                          hint: 'Your branch username',
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppPasswordField(
+                          label: 'Password',
+                          controller: _password,
+                          errorText: _error,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        FilledButton(
+                          onPressed: _busy ? null : _signIn,
+                          child: _busy
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Sign in'),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        const Text(
+                          'Sessions sign out after 10 minutes of inactivity.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        const _RegisterPharmacyCard(),
+                        const SizedBox(height: AppSpacing.lg),
+                        TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Sign in with your owner username. Waiting or rejected applications open the status page after sign-in.',
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text('Already applied? Check your application status'),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Small MediTech mark at the top of the branch sign-in
+class _MediTechMark extends StatelessWidget {
+  const _MediTechMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: const Icon(Icons.local_pharmacy, color: AppColors.primary),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          'MediTech',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+// Card that sends new pharmacies to registration
+class _RegisterPharmacyCard extends StatelessWidget {
+  const _RegisterPharmacyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'New to MediTech? Register your pharmacy. Approval needs your FDA License to Operate.',
+            style: TextStyle(color: AppColors.text, fontSize: 14, height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton(
+            onPressed: () => context.push('/register'),
+            child: const Text('Register your pharmacy'),
           ),
         ],
       ),
