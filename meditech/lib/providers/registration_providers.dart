@@ -1,12 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/pharmacy_application.dart';
 import '../services/registration_service.dart';
+import '../services/resubmit_service.dart';
 
 // Gives screens the registration service
 final registrationServiceProvider = Provider<RegistrationService>(
   (ref) => RegistrationService(http.Client()),
+);
+
+// Gives screens the resubmit service
+final resubmitServiceProvider = Provider<ResubmitService>(
+  (ref) => ResubmitService(Supabase.instance.client),
 );
 
 // What the registration screen needs to know right now
@@ -23,7 +30,7 @@ class RegistrationState {
   final bool submitting;
   final String? error;
   final Map<String, String> fieldErrors;
-  final String? applicationId; // set once submitted
+  final String? applicationId; // set once submitted or resubmitted
 
   RegistrationState copyWith({
     int? step,
@@ -42,7 +49,7 @@ class RegistrationState {
   }
 }
 
-// Moves between steps and submits the application
+// Moves between steps, and submits or resubmits the application
 class RegistrationController extends Notifier<RegistrationState> {
   @override
   RegistrationState build() => const RegistrationState();
@@ -50,12 +57,40 @@ class RegistrationController extends Notifier<RegistrationState> {
   // Go to a step (Continue, Back, or an Edit link)
   void goTo(int step) => state = state.copyWith(step: step);
 
-  // Send the application; on errors, jump back to the step with the problem
+  // Start fresh, for opening the form again
+  void reset() => state = const RegistrationState();
+
+  // Send a new application; on errors, jump back to the step with the problem
   Future<void> submit(PharmacyApplication application) async {
     state = state.copyWith(submitting: true, fieldErrors: {});
     try {
       final id = await ref.read(registrationServiceProvider).submit(application);
       state = state.copyWith(submitting: false, applicationId: id);
+    } on RegistrationException catch (e) {
+      state = state.copyWith(
+        submitting: false,
+        error: e.message,
+        fieldErrors: e.fieldErrors,
+        step: _stepFor(e.fieldErrors),
+      );
+    }
+  }
+
+  // Send the edited application back for review
+  Future<void> resubmit(
+    Map<String, dynamic> details, {
+    PickedDocument? ltoFile,
+    PickedDocument? storefrontFile,
+    required String displayId,
+  }) async {
+    state = state.copyWith(submitting: true, fieldErrors: {});
+    try {
+      await ref.read(resubmitServiceProvider).resubmit(
+            details,
+            ltoFile: ltoFile,
+            storefrontFile: storefrontFile,
+          );
+      state = state.copyWith(submitting: false, applicationId: displayId);
     } on RegistrationException catch (e) {
       state = state.copyWith(
         submitting: false,
