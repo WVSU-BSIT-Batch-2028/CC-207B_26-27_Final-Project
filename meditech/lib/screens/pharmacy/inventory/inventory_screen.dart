@@ -1,8 +1,10 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'edit_inventory_drawer.dart';
+import 'import/inventory_import_upload_screen.dart';
 
 import '../../../models/inventory_item.dart';
 import '../../../providers/inventory_providers.dart';
@@ -236,6 +238,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
+  // Opens the import screen while preserving an optional parent callback.
+  void _openImport() {
+    if (widget.onImportTap != null) {
+      widget.onImportTap!();
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => InventoryImportUploadScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final inventory = ref.watch(inventoryProvider);
@@ -296,7 +312,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           ),
                         ),
                         OutlinedButton.icon(
-                          onPressed: widget.onImportTap,
+                          onPressed: _openImport,
                           icon: const Icon(Icons.upload_file_outlined),
                           label: const Text('Import CSV/Excel'),
                         ),
