@@ -1,0 +1,717 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../../models/reservation.dart';
+import '../../../providers/reservation_providers.dart';
+import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/status_badge.dart';
+import '../../../widgets/theme/app_colors.dart';
+import '../../../widgets/theme/app_spacing.dart';
+
+// Customer reservation details screen with live status timeline & pickup code
+// Matches wireframes P-20, P-21, P-26, and P-27
+class ReservationDetailsScreen extends ConsumerWidget {
+  const ReservationDetailsScreen({
+    super.key,
+    required this.reservationId,
+  });
+
+  final String reservationId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(reservationDetailProvider(reservationId));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reservation Details'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              ref.read(myReservationsProvider.notifier).refresh();
+            },
+          ),
+        ],
+      ),
+      body: AsyncView<CustomerReservation?>(
+        value: detailAsync,
+        onRetry: () => ref.read(myReservationsProvider.notifier).refresh(),
+        builder: (reservation) {
+          if (reservation == null) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.xl),
+                child: Text(
+                  'Reservation not found.',
+                  style: TextStyle(fontSize: 16, color: AppColors.textMuted),
+                ),
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(myReservationsProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              children: [
+                _HeaderCard(reservation: reservation),
+                const SizedBox(height: AppSpacing.md),
+                _PickupCodeOrNoticeCard(reservation: reservation),
+                const SizedBox(height: AppSpacing.md),
+                _PharmacyCard(reservation: reservation),
+                const SizedBox(height: AppSpacing.md),
+                _ItemsCard(reservation: reservation),
+                if (reservation.prescriptions.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _PrescriptionsCard(reservation: reservation),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                _TimelineCard(reservation: reservation),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    final submittedLabel = DateFormat(
+      'MMM d, yyyy · h:mm a',
+    ).format(reservation.submittedAt.toLocal());
+    final expiresLabel = DateFormat(
+      'MMM d, yyyy · h:mm a',
+    ).format(reservation.expiresAt.toLocal());
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'REFERENCE NUMBER',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                StatusBadge.reservation(reservation.status.dbValue),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    reservation.referenceNo,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copy reference number',
+                  icon: const Icon(Icons.copy_outlined, size: 18),
+                  onPressed: () {
+                    Clipboard.setData(
+                      ClipboardData(text: reservation.referenceNo),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Reference number copied.'),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Placed on $submittedLabel',
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+            if (reservation.status.isActive) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Valid until $expiresLabel',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickupCodeOrNoticeCard extends StatelessWidget {
+  const _PickupCodeOrNoticeCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = reservation.fullPickupCode;
+
+    // Confirmed or Ready for Pickup: show MT-MMDDYY-XXXX pickup code
+    if ((reservation.status == ReservationStatus.confirmed ||
+            reservation.status == ReservationStatus.readyForPickup) &&
+        code != null) {
+      final isReady = reservation.status == ReservationStatus.readyForPickup;
+      return Card(
+        color: AppColors.primaryLight,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.qr_code_2_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    isReady
+                        ? 'READY FOR PICKUP · PICKUP CODE'
+                        : 'CONFIRMED · PICKUP CODE',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      code,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy pickup code',
+                    icon: const Icon(
+                      Icons.copy_outlined,
+                      color: AppColors.primary,
+                    ),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pickup code copied.')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              Text(
+                reservation.hasRx
+                    ? 'Show this code at the pharmacy counter and bring your original physical prescription.'
+                    : 'Show this code at the pharmacy counter to claim your reservation.',
+                style: const TextStyle(fontSize: 13, color: AppColors.text),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Pending: waiting for pharmacy review
+    if (reservation.status == ReservationStatus.pending) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.hourglass_top_rounded,
+                color: AppColors.warning,
+                size: 20,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Waiting for pharmacy confirmation. Your pickup code will appear here once a pharmacist confirms your reservation.',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Rejected or Cancelled: display reason from pharmacy
+    if (reservation.status == ReservationStatus.rejected ||
+        reservation.status == ReservationStatus.cancelled) {
+      final isRejected = reservation.status == ReservationStatus.rejected;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: AppColors.danger,
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    isRejected
+                        ? 'Reason for rejection'
+                        : 'Reason for cancellation',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                (reservation.closedReason ?? '').isNotEmpty
+                    ? reservation.closedReason!
+                    : 'No reason provided by the pharmacy.',
+                style: const TextStyle(fontSize: 14, color: AppColors.text),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Expired
+    if (reservation.status == ReservationStatus.expired) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.event_busy_outlined,
+                color: AppColors.textMuted,
+                size: 20,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'This reservation expired after 7 days without pickup and any held stock was released.',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Completed
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Order picked up and completed. Thank you!',
+                style: TextStyle(fontSize: 13, color: AppColors.text),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PharmacyCard extends StatelessWidget {
+  const _PharmacyCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.local_pharmacy_outlined,
+              color: AppColors.primary,
+              size: 22,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PICKUP BRANCH',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    reservation.pharmacyName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (reservation.branchName.isNotEmpty)
+                    Text(
+                      reservation.branchName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  if (reservation.branchAddress.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      reservation.branchAddress,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemsCard extends StatelessWidget {
+  const _ItemsCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'RESERVED MEDICINES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ...reservation.items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '${item.brandName} × ${item.quantity}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                              ),
+                              if (item.isRx) ...[
+                                const SizedBox(width: AppSpacing.xs),
+                                const StatusBadge.rx(),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item.genericName} · ${item.strength} · ${item.dosageForm}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          Text(
+                            item.formattedUnitPrice,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      item.formattedLineTotal,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: AppSpacing.lg),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total reported amount',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                Text(
+                  reservation.formattedTotal,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrescriptionsCard extends StatelessWidget {
+  const _PrescriptionsCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ATTACHED PRESCRIPTIONS (${reservation.prescriptions.length})',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            ...reservation.prescriptions.map(
+              (rx) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(
+                  Icons.description_outlined,
+                  color: AppColors.primary,
+                ),
+                title: Text(
+                  rx.fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(rx.displayId),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  Widget build(BuildContext context) {
+    final events = reservation.statusHistory;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'STATUS TIMELINE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (events.isEmpty)
+              const Text(
+                'No status updates yet.',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              )
+            else
+              ...List.generate(events.length, (index) {
+                final event = events[index];
+                final isLast = index == events.length - 1;
+                final timeLabel = DateFormat(
+                  'MMM d, yyyy · h:mm a',
+                ).format(event.createdAt.toLocal());
+
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              margin: const EdgeInsets.only(top: 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isLast
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                              ),
+                            ),
+                            if (!isLast)
+                              Expanded(
+                                child: Container(
+                                  width: 2,
+                                  color: AppColors.border,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: isLast ? 0 : AppSpacing.md,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.toStatus.label,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isLast
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                timeLabel,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              if ((event.reason ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Reason: ${event.reason}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}

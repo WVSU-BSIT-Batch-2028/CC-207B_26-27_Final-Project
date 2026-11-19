@@ -1,27 +1,33 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/cart.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../reservations/reservation_submitted_screen.dart';
 
-// Customer cart screen matching wireframes P-13 (empty) and P-14 (active cart)
+// Customer cart screen matching wireframes P-15, P-17, and P-18
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({
     super.key,
     this.isOffline = false,
     this.onBrowseMedicines,
     this.onPickPrescription,
-    this.onProceedToReservation,
+    this.onReservationSubmitted,
+    this.onOpenReservationDetails,
   });
 
   final bool isOffline;
   final VoidCallback? onBrowseMedicines;
   final Future<void> Function(WidgetRef ref)? onPickPrescription;
-  final void Function(CustomerCart cart)? onProceedToReservation;
+  final void Function(String reservationId, String referenceNo)?
+  onReservationSubmitted;
+  final void Function(String reservationId)? onOpenReservationDetails;
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();
@@ -29,6 +35,8 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _busy = false;
+  bool _acknowledged = false;
+  String? _idempotencyKey;
 
   Future<void> _runAction(Future<void> Function() action) async {
     if (_busy) return;
@@ -37,8 +45,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -72,13 +81,62 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
+  // Calls submit_reservation and navigates to the confirmation screen (P-19)
+  Future<void> _placeReservation(CustomerCart cart) async {
+    if (!_acknowledged || !cart.canSubmitReservation) return;
+
+    // Reuse the same idempotency key if a retry happens on network failure
+    _idempotencyKey ??= ref
+        .read(reservationServiceProvider)
+        .generateIdempotencyKey();
+
+    final snapshotItems = List<CartItem>.from(cart.items);
+    final snapshotPharmacy = cart.pharmacyName ?? 'Pharmacy';
+    final snapshotBranch = cart.branchName ?? '';
+    final snapshotTotal = cart.subtotal;
+
+    final result = await ref
+        .read(myReservationsProvider.notifier)
+        .submitReservation(
+          idempotencyKey: _idempotencyKey!,
+          acknowledged: _acknowledged,
+        );
+
+    _idempotencyKey = null;
+    if (!mounted) return;
+
+    if (widget.onReservationSubmitted != null) {
+      widget.onReservationSubmitted!(result.reservationId, result.referenceNo);
+      return;
+    }
+
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (submittedContext) => ReservationSubmittedScreen(
+          reservationId: result.reservationId,
+          referenceNo: result.referenceNo,
+          pharmacyName: snapshotPharmacy,
+          branchName: snapshotBranch,
+          items: snapshotItems,
+          totalAmount: snapshotTotal,
+          onViewReservation: widget.onOpenReservationDetails == null
+              ? null
+              : () {
+                  Navigator.of(submittedContext).pop();
+                  widget.onOpenReservationDetails!(result.reservationId);
+                },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartAsync = ref.watch(cartProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Cart'),
+        title: const Text('Your Cart'),
         actions: [
           if (cartAsync.value?.isNotEmpty == true)
             TextButton(
@@ -161,11 +219,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             _PrescriptionUploadCard(
                               prescriptions: cart.prescriptions,
                               busy: _busy,
-                              onUpload: widget.onPickPrescription == null
-                                  ? null
-                                  : () => _runAction(
-                                      () => widget.onPickPrescription!(ref),
-                                    ),
+                              onUpload: cart.prescriptions.length < 3
+                                  ? () =>
+                                        _runAction(_pickAndUploadPrescription)
+                                  : null,
                               onRemoveFile: (file) => _runAction(
                                 () => ref
                                     .read(cartProvider.notifier)
@@ -173,28 +230,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: AppSpacing.md),
+                          // Total, acknowledgment checkbox, and Place Reservation button
+                          _CartCheckoutCard(
+                            cart: cart,
+                            busy: _busy,
+                            acknowledged: _acknowledged,
+                            onAcknowledgedChanged: (value) {
+                              setState(() => _acknowledged = value ?? false);
+                            },
+                            onPlaceReservation:
+                                (cart.canSubmitReservation && _acknowledged)
+                                ? () => _runAction(() => _placeReservation(cart))
+                                : null,
+                          ),
                         ],
                       ),
-                    ),
-                    // Sticky subtotal & reservation checkout bar
-                    _CartCheckoutBar(
-                      cart: cart,
-                      busy: _busy,
-                      onProceed: cart.canSubmitReservation
-                          ? () {
-                              if (widget.onProceedToReservation != null) {
-                                widget.onProceedToReservation!(cart);
-                                return;
-                              }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Cart verified — ready for reservation summary.',
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
                     ),
                   ],
                 );
@@ -204,6 +255,59 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ],
       ),
     );
+  }
+
+  String? _mimeTypeForFileName(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == fileName.length - 1) return null;
+    final ext = fileName.substring(dotIndex + 1).toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return null;
+    }
+  }
+
+  // Opens the device file picker for JPEG, PNG, or PDF prescriptions (max 5 MB)
+  Future<void> _pickAndUploadPrescription() async {
+    if (widget.onPickPrescription != null) {
+      await widget.onPickPrescription!(ref);
+      return;
+    }
+
+    final files = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+    if (files.isEmpty) return;
+
+    final picked = files.single;
+    final mimeType = _mimeTypeForFileName(picked.name);
+    if (mimeType == null) {
+      throw StateError('Choose a JPEG, PNG, or PDF file.');
+    }
+
+    final bytes = await picked.readAsBytes();
+    if (bytes.isEmpty) {
+      throw StateError('Could not read the selected file.');
+    }
+    if (bytes.lengthInBytes > 5242880) {
+      throw StateError('File exceeds the 5 MB limit.');
+    }
+
+    await ref
+        .read(cartProvider.notifier)
+        .uploadPrescription(
+          fileName: picked.name,
+          bytes: bytes,
+          mimeType: mimeType,
+        );
   }
 }
 
@@ -231,6 +335,16 @@ class _BranchBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'PICKUP AT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Text(
                     cart.pharmacyName ?? '',
                     style: const TextStyle(
@@ -239,14 +353,15 @@ class _BranchBanner extends StatelessWidget {
                       color: AppColors.text,
                     ),
                   ),
-                  Text(
-                    cart.branchName ?? '',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                  if ((cart.branchName ?? '').isNotEmpty)
+                    Text(
+                      cart.branchName!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 2),
                   Text(
                     cart.branchAddress ?? '',
@@ -254,6 +369,11 @@ class _BranchBanner extends StatelessWidget {
                       fontSize: 12,
                       color: AppColors.textMuted,
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  const Text(
+                    'One pharmacy per reservation and pickup code.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -309,7 +429,7 @@ class _CartItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${item.genericName} · ${item.strength}',
+                        '${item.genericName} · ${item.strength} · ${item.dosageForm}',
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textMuted,
@@ -351,7 +471,6 @@ class _CartItemCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Quantity stepper
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: AppColors.border),
@@ -446,10 +565,10 @@ class _PrescriptionUploadCard extends StatelessWidget {
                   size: 20,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Prescription required',
-                    style: TextStyle(
+                    'Prescription needed (${prescriptions.length}/3)',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppColors.text,
@@ -460,7 +579,7 @@ class _PrescriptionUploadCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             const Text(
-              'Attach a clear photo or PDF of your prescription (JPEG, PNG, or PDF, up to 5 MB).',
+              'Upload your prescription for the Rx items. Non-Rx items don\'t need it. The pharmacist checks it before confirming.',
               style: TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             if (prescriptions.isNotEmpty) ...[
@@ -497,9 +616,14 @@ class _PrescriptionUploadCard extends StatelessWidget {
               icon: const Icon(Icons.upload_file_outlined),
               label: Text(
                 prescriptions.isEmpty
-                    ? 'Upload Prescription'
-                    : 'Add Another Prescription',
+                    ? 'Take photo or choose file'
+                    : 'Add another file',
               ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'JPG, PNG, or PDF · up to 3 files · max 5 MB each. Bring the original at pickup.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ],
         ),
@@ -508,54 +632,41 @@ class _PrescriptionUploadCard extends StatelessWidget {
   }
 }
 
-class _CartCheckoutBar extends StatelessWidget {
-  const _CartCheckoutBar({
+class _CartCheckoutCard extends StatelessWidget {
+  const _CartCheckoutCard({
     required this.cart,
     required this.busy,
-    this.onProceed,
+    required this.acknowledged,
+    required this.onAcknowledgedChanged,
+    this.onPlaceReservation,
   });
 
   final CustomerCart cart;
   final bool busy;
-  final VoidCallback? onProceed;
+  final bool acknowledged;
+  final ValueChanged<bool?> onAcknowledgedChanged;
+  final VoidCallback? onPlaceReservation;
 
   @override
   Widget build(BuildContext context) {
     String? blockerMessage;
     if (cart.hasUnavailableItems) {
-      blockerMessage = 'Remove unavailable items before reserving.';
+      blockerMessage = 'Remove unavailable items before placing a reservation.';
     } else if (cart.hasRxItems && cart.prescriptions.isEmpty) {
-      blockerMessage = 'Upload your prescription above to continue.';
+      blockerMessage = 'Upload at least one prescription file to continue.';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: SafeArea(
-        top: false,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (blockerMessage != null) ...[
-              Text(
-                blockerMessage,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.warning,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Subtotal (${cart.totalUnits} ${cart.totalUnits == 1 ? 'item' : 'items'})',
+                  'Total reported amount (${cart.totalUnits} ${cart.totalUnits == 1 ? 'unit' : 'units'})',
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textMuted,
@@ -571,10 +682,43 @@ class _CartCheckoutBar extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Prices and availability are reported by the pharmacy and are confirmed only when the pharmacy confirms your reservation.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: acknowledged,
+              onChanged: busy ? null : onAcknowledgedChanged,
+              title: const Text(
+                'I understand that this is a reservation request and is not confirmed until the pharmacy responds.',
+                style: TextStyle(fontSize: 13, color: AppColors.text),
+              ),
+            ),
+            if (blockerMessage != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                blockerMessage,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             FilledButton(
-              onPressed: busy ? null : onProceed,
-              child: const Text('Proceed to Reservation'),
+              onPressed: busy ? null : onPlaceReservation,
+              child: busy
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Place reservation'),
             ),
           ],
         ),
@@ -603,7 +747,7 @@ class _EmptyCartView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             const Text(
-              'Your cart is empty',
+              'Your cart is empty.',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,

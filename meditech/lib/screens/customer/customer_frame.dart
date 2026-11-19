@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'search/search_screen.dart';
-
-import '../../providers/notification_providers.dart';
 import '../../providers/cart_providers.dart';
+import '../../providers/notification_providers.dart';
 import '../../widgets/theme/app_colors.dart';
-import 'home/home_screen.dart';
 import 'cart/cart_screen.dart';
+import 'home/home_screen.dart';
+import 'reservations/my_reservations_screen.dart';
+import 'reservations/reservation_details_screen.dart';
+import 'search/search_screen.dart';
 
 // Main navigation frame for the customer app with header badges and bottom tabs
 class CustomerFrame extends ConsumerStatefulWidget {
@@ -42,10 +43,8 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
         onViewAllPharmaciesTap: () => _onTabSelected(1),
       ),
       const SearchScreen(),
-      const _CustomerTabPlaceholder(
-        title: 'My Reservations',
-        description: 'View active orders, pickup codes, and history.',
-        icon: Icons.receipt_long_outlined,
+      MyReservationsScreen(
+        onBrowseMedicines: () => _onTabSelected(1),
       ),
       const _CustomerTabPlaceholder(
         title: 'Profile',
@@ -100,6 +99,16 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
                     onBrowseMedicines: () {
                       Navigator.of(cartContext).pop();
                       _onTabSelected(1);
+                    },
+                    onOpenReservationDetails: (reservationId) {
+                      _onTabSelected(2);
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ReservationDetailsScreen(
+                            reservationId: reservationId,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
