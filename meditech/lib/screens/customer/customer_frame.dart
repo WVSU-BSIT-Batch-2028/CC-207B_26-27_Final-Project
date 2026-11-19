@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/cart_providers.dart';
 import '../../providers/notification_providers.dart';
+import '../../providers/session_providers.dart';
+import '../../screens/shared/sign_in_sheet.dart';
 import '../../widgets/theme/app_colors.dart';
 import 'cart/cart_screen.dart';
 import 'home/home_screen.dart';
+import 'profile/profile_screen.dart';
 import 'reservations/my_reservations_screen.dart';
 import 'reservations/reservation_details_screen.dart';
 import 'search/search_screen.dart';
@@ -35,6 +38,53 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     setState(() => _currentIndex = index);
   }
 
+  // Guests sign in on this page, then return to the same screen
+  Future<bool> _ensureSignedIn() async {
+    if (ref.read(sessionProvider) != null) return true;
+    await showCustomerSignInSheet(context);
+    return mounted && ref.read(sessionProvider) != null;
+  }
+
+  Future<void> _openCart() async {
+    if (!await _ensureSignedIn()) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (cartContext) => CartScreen(
+          onBrowseMedicines: () {
+            Navigator.of(cartContext).pop();
+            _onTabSelected(1);
+          },
+          onOpenReservationDetails: (reservationId) {
+            _onTabSelected(2);
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ReservationDetailsScreen(
+                  reservationId: reservationId,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openNotifications() async {
+    if (!await _ensureSignedIn()) return;
+    if (!mounted) return;
+    context.push('/notifications');
+  }
+
+  Future<void> _onDestinationSelected(int index) async {
+    // Reservations and profile need a signed-in customer
+    if ((index == 2 || index == 3) && ref.read(sessionProvider) == null) {
+      if (!await _ensureSignedIn()) return;
+    }
+    if (!mounted) return;
+    _onTabSelected(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
@@ -46,12 +96,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
       MyReservationsScreen(
         onBrowseMedicines: () => _onTabSelected(1),
       ),
-      const _CustomerTabPlaceholder(
-        title: 'Profile',
-        description:
-            'Manage personal details, saved prescriptions, and security.',
-        icon: Icons.person_outline,
-      ),
+      const ProfileScreen(embedded: true),
     ];
 
     return Scaffold(
@@ -80,7 +125,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
                 color: AppColors.text,
               ),
             ),
-            onPressed: () => context.push('/notifications'),
+            onPressed: _openNotifications,
           ),
           IconButton(
             tooltip: 'Cart',
@@ -92,28 +137,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
                 color: AppColors.text,
               ),
             ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (cartContext) => CartScreen(
-                    onBrowseMedicines: () {
-                      Navigator.of(cartContext).pop();
-                      _onTabSelected(1);
-                    },
-                    onOpenReservationDetails: (reservationId) {
-                      _onTabSelected(2);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ReservationDetailsScreen(
-                            reservationId: reservationId,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              );
-            },
+            onPressed: _openCart,
           ),
           const SizedBox(width: 8),
         ],
@@ -121,7 +145,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: _onTabSelected,
+        onDestinationSelected: _onDestinationSelected,
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primaryLight,
         destinations: const [
@@ -146,49 +170,6 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
             label: 'Profile',
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Temporary view shown while other tabs are being implemented
-class _CustomerTabPlaceholder extends StatelessWidget {
-  const _CustomerTabPlaceholder({
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
-
-  final String title;
-  final String description;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: AppColors.textMuted),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
       ),
     );
   }

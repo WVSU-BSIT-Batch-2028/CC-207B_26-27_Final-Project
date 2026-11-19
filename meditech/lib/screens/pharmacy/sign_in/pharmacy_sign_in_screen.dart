@@ -167,7 +167,7 @@ class _PharmacySignInScreenState extends ConsumerState<PharmacySignInScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Sign in with your owner username. Waiting or rejected applications open the status page after sign-in.',
+                                  'Sign in with your owner username. Waiting or rejected applications open the status page right after sign-in.',
                                 ),
                               ),
                             );
