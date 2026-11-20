@@ -9,6 +9,7 @@ import '../onboarding/how_to_use_screen.dart';
 import '../profile/profile_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'home/home_screen.dart';
+import 'appointments/appointments_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 /// IndexedStack keeps each tab alive, so switching tabs never reloads data.
@@ -21,6 +22,14 @@ class PatientShell extends StatefulWidget {
 
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
+  /// Temporarily informs the patient that the booking screen is still being built.
+void _showBookingComingSoon() {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('The booking screen will be available soon.'),
+    ),
+  );
+}
 
   @override
   void initState() {
@@ -55,11 +64,9 @@ class _PatientShellState extends State<PatientShell> {
         index: _index,
         children: [
           HomeScreen(onNavigate: _goTo, onOpenAssistant: _openAssistant),
-          // TODO(Appointments owner): replace with AppointmentsScreen.
-          const ModulePlaceholder(
-            title: 'Appointments',
-            icon: Icons.event_note_rounded,
-            hint: 'Booking, details and video consultation will live here.',
+          // Patient Appointments Overview.
+          AppointmentsScreen(
+            onBookAppointment: _showBookingComingSoon,
           ),
           // TODO(Prescriptions owner): replace with PrescriptionsScreen.
           const ModulePlaceholder(
