@@ -57,6 +57,7 @@ class AppointmentService {
     required String consultationType,
     required double consultationFee,
     required bool reminderEnabled,
+    String? meetingUrl,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 1000));
 
@@ -80,6 +81,7 @@ class AppointmentService {
       status: AppointmentStatus.pending,
       consultationFee: consultationFee,
       reminderEnabled: reminderEnabled,
+      meetingUrl: meetingUrl,
     );
 
     _createdAppointments.add(appointment);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../models/appointment.dart';
+import '../../../models/appointment_status.dart';
 import '../../../services/appointment_service.dart';
 import '../../../widgets/appointment_status_chip.dart';
 import '../../../widgets/h360_button.dart';
@@ -22,18 +23,24 @@ enum _AppointmentFilter { upcoming, past }
 /// Data is retrieved through AppointmentService. The screen also supports
 /// loading, empty, error, and pull-to-refresh states.
 class AppointmentsScreen extends StatefulWidget {
+  /// Creates the patient appointments screen.
   const AppointmentsScreen({
     super.key,
     required this.onBookAppointment,
+    required this.onJoinConsultation,
   });
 
   /// Called when the patient taps the Book Appointment button.
   final VoidCallback onBookAppointment;
 
+  /// Called when the patient opens a video consultation screen.
+  final ValueChanged<Appointment> onJoinConsultation;
+
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
 }
 
+/// Manages appointment loading, filtering, and display.
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   _LoadStatus _status = _LoadStatus.loading;
 
@@ -279,6 +286,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   appointment: appointment,
                   date: _formatDate(appointment.dateTime),
                   time: _formatTime(appointment.dateTime),
+                  onJoinConsultation: appointment.isVideo
+                      ? () => widget.onJoinConsultation(appointment)
+                      : null,
                 ),
               ),
           ],
@@ -300,17 +310,20 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 }
 
-/// Displays one appointment's information and status.
+/// Displays one appointment's information and available actions.
 class _AppointmentCard extends StatelessWidget {
+  /// Creates an appointment card.
   const _AppointmentCard({
     required this.appointment,
     required this.date,
     required this.time,
+    required this.onJoinConsultation,
   });
 
   final Appointment appointment;
   final String date;
   final String time;
+  final VoidCallback? onJoinConsultation;
 
   /// Builds the appointment card.
   @override
@@ -399,6 +412,41 @@ class _AppointmentCard extends StatelessWidget {
                 ? 'Video Consultation'
                 : appointment.location,
           ),
+
+          // Video consultation navigation.
+          if (appointment.isVideo) ...[
+            const SizedBox(height: AppSpacing.md),
+            if (appointment.status == AppointmentStatus.pending)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  'Your consultation is waiting for confirmation.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            if (appointment.status == AppointmentStatus.cancelled)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  'This appointment has been cancelled.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onJoinConsultation,
+                icon: const Icon(Icons.video_call_rounded),
+                label: const Text('View Video Consultation'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -407,6 +455,7 @@ class _AppointmentCard extends StatelessWidget {
 
 /// Displays an icon and a short appointment detail.
 class _AppointmentInfoRow extends StatelessWidget {
+  /// Creates an appointment information row.
   const _AppointmentInfoRow({
     required this.icon,
     required this.text,

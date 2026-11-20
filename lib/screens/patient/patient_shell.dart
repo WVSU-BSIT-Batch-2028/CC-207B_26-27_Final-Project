@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../models/appointment.dart';
+import '../../models/doctor.dart';
 import '../../models/user_role.dart';
 import '../../services/guide_service.dart';
 import '../../widgets/h360_bottom_nav.dart';
@@ -10,7 +12,7 @@ import '../profile/profile_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'home/home_screen.dart';
 import 'appointments/appointments_screen.dart';
-import '../../models/doctor.dart';
+import 'appointments/video_consultation_screen.dart';
 import 'appointments/booking/doctor_selection_screen.dart';
 import 'appointments/booking/date_time_selection_screen.dart';
 import 'appointments/booking/appointment_details_screen.dart';
@@ -96,6 +98,17 @@ class _PatientShellState extends State<PatientShell> {
     );
   }
 
+  /// Opens the video consultation screen for the selected appointment.
+  void _openVideoConsultation(Appointment appointment) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VideoConsultationScreen(
+          appointment: appointment,
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +158,7 @@ class _PatientShellState extends State<PatientShell> {
           AppointmentsScreen(
             key: ValueKey(_appointmentsRefreshToken),
             onBookAppointment: _openDoctorSelection,
+            onJoinConsultation: _openVideoConsultation,
           ),
 
           // TODO(Prescriptions owner): replace with PrescriptionsScreen.
