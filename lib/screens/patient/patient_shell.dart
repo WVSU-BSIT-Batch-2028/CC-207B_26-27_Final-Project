@@ -14,6 +14,7 @@ import '../../models/doctor.dart';
 import 'appointments/booking/doctor_selection_screen.dart';
 import 'appointments/booking/date_time_selection_screen.dart';
 import 'appointments/booking/appointment_details_screen.dart';
+import 'appointments/booking/appointment_confirmation_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 ///
@@ -29,6 +30,27 @@ class PatientShell extends StatefulWidget {
 /// Manages patient tab navigation and appointment booking navigation.
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
+
+  /// Changes the currently selected patient tab.
+  void _goTo(int index) => setState(() => _index = index);
+
+  /// Refreshes the Appointments Overview after a successful booking.
+  ///
+  /// Replacing its key recreates the screen and loads the latest
+  /// appointments from AppointmentService.
+  int _appointmentsRefreshToken = 0;
+
+  /// Returns to the Appointments Overview after confirmation.
+  void _finishBooking() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    if (!mounted) return;
+
+    setState(() {
+      _index = 1;
+      _appointmentsRefreshToken++;
+    });
+  }
 
   /// Opens the doctor selection stage of appointment booking.
   Future<void> _openDoctorSelection() async {
@@ -49,19 +71,14 @@ class _PatientShellState extends State<PatientShell> {
                           doctor: doctor,
                           appointmentDateTime: dateTime,
                           onBookNow: (details) {
-                            // Display the selected booking options for now.
-                            final date = MaterialLocalizations.of(context)
-                                .formatMediumDate(dateTime);
-                            final time = TimeOfDay.fromDateTime(dateTime)
-                                .format(context);
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Selected: $date at $time | '
-                                  '${details.consultationType} | '
-                                  'Reminder: '
-                                  '${details.reminderEnabled ? 'On' : 'Off'}',
+                            // Open the appointment confirmation stage.
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => AppointmentConfirmationScreen(
+                                  doctor: doctor,
+                                  appointmentDateTime: dateTime,
+                                  bookingDetails: details,
+                                  onDone: _finishBooking,
                                 ),
                               ),
                             );
@@ -103,9 +120,6 @@ class _PatientShellState extends State<PatientShell> {
     await GuideService.instance.markSeen(UserRole.patient);
   }
 
-  /// Changes the currently selected patient tab.
-  void _goTo(int index) => setState(() => _index = index);
-
   /// Opens the AI assistant and handles its requested navigation action.
   Future<void> _openAssistant() async {
     final action = await Navigator.of(context).pushNamed(AppRoutes.assistant);
@@ -129,6 +143,7 @@ class _PatientShellState extends State<PatientShell> {
 
           // Patient Appointments Overview.
           AppointmentsScreen(
+            key: ValueKey(_appointmentsRefreshToken),
             onBookAppointment: _openDoctorSelection,
           ),
 

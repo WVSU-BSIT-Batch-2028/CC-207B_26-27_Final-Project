@@ -2,7 +2,7 @@ import '../models/appointment.dart';
 import '../models/appointment_status.dart';
 import 'dashboard_service.dart';
 
-/// Error returned when appointment data cannot be loaded.
+/// Error returned when appointment data cannot be loaded or created.
 class AppointmentException implements Exception {
   const AppointmentException(this.message);
 
@@ -12,18 +12,20 @@ class AppointmentException implements Exception {
 /// Provides appointment data to the patient appointment screens.
 ///
 /// This currently uses mock data and simulated network loading.
-/// The service can later be connected to Firebase, MySQL, or an API
-/// without requiring major changes to the screen.
+/// It can later be connected to Firebase, MySQL, or an API.
 class AppointmentService {
   AppointmentService._();
 
   /// Shared service instance.
   static final AppointmentService instance = AppointmentService._();
 
+  /// Stores appointments created during the current app session.
+  final List<Appointment> _createdAppointments = [];
+
   /// Retrieves the patient's appointments.
   ///
-  /// Uses the existing Home demo scenarios to demonstrate
-  /// normal, empty, and error states.
+  /// Combines sample appointments with newly created appointments.
+  /// The demo scenario can also simulate empty and error responses.
   Future<List<Appointment>> fetchAppointments() async {
     await Future<void>.delayed(const Duration(milliseconds: 1000));
 
@@ -34,11 +36,55 @@ class AppointmentService {
         );
 
       case DemoScenario.empty:
-        return [];
+        return List.unmodifiable(_createdAppointments);
 
       case DemoScenario.normal:
-        return _sampleAppointments();
+        return [
+          ..._createdAppointments,
+          ..._sampleAppointments(),
+        ];
     }
+  }
+
+  /// Creates and stores a new appointment.
+  ///
+  /// The appointment starts as pending because the doctor
+  /// still needs to confirm the booking request.
+  Future<Appointment> createAppointment({
+    required String doctorName,
+    required String specialty,
+    required DateTime dateTime,
+    required String consultationType,
+    required double consultationFee,
+    required bool reminderEnabled,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+
+    // Simulate a booking submission error for testing.
+    if (DashboardService.instance.scenario == DemoScenario.error) {
+      throw const AppointmentException(
+        "We couldn't submit your booking. Please try again.",
+      );
+    }
+
+    final isVideo = consultationType.toLowerCase().contains('video');
+
+    final appointment = Appointment(
+      id: 'apt-${DateTime.now().microsecondsSinceEpoch}',
+      title: '$specialty Consultation',
+      doctorName: doctorName,
+      specialty: specialty,
+      dateTime: dateTime,
+      location: isVideo ? 'Video Consultation' : 'Main Clinic',
+      isVideo: isVideo,
+      status: AppointmentStatus.pending,
+      consultationFee: consultationFee,
+      reminderEnabled: reminderEnabled,
+    );
+
+    _createdAppointments.add(appointment);
+
+    return appointment;
   }
 
   /// Creates sample upcoming and past appointments.
