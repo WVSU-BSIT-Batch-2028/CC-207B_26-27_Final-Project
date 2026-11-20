@@ -12,6 +12,7 @@ import 'home/home_screen.dart';
 import 'appointments/appointments_screen.dart';
 import '../../models/doctor.dart';
 import 'appointments/booking/doctor_selection_screen.dart';
+import 'appointments/booking/date_time_selection_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 /// IndexedStack keeps each tab alive, so switching tabs never reloads data.
@@ -24,31 +25,50 @@ class PatientShell extends StatefulWidget {
 
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
+
   /// Temporarily informs the patient that the booking screen is still being built.
-/// Opens the doctor selection stage of appointment booking.
-Future<void> _openDoctorSelection() async {
-  await Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => DoctorSelectionScreen(
-        onNext: (Doctor doctor) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${doctor.name} selected. Date and time selection is next.',
+  /// Opens the doctor selection stage of appointment booking.
+  Future<void> _openDoctorSelection() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DoctorSelectionScreen(
+          onNext: (Doctor doctor) {
+            // Open the date and time selection stage.
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => DateTimeSelectionScreen(
+                  doctor: doctor,
+                  onNext: (DateTime dateTime) {
+                    // Format the selected schedule for the confirmation message.
+                    final date = MaterialLocalizations.of(context)
+                        .formatMediumDate(dateTime);
+                    final time =
+                        TimeOfDay.fromDateTime(dateTime).format(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Selected schedule: $date at $time. '
+                          'Appointment details are next.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     // Show the "How to use" guide the first time the patient side opens.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showGuideIfFirstTime());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _showGuideIfFirstTime());
   }
 
   Future<void> _showGuideIfFirstTime() async {
@@ -85,7 +105,8 @@ Future<void> _openDoctorSelection() async {
           const ModulePlaceholder(
             title: 'Prescriptions',
             icon: Icons.medication_rounded,
-            hint: 'Prescription list, reminders and refill requests will live here.',
+            hint:
+                'Prescription list, reminders and refill requests will live here.',
           ),
           // TODO(Records owner): replace with RecordsScreen.
           const ModulePlaceholder(
