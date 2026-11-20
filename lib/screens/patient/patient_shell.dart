@@ -10,6 +10,8 @@ import '../profile/profile_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'home/home_screen.dart';
 import 'appointments/appointments_screen.dart';
+import '../../models/doctor.dart';
+import 'appointments/booking/doctor_selection_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 /// IndexedStack keeps each tab alive, so switching tabs never reloads data.
@@ -23,10 +25,21 @@ class PatientShell extends StatefulWidget {
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
   /// Temporarily informs the patient that the booking screen is still being built.
-void _showBookingComingSoon() {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('The booking screen will be available soon.'),
+/// Opens the doctor selection stage of appointment booking.
+Future<void> _openDoctorSelection() async {
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => DoctorSelectionScreen(
+        onNext: (Doctor doctor) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${doctor.name} selected. Date and time selection is next.',
+              ),
+            ),
+          );
+        },
+      ),
     ),
   );
 }
@@ -66,7 +79,7 @@ void _showBookingComingSoon() {
           HomeScreen(onNavigate: _goTo, onOpenAssistant: _openAssistant),
           // Patient Appointments Overview.
           AppointmentsScreen(
-            onBookAppointment: _showBookingComingSoon,
+            onBookAppointment: _openDoctorSelection,
           ),
           // TODO(Prescriptions owner): replace with PrescriptionsScreen.
           const ModulePlaceholder(

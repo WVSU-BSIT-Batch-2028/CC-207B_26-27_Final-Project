@@ -10,4 +10,8 @@
 | `lib/screens/patient/appointments/appointments_screen.dart` | `_AppointmentCard` | Displays an individual appointment's information and status. |
 | `lib/screens/patient/appointments/appointments_screen.dart` | `_AppointmentInfoRow` | Displays appointment details with an icon and text. |
 | `lib/widgets/appointment_status_chip.dart` | `AppointmentStatusChip` | Displays consistent Confirmed, Pending, and Cancelled status labels. |
-| `lib/screens/patient/patient_shell.dart` | `PatientShell` | Integrates the Patient Appointments Overview into the patient navigation. |
+| `lib/models/doctor.dart` | `Doctor` | Represents a doctor available for appointment booking, including name, specialty, category, next available schedule, consultation type, and consultation fee. |
+| `lib/services/booking_doctor_service.dart` | `BookingDoctorService` | Retrieves mock doctors, simulates loading, and supports normal, empty, and error scenarios for the booking flow. |
+| `lib/services/booking_doctor_service.dart` | `DoctorBookingException` | Handles errors when doctor information cannot be loaded. |
+| `lib/screens/patient/appointments/booking/doctor_selection_screen.dart` | `DoctorSelectionScreen` | Displays available doctors and allows patients to search, filter by specialty, select a doctor, and continue the booking process. |
+| `lib/screens/patient/patient_shell.dart` | `PatientShell` | Integrates the Patient Appointments Overview and navigates to the doctor selection screen when the patient chooses to book an appointment. |
