@@ -2,9 +2,10 @@ import 'appointment_status.dart';
 
 /// Represents a booked consultation.
 ///
-/// Stores the appointment information shared by the patient and doctor
-/// appointment screens.
+/// Stores appointment information shared by the patient and doctor
+/// appointment screens, including the consultation fee and reminder choice.
 class Appointment {
+  /// Creates an appointment record.
   const Appointment({
     required this.id,
     required this.title,
@@ -14,6 +15,8 @@ class Appointment {
     required this.location,
     this.isVideo = false,
     this.status = AppointmentStatus.confirmed,
+    this.consultationFee,
+    this.reminderEnabled = false,
   });
 
   /// Unique identifier of the appointment.
@@ -39,4 +42,10 @@ class Appointment {
 
   /// Current appointment status.
   final AppointmentStatus status;
+
+  /// Consultation fee, if available.
+  final double? consultationFee;
+
+  /// Whether the patient requested a one-day-before reminder.
+  final bool reminderEnabled;
 }
