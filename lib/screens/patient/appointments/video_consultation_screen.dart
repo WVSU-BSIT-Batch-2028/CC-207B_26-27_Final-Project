@@ -5,11 +5,12 @@ import '../../../core/constants/contact_info.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../models/appointment.dart';
+import '../../../models/appointment_status.dart';
 import '../../../widgets/h360_button.dart';
 
 /// Patient Video Consultation screen.
 ///
-/// Displays the doctor's information, a video-call-style interface,
+/// Displays the doctor's information, a video-call-style preview,
 /// Google Meet joining instructions, and clinic contact information.
 /// The actual meeting is opened using the appointment's meeting URL.
 class VideoConsultationScreen extends StatelessWidget {
@@ -22,33 +23,66 @@ class VideoConsultationScreen extends StatelessWidget {
   /// Appointment information used by this screen.
   final Appointment appointment;
 
-  /// Opens the appointment's meeting URL in an external application.
+  /// Checks whether the appointment has a valid Google Meet link.
+  bool get _hasMeetingLink {
+    final link = appointment.meetingUrl?.trim() ?? '';
+    final uri = Uri.tryParse(link);
+
+    return appointment.status == AppointmentStatus.confirmed &&
+        uri != null &&
+        uri.scheme == 'https' &&
+        uri.host == 'meet.google.com' &&
+        uri.pathSegments.isNotEmpty;
+  }
+
+  /// Opens the appointment's Google Meet URL in an external application.
   Future<void> _joinConsultation(BuildContext context) async {
+    if (appointment.status != AppointmentStatus.confirmed) {
+      _showMessage(
+        context,
+        'You can only join a confirmed appointment.',
+      );
+      return;
+    }
+
     final link = appointment.meetingUrl?.trim() ?? '';
 
     if (link.isEmpty) {
-      _showMessage(context, 'The meeting link has not been provided yet.');
+      _showMessage(
+        context,
+        'The meeting link has not been provided yet.',
+      );
       return;
     }
 
     final uri = Uri.tryParse(link);
 
     if (uri == null ||
-        (uri.scheme != 'https' && uri.scheme != 'http') ||
-        uri.host.isEmpty) {
-      _showMessage(context, 'The meeting link is invalid.');
+        uri.scheme != 'https' ||
+        uri.host != 'meet.google.com' ||
+        uri.pathSegments.isEmpty) {
+      _showMessage(context, 'The Google Meet link is invalid.');
       return;
     }
 
-    final opened = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    if (!opened) {
-      _showMessage(context, 'Unable to open the meeting link.');
+      if (!opened) {
+        _showMessage(context, 'Unable to open the meeting link.');
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        'An error occurred while opening the meeting.',
+      );
     }
   }
 
@@ -59,12 +93,21 @@ class VideoConsultationScreen extends StatelessWidget {
       path: ContactInfo.supportPhone,
     );
 
-    final opened = await launchUrl(uri);
+    try {
+      final opened = await launchUrl(uri);
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    if (!opened) {
-      _showMessage(context, 'Unable to open the phone application.');
+      if (!opened) {
+        _showMessage(context, 'Unable to open the phone application.');
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        'An error occurred while opening the phone application.',
+      );
     }
   }
 
@@ -91,8 +134,6 @@ class VideoConsultationScreen extends StatelessWidget {
   /// Builds the video consultation screen.
   @override
   Widget build(BuildContext context) {
-    final hasMeetingLink = appointment.meetingUrl?.trim().isNotEmpty ?? false;
-
     return Scaffold(
       backgroundColor: AppColors.brandNavy,
       appBar: AppBar(
@@ -111,7 +152,7 @@ class VideoConsultationScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            // Video-call preview area.
+            // Original doctor preview area.
             Container(
               height: 230,
               decoration: BoxDecoration(
@@ -177,31 +218,6 @@ class VideoConsultationScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Decorative call controls.
-            // These controls are not connected to a live video service.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const _CallControl(
-                  icon: Icons.mic_off_rounded,
-                  label: 'Microphone',
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                const _CallControl(
-                  icon: Icons.videocam_off_rounded,
-                  label: 'Camera',
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                const _CallControl(
-                  icon: Icons.call_end_rounded,
-                  label: 'End call',
-                  backgroundColor: AppColors.danger,
-                ),
-              ],
             ),
 
             const SizedBox(height: AppSpacing.lg),
@@ -305,14 +321,17 @@ class VideoConsultationScreen extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.lg),
 
-            // Join button is disabled when no meeting URL exists.
+            // Join button is enabled only for confirmed appointments
+            // that have a valid Google Meet URL.
             H360Button(
-              label: hasMeetingLink
+              label: _hasMeetingLink
                   ? 'Join Consultation'
-                  : 'Meeting Link Not Available',
+                  : appointment.status != AppointmentStatus.confirmed
+                      ? 'Appointment Not Confirmed'
+                      : 'Meeting Link Not Available',
               icon: Icons.video_call_rounded,
               onPressed:
-                  hasMeetingLink ? () => _joinConsultation(context) : null,
+                  _hasMeetingLink ? () => _joinConsultation(context) : null,
               expanded: true,
             ),
 
@@ -347,46 +366,6 @@ class VideoConsultationScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Displays a decorative video-call control.
-class _CallControl extends StatelessWidget {
-  /// Creates one video-call control.
-  const _CallControl({
-    required this.icon,
-    required this.label,
-    this.backgroundColor = const Color(0xFF405777),
-  });
-
-  final IconData icon;
-  final String label;
-  final Color backgroundColor;
-
-  /// Builds the control icon and label.
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.white),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-          ),
-        ),
-      ],
     );
   }
 }

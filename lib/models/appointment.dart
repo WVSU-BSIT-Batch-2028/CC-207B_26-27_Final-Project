@@ -1,6 +1,8 @@
 import 'appointment_status.dart';
 
 /// Represents a patient's scheduled medical appointment.
+///
+/// Shared by the patient and doctor appointment modules.
 class Appointment {
   /// Creates an appointment with its basic information and optional details.
   const Appointment({
@@ -15,6 +17,8 @@ class Appointment {
     this.consultationFee,
     this.reminderEnabled = false,
     this.meetingUrl,
+    this.patientName,
+    this.patientId,
   });
 
   final String id;
@@ -30,4 +34,10 @@ class Appointment {
 
   /// Google Meet link for video consultations, if available.
   final String? meetingUrl;
+
+  /// Patient's display name, if available.
+  final String? patientName;
+
+  /// Patient's unique identifier for future backend integration.
+  final String? patientId;
 }
