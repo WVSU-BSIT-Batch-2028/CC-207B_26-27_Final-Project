@@ -12,6 +12,7 @@ class ChatMessage {
     required this.createdAt,
     this.triage,
     this.isFallback = false,
+    this.isSafety = false,
   });
 
   final int id;
@@ -22,6 +23,9 @@ class ChatMessage {
 
   /// True when the reply came from built-in rules (AI unavailable).
   final bool isFallback;
+
+  /// True for the fixed emergency message (not written by the AI).
+  final bool isSafety;
 }
 
 /// What an [AiAssistantService] returns.
@@ -30,9 +34,11 @@ class AssistantReply {
     required this.text,
     this.triage,
     this.isFallback = false,
+    this.isSafety = false,
   });
 
   final String text;
   final TriageLevel? triage;
   final bool isFallback;
+  final bool isSafety;
 }

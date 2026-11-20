@@ -115,6 +115,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         createdAt: DateTime.now(),
         triage: reply.triage,
         isFallback: reply.isFallback,
+        isSafety: reply.isSafety,
       ));
     });
     _scrollToBottom();
@@ -156,7 +157,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             icon: const Icon(Icons.more_vert_rounded),
             onSelected: (value) {
               if (value == 'outage') {
-                setState(() => MockAiAssistantService.simulateOutage = !MockAiAssistantService.simulateOutage);
+                setState(() => AiDemoSwitch.simulateOutage = !AiDemoSwitch.simulateOutage);
               } else if (value == 'clear') {
                 setState(() {
                   _messages.removeRange(1, _messages.length);
@@ -167,7 +168,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             itemBuilder: (context) => [
               CheckedPopupMenuItem<String>(
                 value: 'outage',
-                checked: MockAiAssistantService.simulateOutage,
+                checked: AiDemoSwitch.simulateOutage,
                 child: const Text('Simulate AI outage (demo)'),
               ),
               const PopupMenuItem<String>(value: 'clear', child: Text('Clear conversation')),
@@ -344,17 +345,23 @@ class _MessageBubble extends StatelessWidget {
           if (message.id != 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: message.isFallback
+              child: message.isSafety
                   ? const StatusChip(
-                      label: 'Offline guidance · not AI',
-                      color: AppColors.warning,
-                      icon: Icons.info_outline_rounded,
+                      label: 'Safety guidance · not AI',
+                      color: AppColors.danger,
+                      icon: Icons.health_and_safety_rounded,
                     )
-                  : StatusChip(
-                      label: 'AI-generated',
-                      color: AppColors.primary,
-                      icon: Icons.auto_awesome_rounded,
-                    ),
+                  : message.isFallback
+                      ? const StatusChip(
+                          label: 'Offline guidance · not AI',
+                          color: AppColors.warning,
+                          icon: Icons.info_outline_rounded,
+                        )
+                      : StatusChip(
+                          label: 'AI-generated',
+                          color: AppColors.primary,
+                          icon: Icons.auto_awesome_rounded,
+                        ),
             ),
           if (triage != null)
             Padding(
