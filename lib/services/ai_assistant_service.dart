@@ -1,12 +1,11 @@
 import 'dart:async';
 
+import '../core/firebase/firebase_bootstrap.dart';
 import '../models/chat_message.dart';
+import 'ai_exceptions.dart';
+import 'gemini_assistant_service.dart';
 
-/// Thrown when the AI service is unavailable or returns something unusable.
-class AiServiceException implements Exception {
-  const AiServiceException(this.message);
-  final String message;
-}
+export 'ai_exceptions.dart';
 
 /// Contract for the AI symptom / FAQ assistant.
 ///
@@ -65,8 +64,9 @@ class _Rule {
   final String reply;
 }
 
-/// Simple keyword rules. Used (a) as the offline fallback and (b) by the
-/// mock AI below. Intentionally conservative: when unsure, suggest a doctor.
+/// Simple keyword rules. Used as the offline fallback when the AI is unavailable,
+/// and for the fixed emergency messages. Intentionally conservative: when unsure,
+/// suggest a doctor. These replies are NOT written by AI, and are labelled that way.
 class RuleBasedAssistant {
   RuleBasedAssistant._();
 
@@ -117,22 +117,24 @@ class RuleBasedAssistant {
   static AssistantReply respond(String message, {bool isFallback = true}) {
     final prefix = isFallback ? _offlinePrefix : '';
 
+    // Fixed safety notices: always shown first, never left to the AI, and
+    // labelled as safety guidance (not "AI-generated").
     if (SafetyChecker.isSelfHarm(message)) {
-      return AssistantReply(
-        text: '${prefix}I am really sorry you are going through this. You deserve '
-            'support right now. Please contact emergency services (911) or reach '
-            'out to someone you trust immediately.',
+      return const AssistantReply(
+        text: 'I am really sorry you are going through this. You deserve support '
+            'right now. Please contact emergency services (911) or reach out to '
+            'someone you trust immediately.',
         triage: TriageLevel.urgent,
-        isFallback: isFallback,
+        isSafety: true,
       );
     }
 
     if (SafetyChecker.isEmergency(message)) {
-      return AssistantReply(
-        text: '${prefix}Your symptoms may need urgent care. Please call 911 or go '
-            'to the nearest emergency room now. Do not wait for an appointment.',
+      return const AssistantReply(
+        text: 'Your symptoms may need urgent care. Please call 911 or go to the '
+            'nearest emergency room now. Do not wait for an appointment.',
         triage: TriageLevel.urgent,
-        isFallback: isFallback,
+        isSafety: true,
       );
     }
 
@@ -157,20 +159,21 @@ class RuleBasedAssistant {
   }
 }
 
-/// MOCK "AI". Simulates latency and an outage so the UI states can be built
-/// and demoed. Replace with a real model call later (keep the same class
-/// interface and the SafetyChecker step).
-class MockAiAssistantService implements AiAssistantService {
-  /// Toggle from the assistant screen menu to demo the graceful fallback.
+/// Demo-only switch (AI screen menu > "Simulate AI outage") that makes the
+/// real AI fail on purpose, so the fallback can be shown live.
+class AiDemoSwitch {
+  AiDemoSwitch._();
   static bool simulateOutage = false;
+}
+
+/// Used when Firebase is not set up on this computer. It always fails, so the
+/// person sees offline guidance honestly labelled "not AI" (never fake AI).
+class UnavailableAiAssistantService implements AiAssistantService {
+  const UnavailableAiAssistantService();
 
   @override
   Future<AssistantReply> ask(String message, List<ChatMessage> history) async {
-    await Future<void>.delayed(const Duration(milliseconds: 1500));
-    if (simulateOutage) {
-      throw const AiServiceException('Service unavailable');
-    }
-    return RuleBasedAssistant.respond(message, isFallback: false);
+    throw const AiServiceException('Firebase is not configured on this device.');
   }
 }
 
@@ -189,7 +192,7 @@ class FallbackAiAssistantService implements AiAssistantService {
   Future<AssistantReply> ask(String message, List<ChatMessage> history) async {
     // Safety first: emergencies never wait on the model.
     if (SafetyChecker.isEmergency(message) || SafetyChecker.isSelfHarm(message)) {
-      return RuleBasedAssistant.respond(message, isFallback: false);
+      return RuleBasedAssistant.respond(message);
     }
 
     try {
@@ -205,10 +208,16 @@ class FallbackAiAssistantService implements AiAssistantService {
   }
 }
 
-/// One place to decide which implementation the app uses.
+/// One place to decide which implementation the app uses:
+/// Gemini (through Firebase) when Firebase and App Check are running, otherwise offline guidance.
+/// The wrapper adds the timeout and the fallback in both cases.
 class AiAssistantFactory {
   AiAssistantFactory._();
 
-  static AiAssistantService create() =>
-      FallbackAiAssistantService(primary: MockAiAssistantService());
+  static AiAssistantService create() => FallbackAiAssistantService(
+        primary: FirebaseBootstrap.isAiReady
+            ? GeminiAssistantService()
+            : const UnavailableAiAssistantService(),
+        timeout: const Duration(seconds: 12),
+      );
 }
