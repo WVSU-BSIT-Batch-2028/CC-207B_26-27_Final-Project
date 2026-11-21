@@ -9,6 +9,7 @@ import '../../../widgets/dialogs/confirm_dialog.dart';
 import '../../../widgets/dialogs/reason_dialog.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import 'renewal_review_box.dart';
 
 // Deactivate an active pharmacy, or activate an inactive one (wireframes A-09, A-10)
 class BranchStatusPanel extends ConsumerStatefulWidget {
@@ -62,6 +63,7 @@ class _BranchStatusPanelState extends ConsumerState<BranchStatusPanel> {
             'and held stock is released.',
         'Customers with open reservations are notified with your reason.',
         'Carts with items from this pharmacy are emptied.',
+        'Staff can no longer sign in; the owner can only send a renewed LTO.',
         'You can activate it again later.',
       ],
       actionLabel: 'Continue',
@@ -72,7 +74,7 @@ class _BranchStatusPanelState extends ConsumerState<BranchStatusPanel> {
     final reason = await showReasonDialog(
       context,
       title: 'Reason for deactivating',
-      description: 'Customers with open reservations see this reason.',
+      description: 'The owner and customers with open reservations see this reason.',
       actionLabel: 'Deactivate pharmacy',
       hint: 'e.g. The License to Operate has expired.',
     );
@@ -90,7 +92,7 @@ class _BranchStatusPanelState extends ConsumerState<BranchStatusPanel> {
       whatWillHappen: const [
         'Customers can find the pharmacy again.',
         'Its in-stock medicines show up in search again.',
-        'It can take new reservations.',
+        'The owner and staff can sign in and take reservations again.',
       ],
       actionLabel: 'Activate pharmacy',
     );
@@ -130,6 +132,10 @@ class _BranchStatusPanelState extends ConsumerState<BranchStatusPanel> {
           ]),
         ),
         const SizedBox(height: AppSpacing.md),
+
+        // A renewed LTO waiting for review, if any
+        RenewalReviewBox(branchId: d.id),
+
         SizedBox(
           width: double.infinity,
           child: FilledButton(
