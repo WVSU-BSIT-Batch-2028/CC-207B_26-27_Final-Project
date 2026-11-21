@@ -9,6 +9,12 @@ final pharmacyServiceProvider = Provider<PharmacyService>((ref) {
   return PharmacyService();
 });
 
+// Approved branches shown on guest/home browse
+final publicBranchesProvider =
+    FutureProvider.autoDispose<List<PharmacyDetail>>((ref) async {
+  return ref.watch(pharmacyServiceProvider).listPublicBranches();
+});
+
 // Loads approved branch info for Pharmacy Details
 final pharmacyDetailProvider =
     FutureProvider.family<PharmacyDetail?, String>((ref, branchId) async {

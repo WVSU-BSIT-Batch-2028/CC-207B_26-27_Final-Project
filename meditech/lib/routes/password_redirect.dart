@@ -4,31 +4,59 @@ import 'package:flutter/foundation.dart';
 import '../models/signed_in_account.dart';
 import '../providers/session_providers.dart';
 
+const _pharmacyShellPaths = {
+  '/dashboard',
+  '/reservations',
+  '/inventory',
+  '/employees',
+};
+
+const _adminShellPaths = {
+  '/pharmacies',
+  '/catalogue',
+  '/requests',
+  '/audit',
+};
+
 // Temporary passwords must be changed before anything else
-String? redirectForPasswordChange(SignedInAccount? account, String location) {
+String? redirectForPasswordChange(
+  SignedInAccount? account,
+  String location, {
+  String homePath = '/',
+}) {
   final changing = location == '/change-password';
   if (account?.mustChangePassword == true && !changing) {
     return '/change-password';
   }
   if (account != null && !account.mustChangePassword && changing) {
-    return '/';
+    return homePath;
   }
   return null;
 }
 
-// Pharmacy owners waiting, rejected, or suspended only see their status pages
+// Pharmacy owners waiting, rejected, or suspended only see their status pages.
+// Approved staff open the tablet shell instead of staying on sign-in.
 String? redirectForPharmacySession(SignedInAccount? account, String location) {
-  final passwordRedirect = redirectForPasswordChange(account, location);
+  final passwordRedirect = redirectForPasswordChange(
+    account,
+    location,
+    homePath: '/dashboard',
+  );
   if (passwordRedirect != null) return passwordRedirect;
 
   if (account == null) {
-    if (location == '/application-status' || location == '/suspended') {
+    if (location == '/application-status' ||
+        location == '/suspended' ||
+        _pharmacyShellPaths.contains(location) ||
+        location == '/activity-log' ||
+        location == '/notifications') {
       return '/';
     }
     return null;
   }
 
-  final waiting = account.state == 'pending_approval' || account.state == 'rejected';
+  final waiting =
+      account.state == 'pending_approval' || account.state == 'rejected';
   final suspended = account.state == 'suspended';
 
   if (waiting) {
@@ -43,9 +71,32 @@ String? redirectForPharmacySession(SignedInAccount? account, String location) {
     return null;
   }
 
-  if (location == '/application-status' || location == '/suspended') {
-    return '/';
+  if (location == '/' ||
+      location == '/application-status' ||
+      location == '/suspended') {
+    return '/dashboard';
   }
+  return null;
+}
+
+// Signed-in admins open the pharmacies shell; guests stay on sign-in
+String? redirectForAdminSession(SignedInAccount? account, String location) {
+  final passwordRedirect = redirectForPasswordChange(
+    account,
+    location,
+    homePath: '/pharmacies',
+  );
+  if (passwordRedirect != null) return passwordRedirect;
+
+  if (account == null) {
+    if (_adminShellPaths.contains(location) ||
+        location.startsWith('/audit/')) {
+      return '/';
+    }
+    return null;
+  }
+
+  if (location == '/') return '/pharmacies';
   return null;
 }
 

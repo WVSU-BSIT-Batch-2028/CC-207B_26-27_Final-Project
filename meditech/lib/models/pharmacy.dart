@@ -26,14 +26,14 @@ class PharmacyDetail {
 
   factory PharmacyDetail.fromJson(Map<String, dynamic> json) {
     return PharmacyDetail(
-      branchId: json['branch_id'] as String,
+      branchId: '${json['branch_id'] ?? json['id']}',
       displayId: json['display_id'] as String? ?? '',
-      pharmacyName: json['pharmacy_name'] as String,
-      branchName: json['branch_name'] as String,
-      address: json['address'] as String,
-      contactNumber: json['contact_number'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      pharmacyName: json['pharmacy_name'] as String? ?? 'Pharmacy',
+      branchName: json['branch_name'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      contactNumber: json['contact_number'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
     );
   }
