@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../core/app_scope.dart';
 import '../core/search.dart';
@@ -16,21 +15,6 @@ import 'home_screen.dart' show Unconfirmed;
 class ScheduleScreen extends StatelessWidget {
   const ScheduleScreen({super.key});
 
-  /// Tests replace the photo picker.
-  static Future<XFile?> Function()? debugPicker;
-
-  Future<void> _upload(BuildContext context) async {
-    final store = AppScope.of(context).schedule;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final file = await (debugPicker ?? () => ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1400, imageQuality: 80))();
-      if (file == null) return;
-      await store.setImage(base64Encode(await file.readAsBytes()));
-    } catch (_) {
-      messenger.showSnackBar(const SnackBar(content: Text('The image couldn’t be opened. Try another photo.')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final store = AppScope.of(context).schedule;
@@ -38,70 +22,206 @@ class ScheduleScreen extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final classes = store.classes;
-        return ListView(padding: const EdgeInsets.all(16), children: [
-          TextButton.icon(onPressed: () => context.go('/'), icon: const Icon(Icons.arrow_back, size: 18), label: const Text('Home')),
-          const Text('My Schedule', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-          const Notice('Private: your timetable and classes are saved on this device only. Times use Asia/Manila.', info: true),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('TIMETABLE IMAGE', style: TextStyle(fontSize: 11, letterSpacing: .8, color: wayBlue, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                if (store.imageBase64 != null) ...[
-                  ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(base64Decode(store.imageBase64!), semanticLabel: 'Your uploaded timetable', height: 220, fit: BoxFit.contain)),
-                  const SizedBox(height: 6),
-                  const Text('Use it as a reference while you enter or confirm each class. WayFinder doesn’t read the image automatically.', style: TextStyle(fontSize: 12, color: muted)),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, children: [
-                    OutlinedButton(onPressed: () => _upload(context), child: const Text('Replace image')),
-                    OutlinedButton(onPressed: () => store.setImage(null), child: const Text('Remove image')),
-                  ]),
-                ] else ...[
-                  const Text('Upload a photo or screenshot of your class schedule, then confirm each class.', style: TextStyle(color: muted)),
-                  const SizedBox(height: 10),
-                  FilledButton.icon(onPressed: () => _upload(context), icon: const Icon(Icons.upload, size: 18), label: const Text('Upload timetable')),
-                ],
-              ]),
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextButton.icon(
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('Home'),
             ),
-          ),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Reminders appear while WayFinder is open. Background notifications need the notifications plugin on a phone (not set up yet).', style: TextStyle(fontSize: 13, color: muted)),
+            const Text(
+              'My Schedule',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
             ),
-          ),
-          Row(children: [
-            const Expanded(child: Text('WEEKLY CLASSES', style: TextStyle(fontSize: 11, letterSpacing: 1, color: muted, fontWeight: FontWeight.w700))),
-            FilledButton(onPressed: () => context.go('/schedule/new'), child: const Text('Add class')),
-          ]),
-          if (classes.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('No classes yet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)))),
-          for (var d = 1; d <= 7; d++)
-            if (classes.any((c) => c.weekday == d)) ...[
-              Padding(padding: const EdgeInsets.only(top: 12, bottom: 4), child: Text(weekdays[d - 1], style: const TextStyle(fontWeight: FontWeight.w700, color: navy))),
-              for (final c in classes.where((c) => c.weekday == d).toList()..sort((a, b) => a.start.compareTo(b.start)))
-                Card(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => context.go('/schedule/${c.id}'),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(children: [
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(c.subject, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                            Text('${formatClock(c.start)}–${formatClock(c.end)}${c.professor != null ? ' · ${c.professor}' : ''}', style: const TextStyle(color: muted, fontSize: 13)),
-                            if (c.roomPlaceId == null) const Padding(padding: EdgeInsets.only(top: 6), child: Unconfirmed('Room location unconfirmed')),
-                          ]),
+            const Notice(
+              'Private: your timetable and classes are saved on this device only. Times use Asia/Manila.',
+              info: true,
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Import your IUIS schedule or COR',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Upload a PDF, photo or screenshot. Review the detected classes, then save them with reminders.',
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => context.go('/schedule/import'),
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Add my Schedule'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (store.imageBase64 != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const Text('Previously uploaded timetable'),
+                      Image.memory(
+                        base64Decode(store.imageBase64!),
+                        height: 180,
+                        fit: BoxFit.contain,
+                        semanticLabel: 'Your uploaded timetable',
+                      ),
+                      TextButton(
+                        onPressed: () => store.setImage(null),
+                        child: const Text('Remove image'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ListenableBuilder(
+              listenable: AppScope.of(context).notifications,
+              builder: (context, _) {
+                final notifications = AppScope.of(context).notifications;
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Class reminders',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(width: 8),
-                        Text(c.roomCodeRaw, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: navy)),
-                      ]),
+                        const SizedBox(height: 8),
+                        Text(
+                          notifications.statusText,
+                          style: const TextStyle(fontSize: 13, color: muted),
+                        ),
+                        if (notifications.supported) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: notifications.enable,
+                            icon: const Icon(
+                              Icons.notifications_active_outlined,
+                            ),
+                            label: Text(
+                              notifications.enabled
+                                  ? 'Check reminder permissions'
+                                  : 'Enable class reminders',
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'WEEKLY CLASSES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 1,
+                      color: muted,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-            ],
-        ]);
+                FilledButton(
+                  onPressed: () => context.go('/schedule/new'),
+                  child: const Text('Add class'),
+                ),
+              ],
+            ),
+            if (classes.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'No classes yet',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            for (var d = 1; d <= 7; d++)
+              if (classes.any((c) => c.weekday == d)) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Text(
+                    weekdays[d - 1],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: navy,
+                    ),
+                  ),
+                ),
+                for (final c
+                    in classes.where((c) => c.weekday == d).toList()
+                      ..sort((a, b) => a.start.compareTo(b.start)))
+                  Card(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => context.go('/schedule/${c.id}'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    c.subject,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${formatClock(c.start)}–${formatClock(c.end)}${c.professor != null ? ' · ${c.professor}' : ''}',
+                                    style: const TextStyle(
+                                      color: muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (c.roomPlaceId == null)
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 6),
+                                      child: Unconfirmed(
+                                        'Room location unconfirmed',
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              c.roomCodeRaw,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: navy,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+          ],
+        );
       },
     );
   }
@@ -140,6 +260,14 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
       _weekday = c.weekday;
       _remind = c.remindMinutes;
     }
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_subject, _start, _end, _room, _prof]) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   static final _hhmm = RegExp(r'^([01]\d|2[0-3]):[0-5]\d$');

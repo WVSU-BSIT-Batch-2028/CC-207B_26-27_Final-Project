@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../data/campus.dart';
+import '../data/class_notifications.dart';
 import '../data/faculty_repository.dart';
 import '../data/guide_client.dart';
 import '../data/location_service.dart';
@@ -20,6 +21,7 @@ class AppScope extends InheritedWidget {
     required this.campus,
     required this.guide,
     required this.schedule,
+    required this.notifications,
     required this.progress,
     required this.location,
     required super.child,
@@ -32,6 +34,7 @@ class AppScope extends InheritedWidget {
   final CampusRepository campus;
   final GuideClient guide;
   final ScheduleStore schedule;
+  final ClassNotifications notifications;
   final ProgressStore progress;
   final LocationService location;
 

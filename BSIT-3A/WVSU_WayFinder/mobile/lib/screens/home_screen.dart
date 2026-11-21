@@ -139,9 +139,9 @@ class _NextClassCardState extends State<NextClassCard> {
                 const SizedBox(height: 6),
                 const Text('See your next class here', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                const Text('Add your weekly classes once. WayFinder shows the next one, its room, and directions.', style: TextStyle(color: muted)),
+                const Text('Upload your IUIS schedule or COR. WayFinder fills in your classes and shows the next room and professor.', style: TextStyle(color: muted)),
                 const SizedBox(height: 12),
-                SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/schedule/new'), child: const Text('Add my schedule'))),
+                SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/schedule/import'), child: const Text('Add my Schedule'))),
               ]),
             ),
           );

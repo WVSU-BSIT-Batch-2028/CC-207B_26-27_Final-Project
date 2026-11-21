@@ -40,7 +40,7 @@ class ClassSession {
         roomPlaceId: j['roomPlaceId'] as String?, professor: j['professor'] as String?, remindMinutes: j['remindMinutes'] as int?,
       );
 
-  String get signature => '$weekday|$start|$end|$remindMinutes|$subject|$roomCodeRaw';
+  String get signature => '$weekday|$start|$end|$remindMinutes|$subject|$roomCodeRaw|$professor';
 }
 
 /// Private schedule kept on THIS device (shared_preferences). Nothing is sent to a server.
@@ -81,6 +81,21 @@ class ScheduleStore extends ChangeNotifier {
     }
     notifyListeners();
     await _persist();
+  }
+
+  /// Adds reviewed meetings in one write, skipping existing or repeated rows.
+  Future<int> importClasses(List<ClassSession> incoming) async {
+    String key(ClassSession c) => '${c.subject.trim().toLowerCase()}|${c.weekday}|${c.start}|${c.end}|${c.roomCodeRaw.toLowerCase().replaceAll(RegExp(r'\s+'), '')}';
+    final known = _classes.map(key).toSet();
+    final added = incoming.where((c) => known.add(key(c))).toList();
+    if (added.isEmpty) return 0;
+    final merged = [..._classes, ...added];
+    final p = await SharedPreferences.getInstance();
+    final saved = await p.setString(_classesKey, jsonEncode(merged.map((c) => c.toJson()).toList()));
+    if (!saved) throw StateError('Schedule could not be saved');
+    _classes = merged;
+    notifyListeners();
+    return added.length;
   }
 
   Future<void> remove(String id) async {
