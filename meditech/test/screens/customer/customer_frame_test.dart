@@ -1,8 +1,10 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meditech/models/signed_in_account.dart';
 import 'package:meditech/providers/medicine_providers.dart';
 import 'package:meditech/providers/reservation_providers.dart';
+import 'package:meditech/providers/session_providers.dart';
 import 'package:meditech/screens/customer/customer_frame.dart';
 import 'package:meditech/screens/customer/reservations/my_reservations_screen.dart';
 import 'package:meditech/screens/customer/search/search_screen.dart';
@@ -14,6 +16,12 @@ import 'package:mocktail/mocktail.dart';
 class MockMedicineService extends Mock implements MedicineService {}
 
 class MockReservationService extends Mock implements ReservationService {}
+
+// A signed-in customer, so the frame lets them into My Reservations
+class _SignedInCustomer extends SessionNotifier {
+  @override
+  SignedInAccount? build() => const SignedInAccount(accountType: 'customer', state: 'active');
+}
 
 void main() {
   late MockMedicineService mockMedicineService;
@@ -40,11 +48,13 @@ void main() {
         .thenAnswer((_) async => const []);
   });
 
-  Widget buildTestableWidget() {
+  // Guests by default; My Reservations and Profile need a signed-in customer
+  Widget buildTestableWidget({bool signedIn = false}) {
     return ProviderScope(
       overrides: [
         medicineServiceProvider.overrideWithValue(mockMedicineService),
         reservationServiceProvider.overrideWithValue(mockReservationService),
+        if (signedIn) sessionProvider.overrideWith(_SignedInCustomer.new),
       ],
       child: MaterialApp(
         theme: AppTheme.light,
@@ -87,7 +97,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(buildTestableWidget());
+    await tester.pumpWidget(buildTestableWidget(signedIn: true));
     await tester.pumpAndSettle();
 
     final navBar = find.byType(NavigationBar);
@@ -108,6 +118,24 @@ void main() {
     expect(find.byType(MyReservationsScreen), findsOneWidget);
     expect(find.text('Active'), findsOneWidget);
     expect(find.text('No active reservations'), findsOneWidget);
+  });
+
+  // Guests are asked to sign in and stay on their current tab
+  testWidgets('guest tapping My Reservations is asked to sign in', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(buildTestableWidget());
+    await tester.pumpAndSettle();
+
+    final navBar = find.byType(NavigationBar);
+    await tester.tap(find.descendant(of: navBar, matching: find.text('My Reservations')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create an account'), findsOneWidget); // the sign-in sheet
+    expect(find.byType(MyReservationsScreen), findsNothing); // still on Home
+    expect(tester.widget<NavigationBar>(navBar).selectedIndex, 0);
   });
 
   testWidgets('tapping search bar on home switches to search tab', (tester) async {
