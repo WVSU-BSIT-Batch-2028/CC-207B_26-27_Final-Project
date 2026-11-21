@@ -58,9 +58,13 @@ class _AppointmentConfirmationScreenState
 
   /// Saves the appointment using the appointment service.
   ///
-  /// This method also supports retrying when submission fails.
+  /// The consultation type determines whether the appointment
+  /// is in-person or a video consultation.
   Future<void> _submitBooking() async {
-    if (_state == _ConfirmationState.success) return;
+    if (_state == _ConfirmationState.success ||
+        _state == _ConfirmationState.loading && _appointment != null) {
+      return;
+    }
 
     setState(() {
       _state = _ConfirmationState.loading;
@@ -68,12 +72,23 @@ class _AppointmentConfirmationScreenState
     });
 
     try {
+      // Determine the consultation type selected by the patient.
+      final isVideo = widget.bookingDetails.consultationType
+          .toLowerCase()
+          .contains('video');
+
+      // Set the appointment location based on consultation type.
+      final location = isVideo ? 'Google Meet' : 'Health360 Medical Clinic';
+
+      // Submit the appointment using the selected doctor's information.
       final appointment = await AppointmentService.instance.createAppointment(
+        title: 'Consultation with ${widget.doctor.name}',
         doctorName: widget.doctor.name,
         specialty: widget.doctor.specialty,
         dateTime: widget.appointmentDateTime,
-        consultationType: widget.bookingDetails.consultationType,
-        consultationFee: widget.doctor.consultationFee,
+        location: location,
+        isVideo: isVideo,
+        consultationFee: widget.doctor.consultationFee.toDouble(),
         reminderEnabled: widget.bookingDetails.reminderEnabled,
       );
 
@@ -340,10 +355,17 @@ class _AppointmentConfirmationScreenState
                     ),
                     Divider(height: 1, color: AppColors.border),
                     _detailTile(
+                      icon: Icons.location_on_rounded,
+                      label: 'Location',
+                      value: appointment.location,
+                    ),
+                    Divider(height: 1, color: AppColors.border),
+                    _detailTile(
                       icon: Icons.payments_rounded,
                       label: 'Consultation Fee',
-                      value:
-                          '₱${appointment.consultationFee?.toStringAsFixed(2) ?? '0.00'}',
+                      value: appointment.consultationFee != null
+                          ? '₱${appointment.consultationFee!.toStringAsFixed(2)}'
+                          : 'Not specified',
                     ),
                     Divider(height: 1, color: AppColors.border),
                     _detailTile(
