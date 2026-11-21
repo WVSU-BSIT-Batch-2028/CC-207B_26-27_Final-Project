@@ -13,13 +13,20 @@ import '../../../widgets/state_views.dart';
 
 enum _LoadStatus { loading, ready, error }
 
-enum _AppointmentFilter { all, pending, confirmed, cancelled }
+enum _AppointmentFilter {
+  all,
+  pending,
+  confirmed,
+  cancelled,
+  done,
+  noShow,
+}
 
 /// Doctor Appointment Management screen.
 ///
-/// Displays all appointments available in the shared AppointmentService.
-/// Doctors can search patients, filter by appointment status, view details,
-/// confirm or cancel appointments, and add Google Meet links.
+/// Displays appointments from the shared AppointmentService. Doctors can
+/// search and filter appointments, review change requests through the
+/// appointment details modal, manage consultations, and record outcomes.
 class DoctorAppointmentsScreen extends StatefulWidget {
   /// Creates the doctor appointments screen.
   const DoctorAppointmentsScreen({super.key});
@@ -29,7 +36,7 @@ class DoctorAppointmentsScreen extends StatefulWidget {
       _DoctorAppointmentsScreenState();
 }
 
-/// Manages appointment loading, searching, filtering, and doctor actions.
+/// Manages appointment loading, filtering, and doctor actions.
 class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   _LoadStatus _loadStatus = _LoadStatus.loading;
   _AppointmentFilter _filter = _AppointmentFilter.all;
@@ -81,23 +88,31 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     }
   }
 
-  /// Updates the search query when the doctor types a patient name.
+  /// Updates the patient search query.
   void _searchAppointments(String value) {
     setState(() => _searchQuery = value.trim().toLowerCase());
   }
 
-  /// Changes the selected appointment status filter.
+  /// Changes the selected appointment filter.
   void _changeFilter(_AppointmentFilter filter) {
     setState(() => _filter = filter);
   }
 
-  /// Counts appointments belonging to the selected status.
+  /// Counts appointments belonging to the selected filter.
   int _countAppointments(_AppointmentFilter filter) {
     if (filter == _AppointmentFilter.all) {
       return _appointments.length;
     }
 
     return _appointments.where((appointment) {
+      if (filter == _AppointmentFilter.done) {
+        return appointment.outcome == AppointmentOutcome.done;
+      }
+
+      if (filter == _AppointmentFilter.noShow) {
+        return appointment.outcome == AppointmentOutcome.noShow;
+      }
+
       return appointment.status.name == filter.name;
     }).length;
   }
@@ -106,11 +121,16 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   List<Appointment> _filteredAppointments() {
     final filtered = _appointments.where((appointment) {
       final patientName = (appointment.patientName ?? '').toLowerCase();
-
       final matchesSearch = patientName.contains(_searchQuery);
 
-      final matchesFilter = _filter == _AppointmentFilter.all ||
-          appointment.status.name == _filter.name;
+      final matchesFilter = switch (_filter) {
+        _AppointmentFilter.all => true,
+        _AppointmentFilter.done =>
+          appointment.outcome == AppointmentOutcome.done,
+        _AppointmentFilter.noShow =>
+          appointment.outcome == AppointmentOutcome.noShow,
+        _ => appointment.status.name == _filter.name,
+      };
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -120,19 +140,41 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     return filtered;
   }
 
-  /// Formats an appointment date using the device's locale.
+  /// Formats an appointment date using the device locale.
   String _formatDate(DateTime date) {
     return MaterialLocalizations.of(context).formatMediumDate(date);
   }
 
-  /// Formats an appointment time using the device's locale.
+  /// Formats an appointment time using the device locale.
   String _formatTime(DateTime date) {
     return MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(date),
     );
   }
 
-  /// Runs a doctor action and refreshes the shared appointment list.
+  /// Checks whether an appointment is scheduled for the future.
+  bool _isUpcoming(Appointment appointment) {
+    return appointment.dateTime.isAfter(DateTime.now()) &&
+        appointment.status != AppointmentStatus.cancelled &&
+        appointment.outcome == AppointmentOutcome.none;
+  }
+
+  /// Checks whether a past appointment still needs an outcome.
+  bool _canRecordOutcome(Appointment appointment) {
+    return appointment.dateTime.isBefore(DateTime.now()) &&
+        appointment.status != AppointmentStatus.cancelled &&
+        appointment.outcome == AppointmentOutcome.none;
+  }
+
+  /// Checks whether a doctor can manage the meeting link.
+  bool _canManageMeetingLink(Appointment appointment) {
+    return _isUpcoming(appointment) &&
+        appointment.status == AppointmentStatus.confirmed &&
+        appointment.isVideo &&
+        appointment.changeRequest?.status != ChangeRequestStatus.pending;
+  }
+
+  /// Runs a doctor action and refreshes the appointment list.
   Future<void> _runManagementAction({
     required Future<void> Function() action,
     required String successMessage,
@@ -182,8 +224,29 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     }
   }
 
-  /// Confirms a pending appointment through AppointmentService.
+  /// Opens a separate confirmation dialog before confirming an appointment.
   Future<void> _confirmAppointment(Appointment appointment) async {
+    if (!_isUpcoming(appointment) ||
+        appointment.status != AppointmentStatus.pending) {
+      return;
+    }
+
+    final shouldConfirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => _ActionConfirmationDialog(
+        title: 'Confirm Appointment?',
+        description:
+            "Confirm this patient's appointment. The appointment status "
+            'will be changed to Confirmed.',
+        confirmLabel: 'Confirm Appointment',
+        icon: Icons.check_circle_outline_rounded,
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+
+    if (shouldConfirm != true || !mounted) return;
+
     await _runManagementAction(
       action: () => AppointmentService.instance.confirmAppointment(
         appointment.id,
@@ -192,30 +255,21 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Asks the doctor to confirm before cancelling an appointment.
+  /// Cancels an upcoming appointment after doctor confirmation.
   Future<void> _cancelAppointment(Appointment appointment) async {
+    if (!_isUpcoming(appointment)) return;
+
     final shouldCancel = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancel appointment?'),
-        content: Text(
-          'Are you sure you want to cancel the appointment for '
-          '${appointment.patientName ?? 'this patient'}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep Appointment'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Cancel Appointment'),
-          ),
-        ],
+      builder: (dialogContext) => _ActionConfirmationDialog(
+        title: 'Cancel Appointment?',
+        description: 'Are you sure you want to cancel the appointment for '
+            '${appointment.patientName ?? 'this patient'}?',
+        confirmLabel: 'Cancel Appointment',
+        isDestructive: true,
+        icon: Icons.cancel_outlined,
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
       ),
     );
 
@@ -229,8 +283,93 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Opens the separate Google Meet dialog and saves the returned URL.
+  /// Opens the change request review dialog.
+  Future<void> _openChangeRequestReview(Appointment appointment) async {
+    final request = appointment.changeRequest;
+
+    if (request == null || request.status != ChangeRequestStatus.pending) {
+      return;
+    }
+
+    final decision = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => _ChangeRequestReviewDialog(
+        appointment: appointment,
+        formatDate: _formatDate,
+        formatTime: _formatTime,
+      ),
+    );
+
+    if (decision == null || !mounted) return;
+
+    await _runManagementAction(
+      action: () async {
+        if (decision) {
+          await AppointmentService.instance.approveAppointmentChange(
+            appointment.id,
+          );
+        } else {
+          await AppointmentService.instance.rejectAppointmentChange(
+            appointment.id,
+          );
+        }
+      },
+      successMessage: decision
+          ? 'Appointment change request approved.'
+          : 'Appointment change request rejected.',
+    );
+  }
+
+  /// Records the outcome of a past appointment.
+  Future<void> _recordAppointmentOutcome(
+    Appointment appointment, {
+    required bool markDone,
+  }) async {
+    if (!_canRecordOutcome(appointment)) return;
+
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => _ActionConfirmationDialog(
+        title: markDone ? 'Mark Appointment as Done?' : 'Mark as No-show?',
+        description: markDone
+            ? '${appointment.patientName ?? 'The patient'} completed '
+                'this appointment.'
+            : '${appointment.patientName ?? 'The patient'} did not attend '
+                'this appointment.',
+        confirmLabel: markDone ? 'Mark as Done' : 'Mark as No-show',
+        isDestructive: !markDone,
+        icon: markDone
+            ? Icons.check_circle_outline_rounded
+            : Icons.person_off_outlined,
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+
+    if (shouldProceed != true || !mounted) return;
+
+    await _runManagementAction(
+      action: () async {
+        if (markDone) {
+          await AppointmentService.instance.markAppointmentDone(
+            appointment.id,
+          );
+        } else {
+          await AppointmentService.instance.markAppointmentNoShow(
+            appointment.id,
+          );
+        }
+      },
+      successMessage: markDone
+          ? 'Appointment marked as Done.'
+          : 'Appointment marked as No-show.',
+    );
+  }
+
+  /// Opens the Google Meet URL dialog and saves the returned link.
   Future<void> _openMeetingUrlDialog(Appointment appointment) async {
+    if (!_canManageMeetingLink(appointment)) return;
+
     final meetingUrl = await showDialog<String>(
       context: context,
       builder: (dialogContext) => _MeetingUrlDialog(
@@ -249,235 +388,24 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Opens the centered appointment details dialog.
+  /// Opens the appointment details modal.
+  ///
+  /// A pending change request can be reviewed directly from this modal.
   void _showAppointmentDetails(Appointment appointment) {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: AppColors.surface,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.lg,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Dialog heading.
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Appointment Details',
-                            style: Theme.of(dialogContext)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  color: AppColors.navy,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Close',
-                          onPressed: () => Navigator.pop(dialogContext),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Patient information.
-                    _DetailRow(
-                      label: 'Patient',
-                      value: appointment.patientName ?? 'Not provided',
-                      icon: Icons.person_outline_rounded,
-                    ),
-                    if (appointment.patientId != null) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(
-                        label: 'Patient ID',
-                        value: appointment.patientId!,
-                        icon: Icons.badge_outlined,
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Doctor',
-                      value: appointment.doctorName,
-                      icon: Icons.medical_services_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Specialty',
-                      value: appointment.specialty,
-                      icon: Icons.local_hospital_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Date',
-                      value: _formatDate(appointment.dateTime),
-                      icon: Icons.calendar_month_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Time',
-                      value: _formatTime(appointment.dateTime),
-                      icon: Icons.access_time_rounded,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Consultation Type',
-                      value: appointment.isVideo
-                          ? 'Video Consultation'
-                          : 'In-person Consultation',
-                      icon: appointment.isVideo
-                          ? Icons.videocam_outlined
-                          : Icons.location_on_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Location',
-                      value: appointment.location,
-                      icon: Icons.place_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Consultation Fee',
-                      value: appointment.consultationFee == null
-                          ? 'Not specified'
-                          : '₱${appointment.consultationFee!.toStringAsFixed(2)}',
-                      icon: Icons.payments_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _DetailRow(
-                      label: 'Reminder',
-                      value:
-                          appointment.reminderEnabled ? 'Enabled' : 'Disabled',
-                      icon: Icons.notifications_outlined,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Current appointment status.
-                    Row(
-                      children: [
-                        Text(
-                          'Status',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        AppointmentStatusChip(status: appointment.status),
-                      ],
-                    ),
-
-                    // Existing meeting link.
-                    if (appointment.isVideo &&
-                        appointment.meetingUrl != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Google Meet Link',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      SelectableText(
-                        appointment.meetingUrl!,
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Pending appointments can be confirmed.
-                    if (appointment.status == AppointmentStatus.pending) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _isActionInProgress
-                              ? null
-                              : () {
-                                  Navigator.pop(dialogContext);
-                                  _confirmAppointment(appointment);
-                                },
-                          icon: const Icon(
-                            Icons.check_circle_outline_rounded,
-                          ),
-                          label: const Text('Confirm Appointment'),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-
-                    // Confirmed video appointments can receive a meeting link.
-                    if (appointment.status == AppointmentStatus.confirmed &&
-                        appointment.isVideo) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _isActionInProgress
-                              ? null
-                              : () {
-                                  Navigator.pop(dialogContext);
-                                  _openMeetingUrlDialog(appointment);
-                                },
-                          icon: const Icon(Icons.video_call_rounded),
-                          label: Text(
-                            appointment.meetingUrl == null
-                                ? 'Add Google Meet Link'
-                                : 'Update Google Meet Link',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-
-                    // Appointments that are not cancelled can be cancelled.
-                    if (appointment.status != AppointmentStatus.cancelled)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _isActionInProgress
-                              ? null
-                              : () {
-                                  Navigator.pop(dialogContext);
-                                  _cancelAppointment(appointment);
-                                },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.danger,
-                            side: const BorderSide(
-                              color: AppColors.danger,
-                            ),
-                          ),
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Cancel Appointment'),
-                        ),
-                      ),
-
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (dialogContext) => _AppointmentDetailsDialog(
+        appointment: appointment,
+        date: _formatDate(appointment.dateTime),
+        time: _formatTime(appointment.dateTime),
+        onReviewRequest:
+            appointment.changeRequest?.status == ChangeRequestStatus.pending
+                ? () {
+                    Navigator.pop(dialogContext);
+                    _openChangeRequestReview(appointment);
+                  }
+                : null,
+      ),
     );
   }
 
@@ -498,7 +426,6 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
             AppSpacing.xl,
           ),
           children: [
-            // Page heading.
             Text(
               'Appointments',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -514,15 +441,11 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                 fontSize: 14,
               ),
             ),
-
-            // Appointment status summary.
             const SectionHeader(
               title: 'Appointment Overview',
               subtitle: 'Summary of all available appointments.',
             ),
             _buildSummary(),
-
-            // Patient search.
             const SectionHeader(title: 'Patient Appointments'),
             TextField(
               onChanged: _searchAppointments,
@@ -542,12 +465,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-
-            // Status filters.
             _buildFilters(),
             const SizedBox(height: AppSpacing.md),
-
-            // Appointment list state.
             _buildAppointmentContent(),
           ],
         ),
@@ -555,11 +474,10 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Builds the four compact appointment summary tiles.
+  /// Builds the appointment summary tiles.
   Widget _buildSummary() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // A higher aspect ratio makes each summary tile shorter.
         final aspectRatio = constraints.maxWidth >= 900
             ? 5.8
             : constraints.maxWidth >= 600
@@ -611,6 +529,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       _AppointmentFilter.pending,
       _AppointmentFilter.confirmed,
       _AppointmentFilter.cancelled,
+      _AppointmentFilter.done,
+      _AppointmentFilter.noShow,
     ];
 
     return SingleChildScrollView(
@@ -645,16 +565,16 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
   /// Returns the display label for an appointment filter.
   String _filterLabel(_AppointmentFilter filter) {
-    switch (filter) {
-      case _AppointmentFilter.all:
-        return 'All (${_countAppointments(filter)})';
-      case _AppointmentFilter.pending:
-        return 'Pending (${_countAppointments(filter)})';
-      case _AppointmentFilter.confirmed:
-        return 'Confirmed (${_countAppointments(filter)})';
-      case _AppointmentFilter.cancelled:
-        return 'Cancelled (${_countAppointments(filter)})';
-    }
+    final label = switch (filter) {
+      _AppointmentFilter.all => 'All',
+      _AppointmentFilter.pending => 'Pending',
+      _AppointmentFilter.confirmed => 'Confirmed',
+      _AppointmentFilter.cancelled => 'Cancelled',
+      _AppointmentFilter.done => 'Done',
+      _AppointmentFilter.noShow => 'No-show',
+    };
+
+    return '$label (${_countAppointments(filter)})';
   }
 
   /// Displays loading, error, empty, or appointment-list content.
@@ -702,11 +622,570 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                   date: _formatDate(appointment.dateTime),
                   time: _formatTime(appointment.dateTime),
                   onTap: () => _showAppointmentDetails(appointment),
+                  onConfirm: appointment.status == AppointmentStatus.pending &&
+                          _isUpcoming(appointment)
+                      ? () => _confirmAppointment(appointment)
+                      : null,
+                  onMeetingUrl: _canManageMeetingLink(appointment)
+                      ? () => _openMeetingUrlDialog(appointment)
+                      : null,
+                  hasMeetingUrl: appointment.meetingUrl != null &&
+                      appointment.meetingUrl!.isNotEmpty,
+                  onCancel: _isUpcoming(appointment)
+                      ? () => _cancelAppointment(appointment)
+                      : null,
+                  onMarkDone: _canRecordOutcome(appointment)
+                      ? () => _recordAppointmentOutcome(
+                            appointment,
+                            markDone: true,
+                          )
+                      : null,
+                  onMarkNoShow: _canRecordOutcome(appointment)
+                      ? () => _recordAppointmentOutcome(
+                            appointment,
+                            markDone: false,
+                          )
+                      : null,
                 ),
               ),
           ],
         );
     }
+  }
+}
+
+/// Displays appointment details and provides access to pending change requests.
+class _AppointmentDetailsDialog extends StatelessWidget {
+  /// Creates the appointment details dialog.
+  const _AppointmentDetailsDialog({
+    required this.appointment,
+    required this.date,
+    required this.time,
+    this.onReviewRequest,
+  });
+
+  final Appointment appointment;
+  final String date;
+  final String time;
+  final VoidCallback? onReviewRequest;
+
+  /// Builds the appointment details dialog.
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Appointment Details',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.navy,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _DetailRow(
+                  label: 'Patient',
+                  value: appointment.patientName ?? 'Not provided',
+                  icon: Icons.person_outline_rounded,
+                ),
+                if (appointment.patientId != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _DetailRow(
+                    label: 'Patient ID',
+                    value: appointment.patientId!,
+                    icon: Icons.badge_outlined,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Doctor',
+                  value: appointment.doctorName,
+                  icon: Icons.medical_services_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Specialty',
+                  value: appointment.specialty,
+                  icon: Icons.local_hospital_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Date',
+                  value: date,
+                  icon: Icons.calendar_month_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Time',
+                  value: time,
+                  icon: Icons.access_time_rounded,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Consultation Type',
+                  value: appointment.isVideo
+                      ? 'Video Consultation'
+                      : 'In-person Consultation',
+                  icon: appointment.isVideo
+                      ? Icons.videocam_outlined
+                      : Icons.location_on_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Location',
+                  value: appointment.location,
+                  icon: Icons.place_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Consultation Fee',
+                  value: appointment.consultationFee == null
+                      ? 'Not specified'
+                      : '₱${appointment.consultationFee!.toStringAsFixed(2)}',
+                  icon: Icons.payments_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Reminder',
+                  value: appointment.reminderEnabled ? 'Enabled' : 'Disabled',
+                  icon: Icons.notifications_outlined,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Text(
+                      'Status',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    AppointmentStatusChip(status: appointment.status),
+                  ],
+                ),
+                if (appointment.outcome != AppointmentOutcome.none) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _DetailRow(
+                    label: 'Appointment Outcome',
+                    value: switch (appointment.outcome) {
+                      AppointmentOutcome.done => 'Done',
+                      AppointmentOutcome.noShow => 'No-show',
+                      AppointmentOutcome.none => 'Not marked',
+                    },
+                    icon: appointment.outcome == AppointmentOutcome.done
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.person_off_outlined,
+                  ),
+                ],
+                if (appointment.isVideo && appointment.meetingUrl != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Google Meet Link',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  SelectableText(
+                    appointment.meetingUrl!,
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                if (appointment.changeRequest != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Divider(color: AppColors.border),
+                  const SizedBox(height: AppSpacing.sm),
+                  _ChangeRequestStatusSummary(
+                    request: appointment.changeRequest!,
+                  ),
+                  if (onReviewRequest != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: onReviewRequest,
+                        icon: const Icon(Icons.edit_calendar_outlined),
+                        label: const Text('Review Change Request'),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Displays a brief summary of the latest change request.
+class _ChangeRequestStatusSummary extends StatelessWidget {
+  /// Creates the change request summary.
+  const _ChangeRequestStatusSummary({required this.request});
+
+  final AppointmentChangeRequest request;
+
+  /// Builds the change request summary.
+  @override
+  Widget build(BuildContext context) {
+    final statusText = switch (request.status) {
+      ChangeRequestStatus.pending => 'Pending Review',
+      ChangeRequestStatus.approved => 'Approved',
+      ChangeRequestStatus.rejected => 'Rejected',
+    };
+
+    final statusColor = switch (request.status) {
+      ChangeRequestStatus.pending => AppColors.warning,
+      ChangeRequestStatus.approved => AppColors.success,
+      ChangeRequestStatus.rejected => AppColors.danger,
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.mist,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Latest Change Request',
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                statusText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            request.status == ChangeRequestStatus.pending
+                ? 'The patient has submitted changes awaiting your review.'
+                : 'This request has already been reviewed.',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dedicated dialog for reviewing a patient's requested appointment changes.
+class _ChangeRequestReviewDialog extends StatelessWidget {
+  /// Creates the change request review dialog.
+  const _ChangeRequestReviewDialog({
+    required this.appointment,
+    required this.formatDate,
+    required this.formatTime,
+  });
+
+  final Appointment appointment;
+  final String Function(DateTime) formatDate;
+  final String Function(DateTime) formatTime;
+
+  /// Builds the change request review dialog.
+  @override
+  Widget build(BuildContext context) {
+    final request = appointment.changeRequest!;
+
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 540),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Review Change Request',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.navy,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Review the proposed appointment details before making '
+                  'a decision.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Current Appointment',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _DetailRow(
+                  label: 'Doctor',
+                  value: appointment.doctorName,
+                  icon: Icons.medical_services_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Date and Time',
+                  value: '${formatDate(appointment.dateTime)} '
+                      '${formatTime(appointment.dateTime)}',
+                  icon: Icons.calendar_month_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Consultation Type',
+                  value: appointment.isVideo
+                      ? 'Video Consultation'
+                      : 'In-person Consultation',
+                  icon: Icons.video_call_outlined,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Divider(color: AppColors.border),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Requested Changes',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _DetailRow(
+                  label: 'Requested Doctor',
+                  value: request.doctorName,
+                  icon: Icons.medical_services_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested Specialty',
+                  value: request.specialty,
+                  icon: Icons.local_hospital_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested Date',
+                  value: formatDate(request.dateTime),
+                  icon: Icons.calendar_month_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested Time',
+                  value: formatTime(request.dateTime),
+                  icon: Icons.access_time_rounded,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Consultation Type',
+                  value: request.isVideo
+                      ? 'Video Consultation'
+                      : 'In-person Consultation',
+                  icon: request.isVideo
+                      ? Icons.videocam_outlined
+                      : Icons.location_on_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested Location',
+                  value: request.location,
+                  icon: Icons.place_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested Fee',
+                  value: request.consultationFee == null
+                      ? 'Not specified'
+                      : '₱${request.consultationFee!.toStringAsFixed(2)}',
+                  icon: Icons.payments_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Reminder',
+                  value: request.reminderEnabled ? 'Enabled' : 'Disabled',
+                  icon: Icons.notifications_outlined,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _DetailRow(
+                  label: 'Requested On',
+                  value: '${formatDate(request.requestedAt)} '
+                      '${formatTime(request.requestedAt)}',
+                  icon: Icons.history_rounded,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.mist,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Approving this request will replace the current '
+                    'appointment details. Rejecting it will keep the original '
+                    'appointment unchanged.',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Approve Request'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      side: BorderSide(color: AppColors.danger),
+                    ),
+                    icon: const Icon(Icons.close_rounded),
+                    label: const Text('Reject Request'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reusable confirmation dialog for doctor appointment actions.
+class _ActionConfirmationDialog extends StatelessWidget {
+  /// Creates an action confirmation dialog.
+  const _ActionConfirmationDialog({
+    required this.title,
+    required this.description,
+    required this.confirmLabel,
+    required this.icon,
+    required this.onCancel,
+    required this.onConfirm,
+    this.isDestructive = false,
+  });
+
+  final String title;
+  final String description;
+  final String confirmLabel;
+  final IconData icon;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final bool isDestructive;
+
+  /// Builds the action confirmation dialog.
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(title),
+      content: Text(description),
+      actions: [
+        TextButton(
+          onPressed: onCancel,
+          child: const Text('Go Back'),
+        ),
+        FilledButton.icon(
+          onPressed: onConfirm,
+          style: isDestructive
+              ? FilledButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                  foregroundColor: Colors.white,
+                )
+              : null,
+          icon: Icon(icon, size: 18),
+          label: Text(confirmLabel),
+        ),
+      ],
+    );
   }
 }
 
@@ -731,10 +1210,7 @@ class _MeetingUrlDialogState extends State<_MeetingUrlDialog> {
   @override
   void initState() {
     super.initState();
-
-    _controller = TextEditingController(
-      text: widget.initialUrl ?? '',
-    );
+    _controller = TextEditingController(text: widget.initialUrl ?? '');
   }
 
   /// Releases the controller when the dialog is removed.
@@ -793,10 +1269,7 @@ class _MeetingUrlDialogState extends State<_MeetingUrlDialog> {
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              Navigator.pop(
-                context,
-                _controller.text.trim(),
-              );
+              Navigator.pop(context, _controller.text.trim());
             }
           },
           child: const Text('Save Link'),
@@ -814,22 +1287,35 @@ class _DoctorAppointmentCard extends StatelessWidget {
     required this.date,
     required this.time,
     required this.onTap,
+    this.onConfirm,
+    this.onMeetingUrl,
+    this.hasMeetingUrl = false,
+    this.onCancel,
+    this.onMarkDone,
+    this.onMarkNoShow,
   });
 
   final Appointment appointment;
   final String date;
   final String time;
   final VoidCallback onTap;
+  final VoidCallback? onConfirm;
+  final VoidCallback? onMeetingUrl;
+  final bool hasMeetingUrl;
+  final VoidCallback? onCancel;
+  final VoidCallback? onMarkDone;
+  final VoidCallback? onMarkNoShow;
 
   /// Builds the appointment summary card.
   @override
   Widget build(BuildContext context) {
+    final consultationFee = appointment.consultationFee;
+
     return H360Card(
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Patient name and appointment status.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -875,8 +1361,6 @@ class _DoctorAppointmentCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Divider(color: AppColors.border, height: 1),
           const SizedBox(height: AppSpacing.md),
-
-          // Specialty and appointment title.
           Text(
             appointment.title,
             style: const TextStyle(
@@ -893,8 +1377,6 @@ class _DoctorAppointmentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-
-          // Schedule and consultation type.
           _AppointmentInfoRow(
             icon: Icons.calendar_month_rounded,
             text: date,
@@ -913,15 +1395,14 @@ class _DoctorAppointmentCard extends StatelessWidget {
                 ? 'Video Consultation'
                 : appointment.location,
           ),
-
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  appointment.consultationFee == null
+                  consultationFee == null
                       ? 'Fee not specified'
-                      : 'Fee: ₱${appointment.consultationFee!.toStringAsFixed(2)}',
+                      : 'Fee: ₱${consultationFee.toStringAsFixed(2)}',
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 13,
@@ -945,6 +1426,78 @@ class _DoctorAppointmentCard extends StatelessWidget {
               ),
             ],
           ),
+          if (onConfirm != null ||
+              onMeetingUrl != null ||
+              onCancel != null ||
+              onMarkDone != null ||
+              onMarkNoShow != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: AppSpacing.md),
+            if (onConfirm != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onConfirm,
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Confirm Appointment'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (onMeetingUrl != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onMeetingUrl,
+                  icon: const Icon(Icons.video_call_outlined),
+                  label: Text(
+                    hasMeetingUrl ? 'Update Meet Link' : 'Add Meet Link',
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (onCancel != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: BorderSide(color: AppColors.danger),
+                  ),
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Cancel Appointment'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (onMarkDone != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onMarkDone,
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Mark as Done'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (onMarkNoShow != null)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onMarkNoShow,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: BorderSide(color: AppColors.danger),
+                  ),
+                  icon: const Icon(Icons.person_off_outlined),
+                  label: const Text('Mark as No-show'),
+                ),
+              ),
+          ],
         ],
       ),
     );
