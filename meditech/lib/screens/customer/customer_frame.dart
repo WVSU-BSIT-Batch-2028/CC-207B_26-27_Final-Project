@@ -166,16 +166,19 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
         bottom: false,
         child: IndexedStack(index: _currentIndex, children: screens),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 72),
-        child: FloatingActionButton(
-          tooltip: 'AI Assistant',
-          backgroundColor: AppColors.primary,
-          elevation: 2,
-          onPressed: () => context.push('/assistant'),
-          child: const Icon(Icons.auto_awesome, color: Colors.white),
-        ),
-      ),
+      // Only on Home so the FAB does not block Search medicine taps
+      floatingActionButton: _currentIndex == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 72),
+              child: FloatingActionButton(
+                tooltip: 'AI Assistant',
+                backgroundColor: AppColors.primary,
+                elevation: 2,
+                onPressed: () => context.push('/assistant'),
+                child: const Icon(Icons.auto_awesome, color: Colors.white),
+              ),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(

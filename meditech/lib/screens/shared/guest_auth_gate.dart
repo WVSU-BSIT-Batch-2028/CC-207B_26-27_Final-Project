@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/session_providers.dart';
 import '../../widgets/theme/app_colors.dart';
 import '../../widgets/theme/app_spacing.dart';
 import 'sign_in_sheet.dart';
 
-// Guest barrier that matches the Main Flow prompt before credentials
+// Guest barrier that matches the Main Flow prompt before credentials.
+// Returns true when the customer finishes signed in.
 Future<bool> showGuestAuthGate(
   BuildContext context, {
   required String title,
@@ -99,5 +102,8 @@ Future<bool> showGuestAuthGate(
   if (action != 'sign-in') return false;
 
   await showCustomerSignInSheet(context);
-  return false;
+  if (!context.mounted) return false;
+
+  final container = ProviderScope.containerOf(context);
+  return container.read(sessionProvider) != null;
 }

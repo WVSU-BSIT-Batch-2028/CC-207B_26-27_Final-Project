@@ -351,7 +351,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   AppSpacing.lg,
                   AppSpacing.xs,
                   AppSpacing.lg,
-                  AppSpacing.lg,
+                  120,
                 ),
                 itemCount: items.length,
                 separatorBuilder: (_, _) =>

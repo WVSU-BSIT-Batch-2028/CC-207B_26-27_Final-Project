@@ -273,7 +273,8 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                               requiresPrescription: item.isRx,
                               availability: _availabilityCode(item),
                               priceText: item.formattedPrice,
-                              onTap: item.availability.canReserve
+                              actionLabel: item.availability.cartActionLabel,
+                              onAction: item.availability.canReserve
                                   ? () {
                                       if (widget.onAddInventoryItem != null) {
                                         widget.onAddInventoryItem!(
