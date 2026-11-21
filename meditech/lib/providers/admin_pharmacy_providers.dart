@@ -49,3 +49,8 @@ final branchChecksProvider = FutureProvider.autoDispose.family<List<Verification
 final branchHasMatchProvider = FutureProvider.autoDispose.family<bool, String>(
   (ref, id) => ref.read(adminPharmacyServiceProvider).hasCurrentMatch(id),
 );
+
+// Why a pharmacy was deactivated, for the drawer
+final deactivationReasonProvider = FutureProvider.autoDispose.family<String?, String>(
+  (ref, id) => ref.read(adminPharmacyServiceProvider).deactivationReason(id),
+);
