@@ -20,9 +20,6 @@ enum _AppointmentFilter { all, pending, confirmed, cancelled }
 /// Displays all appointments available in the shared AppointmentService.
 /// Doctors can search patients, filter by appointment status, view details,
 /// confirm or cancel appointments, and add Google Meet links.
-///
-/// This screen is displayed inside DoctorShell, so it does not create
-/// another Scaffold or bottom navigation bar.
 class DoctorAppointmentsScreen extends StatefulWidget {
   /// Creates the doctor appointments screen.
   const DoctorAppointmentsScreen({super.key});
@@ -252,220 +249,231 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Opens the appointment detail sheet and displays available doctor actions.
+  /// Opens the centered appointment details dialog.
   void _showAppointmentDetails(Appointment appointment) {
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg),
-        ),
-      ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.lg,
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Sheet heading.
-                Row(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(
-                        'Appointment Details',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.navy,
-                              fontWeight: FontWeight.w800,
+                    // Dialog heading.
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Appointment Details',
+                            style: Theme.of(dialogContext)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  color: AppColors.navy,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Patient information.
+                    _DetailRow(
+                      label: 'Patient',
+                      value: appointment.patientName ?? 'Not provided',
+                      icon: Icons.person_outline_rounded,
+                    ),
+                    if (appointment.patientId != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      _DetailRow(
+                        label: 'Patient ID',
+                        value: appointment.patientId!,
+                        icon: Icons.badge_outlined,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Doctor',
+                      value: appointment.doctorName,
+                      icon: Icons.medical_services_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Specialty',
+                      value: appointment.specialty,
+                      icon: Icons.local_hospital_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Date',
+                      value: _formatDate(appointment.dateTime),
+                      icon: Icons.calendar_month_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Time',
+                      value: _formatTime(appointment.dateTime),
+                      icon: Icons.access_time_rounded,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Consultation Type',
+                      value: appointment.isVideo
+                          ? 'Video Consultation'
+                          : 'In-person Consultation',
+                      icon: appointment.isVideo
+                          ? Icons.videocam_outlined
+                          : Icons.location_on_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Location',
+                      value: appointment.location,
+                      icon: Icons.place_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Consultation Fee',
+                      value: appointment.consultationFee == null
+                          ? 'Not specified'
+                          : '₱${appointment.consultationFee!.toStringAsFixed(2)}',
+                      icon: Icons.payments_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _DetailRow(
+                      label: 'Reminder',
+                      value:
+                          appointment.reminderEnabled ? 'Enabled' : 'Disabled',
+                      icon: Icons.notifications_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Current appointment status.
+                    Row(
+                      children: [
+                        Text(
+                          'Status',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        AppointmentStatusChip(status: appointment.status),
+                      ],
+                    ),
+
+                    // Existing meeting link.
+                    if (appointment.isVideo &&
+                        appointment.meetingUrl != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Google Meet Link',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      SelectableText(
+                        appointment.meetingUrl!,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Pending appointments can be confirmed.
+                    if (appointment.status == AppointmentStatus.pending) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isActionInProgress
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  _confirmAppointment(appointment);
+                                },
+                          icon: const Icon(
+                            Icons.check_circle_outline_rounded,
+                          ),
+                          label: const Text('Confirm Appointment'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+
+                    // Confirmed video appointments can receive a meeting link.
+                    if (appointment.status == AppointmentStatus.confirmed &&
+                        appointment.isVideo) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isActionInProgress
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  _openMeetingUrlDialog(appointment);
+                                },
+                          icon: const Icon(Icons.video_call_rounded),
+                          label: Text(
+                            appointment.meetingUrl == null
+                                ? 'Add Google Meet Link'
+                                : 'Update Google Meet Link',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+
+                    // Appointments that are not cancelled can be cancelled.
+                    if (appointment.status != AppointmentStatus.cancelled)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isActionInProgress
+                              ? null
+                              : () {
+                                  Navigator.pop(dialogContext);
+                                  _cancelAppointment(appointment);
+                                },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.danger,
+                            side: const BorderSide(
+                              color: AppColors.danger,
                             ),
+                          ),
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('Cancel Appointment'),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Patient information.
-                _DetailRow(
-                  label: 'Patient',
-                  value: appointment.patientName ?? 'Not provided',
-                  icon: Icons.person_outline_rounded,
-                ),
-                if (appointment.patientId != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _DetailRow(
-                    label: 'Patient ID',
-                    value: appointment.patientId!,
-                    icon: Icons.badge_outlined,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Doctor',
-                  value: appointment.doctorName,
-                  icon: Icons.medical_services_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Specialty',
-                  value: appointment.specialty,
-                  icon: Icons.local_hospital_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Date',
-                  value: _formatDate(appointment.dateTime),
-                  icon: Icons.calendar_month_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Time',
-                  value: _formatTime(appointment.dateTime),
-                  icon: Icons.access_time_rounded,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Consultation Type',
-                  value: appointment.isVideo
-                      ? 'Video Consultation'
-                      : 'In-person Consultation',
-                  icon: appointment.isVideo
-                      ? Icons.videocam_outlined
-                      : Icons.location_on_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Location',
-                  value: appointment.location,
-                  icon: Icons.place_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Consultation Fee',
-                  value: appointment.consultationFee == null
-                      ? 'Not specified'
-                      : '₱${appointment.consultationFee!.toStringAsFixed(2)}',
-                  icon: Icons.payments_outlined,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DetailRow(
-                  label: 'Reminder',
-                  value: appointment.reminderEnabled ? 'Enabled' : 'Disabled',
-                  icon: Icons.notifications_outlined,
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Current appointment status.
-                Row(
-                  children: [
-                    Text(
-                      'Status',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    AppointmentStatusChip(status: appointment.status),
-                  ],
-                ),
-
-                // Existing meeting link.
-                if (appointment.isVideo && appointment.meetingUrl != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Google Meet Link',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  SelectableText(
-                    appointment.meetingUrl!,
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: AppSpacing.lg),
-
-                // Pending appointments can be confirmed.
-                if (appointment.status == AppointmentStatus.pending)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isActionInProgress
-                          ? null
-                          : () {
-                              Navigator.pop(sheetContext);
-                              _confirmAppointment(appointment);
-                            },
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Confirm Appointment'),
-                    ),
-                  ),
-
-                // Confirmed video appointments can receive a meeting link.
-                if (appointment.status == AppointmentStatus.confirmed &&
-                    appointment.isVideo) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isActionInProgress
-                          ? null
-                          : () {
-                              Navigator.pop(sheetContext);
-                              _openMeetingUrlDialog(appointment);
-                            },
-                      icon: const Icon(Icons.video_call_rounded),
-                      label: Text(
-                        appointment.meetingUrl == null
-                            ? 'Add Google Meet Link'
-                            : 'Update Google Meet Link',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                ],
-
-                // Appointments that are not cancelled can be cancelled.
-                if (appointment.status != AppointmentStatus.cancelled)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isActionInProgress
-                          ? null
-                          : () {
-                              Navigator.pop(sheetContext);
-                              _cancelAppointment(appointment);
-                            },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.danger,
-                        side: const BorderSide(color: AppColors.danger),
-                      ),
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('Cancel Appointment'),
-                    ),
-                  ),
-
-                const SizedBox(height: AppSpacing.sm),
-              ],
+              ),
             ),
           ),
         );
@@ -547,41 +555,52 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
     );
   }
 
-  /// Builds the four appointment summary tiles.
+  /// Builds the four compact appointment summary tiles.
   Widget _buildSummary() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: AppSpacing.sm,
-      mainAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 2.3,
-      children: [
-        _SummaryTile(
-          label: 'All',
-          count: _countAppointments(_AppointmentFilter.all),
-          icon: Icons.event_note_rounded,
-          color: AppColors.primary,
-        ),
-        _SummaryTile(
-          label: 'Pending',
-          count: _countAppointments(_AppointmentFilter.pending),
-          icon: Icons.schedule_rounded,
-          color: AppColors.warning,
-        ),
-        _SummaryTile(
-          label: 'Confirmed',
-          count: _countAppointments(_AppointmentFilter.confirmed),
-          icon: Icons.event_available_rounded,
-          color: AppColors.success,
-        ),
-        _SummaryTile(
-          label: 'Cancelled',
-          count: _countAppointments(_AppointmentFilter.cancelled),
-          icon: Icons.event_busy_rounded,
-          color: AppColors.danger,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A higher aspect ratio makes each summary tile shorter.
+        final aspectRatio = constraints.maxWidth >= 900
+            ? 5.8
+            : constraints.maxWidth >= 600
+                ? 4.0
+                : 2.5;
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisSpacing: AppSpacing.sm,
+          childAspectRatio: aspectRatio,
+          children: [
+            _SummaryTile(
+              label: 'All',
+              count: _countAppointments(_AppointmentFilter.all),
+              icon: Icons.event_note_rounded,
+              color: AppColors.primary,
+            ),
+            _SummaryTile(
+              label: 'Pending',
+              count: _countAppointments(_AppointmentFilter.pending),
+              icon: Icons.schedule_rounded,
+              color: AppColors.warning,
+            ),
+            _SummaryTile(
+              label: 'Confirmed',
+              count: _countAppointments(_AppointmentFilter.confirmed),
+              icon: Icons.event_available_rounded,
+              color: AppColors.success,
+            ),
+            _SummaryTile(
+              label: 'Cancelled',
+              count: _countAppointments(_AppointmentFilter.cancelled),
+              icon: Icons.event_busy_rounded,
+              color: AppColors.danger,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -692,9 +711,6 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 }
 
 /// Dialog for adding or updating a Google Meet URL.
-///
-/// The dialog owns its controller so it remains alive for the entire
-/// lifetime of the TextFormField.
 class _MeetingUrlDialog extends StatefulWidget {
   /// Creates the Google Meet URL dialog.
   const _MeetingUrlDialog({this.initialUrl});
@@ -935,7 +951,7 @@ class _DoctorAppointmentCard extends StatelessWidget {
   }
 }
 
-/// Displays a small icon, count, and label in the overview grid.
+/// Displays one appointment summary in the overview grid.
 class _SummaryTile extends StatelessWidget {
   /// Creates an appointment summary tile.
   const _SummaryTile({
@@ -954,10 +970,10 @@ class _SummaryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return H360Card(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 25),
+          Icon(icon, color: color, size: 24),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -969,13 +985,14 @@ class _SummaryTile extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppColors.navy,
                         fontWeight: FontWeight.w800,
+                        fontSize: 24,
                       ),
                 ),
                 Text(
                   label,
                   style: TextStyle(
                     color: AppColors.textMuted,
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

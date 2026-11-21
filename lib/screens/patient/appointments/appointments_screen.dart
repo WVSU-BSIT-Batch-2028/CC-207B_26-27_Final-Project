@@ -43,11 +43,9 @@ class AppointmentsScreen extends StatefulWidget {
 /// Manages appointment loading, filtering, and display.
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   _LoadStatus _status = _LoadStatus.loading;
-
   _AppointmentFilter _filter = _AppointmentFilter.upcoming;
 
   List<Appointment> _appointments = [];
-
   String _error = '';
 
   @override
@@ -130,6 +128,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   String _formatTime(DateTime date) {
     return MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(date),
+    );
+  }
+
+  /// Opens the centered appointment details dialog.
+  void _showAppointmentDetails(Appointment appointment) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return _PatientAppointmentDetailsDialog(
+          appointment: appointment,
+          date: _formatDate(appointment.dateTime),
+          time: _formatTime(appointment.dateTime),
+          onJoinConsultation: appointment.isVideo
+              ? () {
+                  Navigator.pop(dialogContext);
+                  widget.onJoinConsultation(appointment);
+                }
+              : null,
+        );
+      },
     );
   }
 
@@ -286,6 +304,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   appointment: appointment,
                   date: _formatDate(appointment.dateTime),
                   time: _formatTime(appointment.dateTime),
+                  onViewDetails: () => _showAppointmentDetails(appointment),
                   onJoinConsultation: appointment.isVideo
                       ? () => widget.onJoinConsultation(appointment)
                       : null,
@@ -317,12 +336,14 @@ class _AppointmentCard extends StatelessWidget {
     required this.appointment,
     required this.date,
     required this.time,
+    required this.onViewDetails,
     required this.onJoinConsultation,
   });
 
   final Appointment appointment;
   final String date;
   final String time;
+  final VoidCallback onViewDetails;
   final VoidCallback? onJoinConsultation;
 
   /// Builds the appointment card.
@@ -413,9 +434,19 @@ class _AppointmentCard extends StatelessWidget {
                 : appointment.location,
           ),
 
-          // Video consultation navigation.
+          // Appointment details and video consultation actions.
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onViewDetails,
+              icon: const Icon(Icons.visibility_outlined),
+              label: const Text('View Details'),
+            ),
+          ),
+
           if (appointment.isVideo) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             if (appointment.status == AppointmentStatus.pending)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -485,6 +516,249 @@ class _AppointmentInfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Displays complete appointment information in a centered dialog.
+class _PatientAppointmentDetailsDialog extends StatelessWidget {
+  /// Creates the patient appointment details dialog.
+  const _PatientAppointmentDetailsDialog({
+    required this.appointment,
+    required this.date,
+    required this.time,
+    required this.onJoinConsultation,
+  });
+
+  final Appointment appointment;
+  final String date;
+  final String time;
+  final VoidCallback? onJoinConsultation;
+
+  /// Builds the centered appointment details dialog.
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xl,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 480,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dialog heading and close button.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Appointment Details',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navy,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              // Doctor information and status.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_outline_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appointment.doctorName,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.navy,
+                                  ),
+                        ),
+                        Text(
+                          appointment.specialty,
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppointmentStatusChip(status: appointment.status),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+              Divider(color: AppColors.border),
+              const SizedBox(height: AppSpacing.sm),
+
+              // Appointment information.
+              Text(
+                appointment.title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _DialogDetailRow(
+                icon: Icons.calendar_month_rounded,
+                label: 'Date',
+                value: date,
+              ),
+              _DialogDetailRow(
+                icon: Icons.access_time_rounded,
+                label: 'Time',
+                value: time,
+              ),
+              _DialogDetailRow(
+                icon: appointment.isVideo
+                    ? Icons.videocam_rounded
+                    : Icons.local_hospital_outlined,
+                label: 'Consultation Type',
+                value: appointment.isVideo
+                    ? 'Video Consultation'
+                    : 'In-person Consultation',
+              ),
+              _DialogDetailRow(
+                icon: Icons.location_on_outlined,
+                label: appointment.isVideo ? 'Platform' : 'Location',
+                value: appointment.location,
+              ),
+              _DialogDetailRow(
+                icon: Icons.payments_outlined,
+                label: 'Consultation Fee',
+                value: appointment.consultationFee != null
+                    ? '₱${appointment.consultationFee!.toStringAsFixed(2)}'
+                    : 'Not specified',
+              ),
+              _DialogDetailRow(
+                icon: Icons.notifications_outlined,
+                label: 'Appointment Reminder',
+                value: appointment.reminderEnabled ? 'Enabled' : 'Disabled',
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              // Video consultation action when applicable.
+              if (appointment.isVideo && onJoinConsultation != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: H360Button(
+                    label: 'View Video Consultation',
+                    icon: Icons.video_call_rounded,
+                    onPressed: onJoinConsultation,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+
+              // Close dialog action.
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Displays one labeled detail row inside the appointment dialog.
+class _DialogDetailRow extends StatelessWidget {
+  /// Creates a detail row.
+  const _DialogDetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  /// Builds the detail row.
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 19,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
