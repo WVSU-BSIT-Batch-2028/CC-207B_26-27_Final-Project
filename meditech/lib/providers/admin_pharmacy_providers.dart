@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,36 +12,18 @@ final adminPharmacyServiceProvider = Provider<AdminPharmacyService>(
   (ref) => AdminPharmacyService(Supabase.instance.client),
 );
 
-// The chosen status tab and search text
-class PharmacyFilter {
-  const PharmacyFilter({this.status, this.search = ''});
+// How far ahead an LTO counts as "expiring soon" (matches the admin overview)
+const ltoExpiringWindowDays = 60;
 
-  final String? status; // null means All
-  final String search;
-}
+// An active pharmacy whose LTO runs out within the window (or already has)
+bool isLtoExpiringSoon(PharmacySummary p, DateTime today) =>
+    p.status == 'active' &&
+    !p.ltoExpiry.isAfter(DateUtils.dateOnly(today).add(const Duration(days: ltoExpiringWindowDays)));
 
-class PharmacyFilterController extends Notifier<PharmacyFilter> {
-  @override
-  PharmacyFilter build() => const PharmacyFilter();
-
-  // Switch status tab
-  void setStatus(String? status) => state = PharmacyFilter(status: status, search: state.search);
-
-  // Search for a pharmacy, owner, LTO, or PHM number
-  void setSearch(String search) => state = PharmacyFilter(status: state.status, search: search.trim());
-}
-
-final pharmacyFilterProvider =
-    NotifierProvider<PharmacyFilterController, PharmacyFilter>(PharmacyFilterController.new);
-
-// The table rows; reloads whenever the filter changes
-final pharmacyListProvider = FutureProvider.autoDispose<List<PharmacySummary>>((ref) {
-  final filter = ref.watch(pharmacyFilterProvider);
-  return ref.read(adminPharmacyServiceProvider).list(
-        status: filter.status,
-        search: filter.search.isEmpty ? null : filter.search,
-      );
-});
+// Every pharmacy; the screen searches, filters, sorts, and pages on the device
+final pharmacyListProvider = FutureProvider.autoDispose<List<PharmacySummary>>(
+  (ref) => ref.read(adminPharmacyServiceProvider).list(),
+);
 
 // The application currently open in the drawer
 class SelectedPharmacyController extends Notifier<String?> {
@@ -50,12 +33,10 @@ class SelectedPharmacyController extends Notifier<String?> {
   void select(String? id) => state = id;
 }
 
-final selectedPharmacyProvider =
-    NotifierProvider<SelectedPharmacyController, String?>(SelectedPharmacyController.new);
+final selectedPharmacyProvider = NotifierProvider<SelectedPharmacyController, String?>(SelectedPharmacyController.new);
 
 // One application's details, for the drawer
-final applicationDetailsProvider =
-    FutureProvider.autoDispose.family<ApplicationDetails?, String>(
+final applicationDetailsProvider = FutureProvider.autoDispose.family<ApplicationDetails?, String>(
   (ref, id) => ref.read(adminPharmacyServiceProvider).details(id),
 );
 
