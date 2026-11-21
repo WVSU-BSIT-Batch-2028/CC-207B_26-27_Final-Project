@@ -13,6 +13,7 @@ import '../shared/module_placeholder.dart';
 import 'doctor_dashboard_screen.dart';
 import 'doctor_drawer.dart';
 import 'doctor_home_screen.dart';
+import 'appointments/doctor_appointments_screen.dart';
 
 /// Doctor frame: Home / Appointments / Patients / Profile / Menu.
 /// The "Menu" tab opens the slide-out drawer instead of changing page.
@@ -33,7 +34,8 @@ class _DoctorShellState extends State<DoctorShell> {
   void initState() {
     super.initState();
     // Show the "How to use" guide the first time the doctor side opens.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showGuideIfFirstTime());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _showGuideIfFirstTime());
   }
 
   Future<void> _showGuideIfFirstTime() async {
@@ -95,17 +97,14 @@ class _DoctorShellState extends State<DoctorShell> {
         index: _index,
         children: [
           DoctorHomeScreen(onNavigate: _goTo, onOpenDashboard: _openDashboard),
-          // TODO(Appointments owner): replace with the doctor's AppointmentsScreen.
-          const ModulePlaceholder(
-            title: 'Appointments',
-            icon: Icons.event_note_rounded,
-            hint: 'Upcoming and past appointments, patient overview and video consultation will live here.',
-          ),
+          // Replaced with the doctor's AppointmentsScreen.
+          const DoctorAppointmentsScreen(),
           // TODO(Records/Patients owner): replace with the doctor's PatientsScreen.
           const ModulePlaceholder(
             title: 'Patients',
             icon: Icons.groups_rounded,
-            hint: 'Patient list, records, lab results and prescriptions will live here.',
+            hint:
+                'Patient list, records, lab results and prescriptions will live here.',
           ),
           const ProfileScreen(role: UserRole.doctor),
         ],
