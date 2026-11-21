@@ -46,12 +46,19 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
     final router = GoRouter.maybeOf(context);
     if (router == null) return;
     switch (id) {
+      case 'dashboard':
+        router.go('/dashboard');
+      case 'reservations':
+        router.go('/reservations');
+      case 'inventory':
+      case 'stock_alerts':
+        router.go('/inventory');
       case 'notifications':
         router.push('/notifications');
       case 'employees':
         break;
       default:
-        router.go('/');
+        router.go('/dashboard');
     }
   }
 

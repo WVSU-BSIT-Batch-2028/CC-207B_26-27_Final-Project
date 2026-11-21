@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/session_providers.dart';
 import '../screens/pharmacy/activity_log/activity_log_screen.dart';
+import '../screens/pharmacy/employees/employees_screen.dart';
+import '../screens/pharmacy/pharmacy_shell_screen.dart';
 import '../screens/pharmacy/registration/application_status_screen.dart';
 import '../screens/pharmacy/registration/registration_screen.dart';
 import '../screens/pharmacy/sign_in/pharmacy_sign_in_screen.dart';
@@ -28,6 +30,25 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         builder: (context, state) => const PharmacySignInScreen(),
+      ),
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) =>
+            const PharmacyShellScreen(section: 'dashboard'),
+      ),
+      GoRoute(
+        path: '/reservations',
+        builder: (context, state) =>
+            const PharmacyShellScreen(section: 'reservations'),
+      ),
+      GoRoute(
+        path: '/inventory',
+        builder: (context, state) =>
+            const PharmacyShellScreen(section: 'inventory'),
+      ),
+      GoRoute(
+        path: '/employees',
+        builder: (context, state) => const EmployeesScreen(),
       ),
       GoRoute(
         path: '/register',

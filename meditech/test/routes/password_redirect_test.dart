@@ -22,6 +22,10 @@ void main() {
       mustChangePassword: false,
     );
     expect(redirectForPasswordChange(done, '/change-password'), '/');
+    expect(
+      redirectForPasswordChange(done, '/change-password', homePath: '/dashboard'),
+      '/dashboard',
+    );
   });
 
   // Waiting owners only see the application status page
@@ -59,10 +63,35 @@ void main() {
     expect(redirectForPharmacySession(suspended, '/suspended'), null);
   });
 
-  // Guests cannot open status pages directly
-  test('signed-out users leave status pages', () {
+  // Guests cannot open status pages or the tablet shell directly
+  test('signed-out users leave status and shell pages', () {
     expect(redirectForPharmacySession(null, '/application-status'), '/');
     expect(redirectForPharmacySession(null, '/suspended'), '/');
+    expect(redirectForPharmacySession(null, '/dashboard'), '/');
     expect(redirectForPharmacySession(null, '/'), null);
+  });
+
+  // Approved pharmacy staff open the dashboard shell
+  test('active pharmacy staff open the dashboard', () {
+    const active = SignedInAccount(
+      accountType: 'staff',
+      state: 'active',
+      role: 'owner',
+    );
+    expect(redirectForPharmacySession(active, '/'), '/dashboard');
+    expect(redirectForPharmacySession(active, '/dashboard'), null);
+    expect(redirectForPharmacySession(active, '/application-status'), '/dashboard');
+  });
+
+  // Approved admins open pharmacies; guests cannot
+  test('active admins open pharmacies shell', () {
+    const admin = SignedInAccount(
+      accountType: 'admin',
+      state: 'active',
+    );
+    expect(redirectForAdminSession(admin, '/'), '/pharmacies');
+    expect(redirectForAdminSession(admin, '/pharmacies'), null);
+    expect(redirectForAdminSession(null, '/pharmacies'), '/');
+    expect(redirectForAdminSession(null, '/'), null);
   });
 }

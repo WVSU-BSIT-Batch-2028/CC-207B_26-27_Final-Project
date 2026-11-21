@@ -9,6 +9,32 @@ class PharmacyService {
 
   final SupabaseClient _client;
 
+  // Loads approved branches for guest/home "Browse All Stores"
+  Future<List<PharmacyDetail>> listPublicBranches() async {
+    final response = await _client
+        .from('public_branches')
+        .select(
+          'id, display_id, pharmacy_name, branch_name, address, contact_number, latitude, longitude',
+        )
+        .order('pharmacy_name', ascending: true);
+
+    final rows = response as List<dynamic>;
+    return rows.map((row) {
+      final json = Map<String, dynamic>.from(row as Map);
+      return PharmacyDetail.fromJson({
+        'branch_id': json['id'],
+        'display_id': json['display_id'],
+        'pharmacy_name': json['pharmacy_name'],
+        'branch_name': json['branch_name'],
+        'address': json['address'],
+        'contact_number': json['contact_number'] ?? '',
+        'latitude': json['latitude'],
+        'longitude': json['longitude'],
+        'distance_km': null,
+      });
+    }).toList();
+  }
+
   // Loads approved branch header details (returns null if not active/found)
   Future<PharmacyDetail?> getPharmacyDetails({
     required String branchId,

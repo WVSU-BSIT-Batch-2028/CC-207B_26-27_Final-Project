@@ -2,11 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/session_providers.dart';
+import '../screens/admin/admin_shell_screen.dart';
+import '../screens/admin/audit/audit_detail_screen.dart';
 import '../screens/admin/sign_in/admin_sign_in_screen.dart';
 import '../screens/shared/change_password_screen.dart';
 import 'password_redirect.dart';
-import '../screens/admin/audit/audit_detail_screen.dart';
-import '../screens/admin/audit/audit_list_screen.dart';
 
 // Pages an administrator can open
 final adminRouterProvider = Provider<GoRouter>((ref) {
@@ -16,7 +16,7 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     refreshListenable: refresh,
     redirect: (context, state) {
-      return redirectForPasswordChange(
+      return redirectForAdminSession(
         ref.read(sessionProvider),
         state.matchedLocation,
       );
@@ -31,12 +31,28 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ChangePasswordScreen(),
       ),
       GoRoute(
+        path: '/pharmacies',
+        builder: (context, state) =>
+            const AdminShellScreen(section: 'pharmacies'),
+      ),
+      GoRoute(
+        path: '/catalogue',
+        builder: (context, state) =>
+            const AdminShellScreen(section: 'catalogue'),
+      ),
+      GoRoute(
+        path: '/requests',
+        builder: (context, state) =>
+            const AdminShellScreen(section: 'requests'),
+      ),
+      GoRoute(
         path: '/audit',
-        builder: (context, state) => const AuditListScreen(),
+        builder: (context, state) => const AdminShellScreen(section: 'audit'),
       ),
       GoRoute(
         path: '/audit/:id',
-        builder: (context, state) => AuditDetailScreen(id: state.pathParameters['id']!),
+        builder: (context, state) =>
+            AuditDetailScreen(id: state.pathParameters['id']!),
       ),
     ],
   );
