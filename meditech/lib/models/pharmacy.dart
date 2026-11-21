@@ -82,6 +82,26 @@ class PharmacyHours {
     return '$displayHour:$minute $period';
   }
 
+  // True when [now] falls inside this row's open window.
+  bool isOpenAt(DateTime now) {
+    if (isClosed || opensAt == null || closesAt == null) return false;
+    final open = _clockMinutes(opensAt!);
+    final close = _clockMinutes(closesAt!);
+    if (open == null || close == null) return false;
+    final current = now.hour * 60 + now.minute;
+    if (close < open) return current >= open || current < close;
+    return current >= open && current < close;
+  }
+
+  static int? _clockMinutes(String raw) {
+    final parts = raw.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    return hour * 60 + minute;
+  }
+
   factory PharmacyHours.fromJson(Map<String, dynamic> json) {
     return PharmacyHours(
       weekday: (json['weekday'] as num).toInt(),
@@ -90,6 +110,17 @@ class PharmacyHours {
       isClosed: json['is_closed'] as bool? ?? false,
     );
   }
+}
+
+// Unknown hours stay listed as open. A recorded closed day shows as closed.
+bool pharmacyIsOpenNow(List<PharmacyHours>? hours, [DateTime? now]) {
+  final clock = now ?? DateTime.now();
+  if (hours == null || hours.isEmpty) return true;
+  final weekday = clock.weekday % 7;
+  for (final row in hours) {
+    if (row.weekday == weekday) return row.isOpenAt(clock);
+  }
+  return false;
 }
 
 // Medicine offering at a specific branch returned by get_pharmacy_inventory

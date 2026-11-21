@@ -35,6 +35,21 @@ class PharmacyService {
     }).toList();
   }
 
+  // Opening hours for every approved branch, grouped by branch id
+  Future<Map<String, List<PharmacyHours>>> listPublicHours() async {
+    final response = await _client
+        .from('public_branch_hours')
+        .select('branch_id, weekday, opens_at, closes_at, is_closed');
+
+    final grouped = <String, List<PharmacyHours>>{};
+    for (final row in response as List<dynamic>) {
+      final json = Map<String, dynamic>.from(row as Map);
+      final branchId = '${json['branch_id']}';
+      grouped.putIfAbsent(branchId, () => []).add(PharmacyHours.fromJson(json));
+    }
+    return grouped;
+  }
+
   // Loads approved branch header details (returns null if not active/found)
   Future<PharmacyDetail?> getPharmacyDetails({
     required String branchId,

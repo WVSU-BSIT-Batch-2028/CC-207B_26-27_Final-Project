@@ -71,25 +71,21 @@ void main() {
     await tester.pumpWidget(buildTestableWidget());
     await tester.pumpAndSettle();
 
-    // Verifies app bar branding
-    expect(find.text('MediTech'), findsOneWidget);
-
     // Verifies header action buttons
     expect(find.byTooltip('AI Assistant'), findsOneWidget);
     expect(find.byTooltip('Notifications'), findsOneWidget);
     expect(find.byTooltip('Cart'), findsOneWidget);
 
     // Verifies bottom navigation destinations
-    final navBar = find.byType(NavigationBar);
-    expect(find.descendant(of: navBar, matching: find.text('Home')), findsOneWidget);
-    expect(find.descendant(of: navBar, matching: find.text('Search')), findsOneWidget);
-    expect(find.descendant(of: navBar, matching: find.text('My Reservations')), findsOneWidget);
-    expect(find.descendant(of: navBar, matching: find.text('Profile')), findsOneWidget);
+    expect(find.byTooltip('Home'), findsOneWidget);
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(find.byTooltip('Reservations'), findsOneWidget);
+    expect(find.byTooltip('Profile'), findsOneWidget);
 
     // Verifies Home screen content
-    expect(find.text('Search medicines or pharmacies...'), findsOneWidget);
-    expect(find.text('Available medicines'), findsOneWidget);
-    expect(find.text('Nearby pharmacies'), findsOneWidget);
+    expect(find.text('Find medicine near you'), findsOneWidget);
+    expect(find.text('Search medicine...'), findsOneWidget);
+    expect(find.text('Browse All Stores'), findsOneWidget);
   });
 
   testWidgets('switches tab when bottom navigation destination is tapped', (tester) async {
@@ -100,18 +96,16 @@ void main() {
     await tester.pumpWidget(buildTestableWidget(signedIn: true));
     await tester.pumpAndSettle();
 
-    final navBar = find.byType(NavigationBar);
-
     // Tap on Search tab
-    await tester.tap(find.descendant(of: navBar, matching: find.text('Search')));
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
 
     // Should display SearchScreen
     expect(find.byType(SearchScreen), findsOneWidget);
-    expect(find.text('Try paracetamol or Biogesic'), findsOneWidget);
+    expect(find.text('Search medicine...'), findsOneWidget);
 
     // Tap on My Reservations tab
-    await tester.tap(find.descendant(of: navBar, matching: find.text('My Reservations')));
+    await tester.tap(find.byTooltip('Reservations'));
     await tester.pumpAndSettle();
 
     // Should display MyReservationsScreen with status tabs
@@ -129,13 +123,12 @@ void main() {
     await tester.pumpWidget(buildTestableWidget());
     await tester.pumpAndSettle();
 
-    final navBar = find.byType(NavigationBar);
-    await tester.tap(find.descendant(of: navBar, matching: find.text('My Reservations')));
+    await tester.tap(find.byTooltip('Reservations'));
     await tester.pumpAndSettle();
 
     expect(find.text('Create an account'), findsOneWidget); // the sign-in sheet
     expect(find.byType(MyReservationsScreen), findsNothing); // still on Home
-    expect(tester.widget<NavigationBar>(navBar).selectedIndex, 0);
+    expect(find.text('Find medicine near you'), findsOneWidget);
   });
 
   testWidgets('tapping search bar on home switches to search tab', (tester) async {
@@ -147,11 +140,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Tap the search bar
-    await tester.tap(find.text('Search medicines or pharmacies...'));
+    await tester.tap(find.text('Search medicine...'));
     await tester.pumpAndSettle();
 
     // Should automatically navigate to SearchScreen
     expect(find.byType(SearchScreen), findsOneWidget);
-    expect(find.text('Try paracetamol or Biogesic'), findsOneWidget);
+    expect(find.text('Search medicine...'), findsOneWidget);
   });
 }

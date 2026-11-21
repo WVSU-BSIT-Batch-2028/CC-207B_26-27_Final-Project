@@ -1,15 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
-import '../../../providers/cart_providers.dart';
-import '../../../widgets/common/app_chip.dart';
+import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/customer_location_title.dart';
+import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../pharmacy/pharmacy_details_screen.dart';
+import '../../../widgets/common/medicine_card.dart';
+
+// Filters the pharmacy list on the medicine screen. Null shows every offer.
+class OfferAvailabilityFilter extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? value) => state = value;
+}
+
+final offerAvailabilityFilterProvider =
+    NotifierProvider<OfferAvailabilityFilter, String?>(
+  OfferAvailabilityFilter.new,
+);
 
 // Customer medicine details screen matching wireframe P-11
 class MedicineDetailsScreen extends ConsumerWidget {
@@ -27,20 +43,67 @@ class MedicineDetailsScreen extends ConsumerWidget {
   final void Function(MedicineSearchResult medicine, MedicineOffer offer)?
   onAddToCart;
 
+  void _openPharmacy(BuildContext context, MedicineOffer offer) {
+    final name = Uri.encodeComponent(offer.pharmacyName);
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/pharmacies/${offer.branchId}?name=$name');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PharmacyDetailsScreen(
+          branchId: offer.branchId,
+          initialTitle: offer.pharmacyName,
+        ),
+      ),
+    );
+  }
+
+  void _openCart(BuildContext context) {
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/cart');
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sort = ref.watch(medicineOffersSortProvider);
     final filter = ref.watch(medicineSearchFilterProvider);
+    final availabilityFilter = ref.watch(offerAvailabilityFilterProvider);
     final hasLocation = filter.latitude != null && filter.longitude != null;
     final offersAsync = ref.watch(medicineOffersProvider(medicine.medicineId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Medicine Details')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: const CustomerLocationTitle(
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+      bottomNavigationBar: CustomerBottomChrome(
+        showBasket: true,
+        onViewCart: () => _openCart(context),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (isOffline) const OfflineBanner(),
-          // Medicine summary card
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: TextField(
+              readOnly: true,
+              decoration: InputDecoration(
+                hintText: 'Search medicine...',
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
@@ -88,7 +151,7 @@ class MedicineDetailsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      '${medicine.strength} · ${medicine.dosageForm} · Sold per ${medicine.unitSold}',
+                      '${medicine.strength} • ${medicine.dosageForm} • sold per ${medicine.unitSold}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -130,40 +193,51 @@ class MedicineDetailsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          // Pharmacy offers header + Price / Distance sort chips
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
               children: [
-                const Text(
-                  'Available at pharmacies',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                PopupMenuButton<String>(
+                  onSelected: (value) => ref
+                      .read(medicineOffersSortProvider.notifier)
+                      .setSort(value),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'price',
+                      child: Text('Lowest price'),
+                    ),
+                    PopupMenuItem(
+                      value: 'distance',
+                      enabled: hasLocation,
+                      child: Text(
+                        hasLocation ? 'Nearest' : 'Nearest (enable location)',
+                      ),
+                    ),
+                  ],
+                  child: const _FilterLabel(
+                    icon: Icons.sort,
+                    label: 'Sort By',
                   ),
                 ),
-                Row(
-                  children: [
-                    AppChip(
-                      label: 'Lowest price',
-                      selected: sort == 'price',
-                      onSelected: (_) => ref
-                          .read(medicineOffersSortProvider.notifier)
-                          .setSort('price'),
+                PopupMenuButton<String>(
+                  onSelected: (value) => ref
+                      .read(offerAvailabilityFilterProvider.notifier)
+                      .select(value == 'all' ? null : value),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'all', child: Text('All')),
+                    PopupMenuItem(value: 'available', child: Text('Available')),
+                    PopupMenuItem(value: 'low_stock', child: Text('Low Stock')),
+                    PopupMenuItem(
+                      value: 'unavailable',
+                      child: Text('Unavailable'),
                     ),
-                    if (hasLocation) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      AppChip(
-                        label: 'Nearest',
-                        selected: sort == 'distance',
-                        onSelected: (_) => ref
-                            .read(medicineOffersSortProvider.notifier)
-                            .setSort('distance'),
-                      ),
-                    ],
                   ],
+                  child: const _FilterLabel(
+                    icon: Icons.tune,
+                    label: 'Availability Status',
+                  ),
                 ),
               ],
             ),
@@ -178,6 +252,19 @@ class MedicineDetailsScreen extends ConsumerWidget {
               onRetry: () =>
                   ref.invalidate(medicineOffersProvider(medicine.medicineId)),
               builder: (offers) {
+                final visible = [
+                  for (final offer in offers)
+                    if (_matchesAvailability(offer, availabilityFilter)) offer,
+                ];
+                if (visible.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Text(
+                      'No pharmacies currently list this medicine.',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  );
+                }
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
@@ -185,24 +272,16 @@ class MedicineDetailsScreen extends ConsumerWidget {
                     AppSpacing.lg,
                     AppSpacing.lg,
                   ),
-                  itemCount: offers.length,
+                  itemCount: visible.length,
                   separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, index) {
-                    final offer = offers[index];
+                    final offer = visible[index];
                     return _MedicineOfferCard(
                       medicine: medicine,
                       offer: offer,
-                      onOpenPharmacy: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => PharmacyDetailsScreen(
-                              branchId: offer.branchId,
-                              initialTitle: offer.pharmacyName,
-                            ),
-                          ),
-                        );
-                      },
+                      onOpenPharmacy: () => _openPharmacy(context, offer),
+                      onOpenStore: () => _openPharmacy(context, offer),
                       onAddToCart: offer.availability.canReserve
                           ? () {
                               if (onAddToCart != null) {
@@ -231,17 +310,56 @@ class MedicineDetailsScreen extends ConsumerWidget {
   }
 }
 
+bool _matchesAvailability(MedicineOffer offer, String? filter) {
+  return switch (filter) {
+    null => true,
+    'available' => offer.availability == MedicineAvailability.available,
+    'low_stock' => offer.availability == MedicineAvailability.lowStock,
+    'unavailable' => offer.availability == MedicineAvailability.unavailable,
+    _ => true,
+  };
+}
+
+class _FilterLabel extends StatelessWidget {
+  const _FilterLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppColors.textMuted),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        const Icon(Icons.arrow_drop_down, color: AppColors.textMuted),
+      ],
+    );
+  }
+}
+
 class _MedicineOfferCard extends StatelessWidget {
   const _MedicineOfferCard({
     required this.medicine,
     required this.offer,
     required this.onOpenPharmacy,
+    required this.onOpenStore,
     this.onAddToCart,
   });
 
   final MedicineSearchResult medicine;
   final MedicineOffer offer;
   final VoidCallback onOpenPharmacy;
+  final VoidCallback onOpenStore;
   final VoidCallback? onAddToCart;
 
   @override
@@ -258,6 +376,19 @@ class _MedicineOfferCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      color: AppColors.primaryLight,
+                      child: const Icon(
+                        Icons.storefront_outlined,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,87 +397,100 @@ class _MedicineOfferCard extends StatelessWidget {
                           offer.pharmacyName,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
                           offer.branchName,
                           style: const TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Text(
+                          offer.distanceKm == null
+                              ? offer.address
+                              : '${offer.address} • ${offer.distanceKm!.toStringAsFixed(1)} km',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
                             color: AppColors.textMuted,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        const StatusBadge(
+                          'Registered on MediTech',
+                          tone: BadgeTone.success,
                         ),
                       ],
                     ),
                   ),
-                  StatusBadge.availability(
-                    offer.availability.name == 'lowStock'
-                        ? 'low_stock'
-                        : offer.availability.name,
+                  IconButton(
+                    tooltip: 'Open ${offer.pharmacyName}',
+                    onPressed: onOpenStore,
+                    icon: const Icon(Icons.chevron_right),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size: 16,
-                    color: AppColors.textMuted,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
-                      offer.address,
+                      '${medicine.brandName} (${medicine.genericName})',
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (offer.distanceKm != null) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      '${offer.distanceKm!.toStringAsFixed(1)} km',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
                   Text(
-                    '₱${offer.pricePerUnit.toStringAsFixed(2)} / ${medicine.unitSold}',
+                    '₱${offer.pricePerUnit.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.text,
                     ),
                   ),
-                  FilledButton(
-                    onPressed: onAddToCart,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(116, 40),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  StatusBadge.availability(
+                    offer.availability.name == 'lowStock'
+                        ? 'low_stock'
+                        : offer.availability.name,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Updated ${stockUpdatedAgo(offer.stockConfirmedAt)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
                       ),
                     ),
-                    child: Text(
-                      offer.availability.canReserve
-                          ? 'Add to Cart'
-                          : 'Unavailable',
+                  ),
+                  IconButton(
+                    tooltip: onAddToCart == null ? 'Unavailable' : 'Add to Cart',
+                    onPressed: onAddToCart,
+                    style: IconButton.styleFrom(
+                      backgroundColor: onAddToCart == null
+                          ? AppColors.neutralLight
+                          : AppColors.primary,
+                      foregroundColor: onAddToCart == null
+                          ? AppColors.textMuted
+                          : Colors.white,
+                      disabledBackgroundColor: AppColors.neutralLight,
+                      minimumSize: const Size(36, 36),
+                      padding: EdgeInsets.zero,
                     ),
+                    icon: const Icon(Icons.add, size: 20),
                   ),
                 ],
               ),

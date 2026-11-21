@@ -18,10 +18,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Reservation ready'), findsOneWidget);
-    await tester.tap(find.text('Mark as read'));
+    expect(find.byTooltip('Unread'), findsOneWidget);
+    await tester.tap(find.text('Reservation ready'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mark as read'), findsNothing);
+    expect(find.byTooltip('Unread'), findsNothing);
+    expect(find.text('Clear Notifications'), findsOneWidget);
   });
 
   // The bell shows how many are unread

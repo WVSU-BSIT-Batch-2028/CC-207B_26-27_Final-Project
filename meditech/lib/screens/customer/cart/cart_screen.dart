@@ -1,15 +1,19 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../models/cart.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../reservations/reservation_submitted_screen.dart';
+import '../pharmacy/pharmacy_details_screen.dart';
 
 // Customer cart screen matching wireframes P-15, P-17, and P-18
 class CartScreen extends ConsumerStatefulWidget {
@@ -55,32 +59,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  Future<void> _confirmClearCart() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear cart?'),
-        content: const Text(
-          'All medicines in your current cart will be removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Clear Cart'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await _runAction(() => ref.read(cartProvider.notifier).clearCart());
-    }
-  }
-
   // Calls submit_reservation and navigates to the confirmation screen (P-19)
   Future<void> _placeReservation(CustomerCart cart) async {
     if (!_acknowledged || !cart.canSubmitReservation) return;
@@ -110,6 +88,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
+    if (GoRouter.maybeOf(context) != null) {
+      context.pushReplacement(
+        '/reservation-submitted',
+        extra: ReservationSubmittedArgs(
+          reservationId: result.reservationId,
+          referenceNo: result.referenceNo,
+          pharmacyName: snapshotPharmacy,
+          branchName: snapshotBranch,
+          items: snapshotItems,
+          totalAmount: snapshotTotal,
+        ),
+      );
+      return;
+    }
+
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (submittedContext) => ReservationSubmittedScreen(
@@ -130,18 +123,75 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
+  void _openPharmacy(CustomerCart cart) {
+    final branchId = cart.branchId;
+    if (branchId == null) return;
+    final name = Uri.encodeComponent(cart.pharmacyName ?? '');
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/pharmacies/$branchId?name=$name');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PharmacyDetailsScreen(
+          branchId: branchId,
+          initialTitle: cart.pharmacyName,
+        ),
+      ),
+    );
+  }
+
+  void _getDirections(CustomerCart cart) {
+    final branchId = cart.branchId;
+    if (branchId == null) return;
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/map?branch=$branchId');
+    }
+  }
+
+  void _changePharmacy() {
+    ref.read(customerTabProvider.notifier).select(0);
+    if (GoRouter.maybeOf(context) != null) {
+      context.go('/home');
+      return;
+    }
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
+
+  void _browseMedicines() {
+    if (widget.onBrowseMedicines != null) {
+      widget.onBrowseMedicines!();
+      return;
+    }
+    ref.read(customerTabProvider.notifier).select(1);
+    if (GoRouter.maybeOf(context) != null) {
+      context.go('/home');
+      return;
+    }
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartAsync = ref.watch(cartProvider);
 
+    final hasItems = cartAsync.value?.isNotEmpty == true;
+
     return Scaffold(
+      backgroundColor: Colors.white,
+      bottomNavigationBar: const CustomerBottomChrome(),
       appBar: AppBar(
-        title: const Text('Your Cart'),
+        title: Text(hasItems ? '' : 'Your Cart'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         actions: [
-          if (cartAsync.value?.isNotEmpty == true)
+          if (hasItems)
             TextButton(
-              onPressed: _busy ? null : _confirmClearCart,
-              child: const Text('Clear'),
+              onPressed: _busy ? null : () => _openPharmacy(cartAsync.value!),
+              child: const Text(
+                'View Details',
+                style: TextStyle(color: AppColors.danger),
+              ),
             ),
         ],
       ),
@@ -155,17 +205,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               onRetry: () => ref.read(cartProvider.notifier).refresh(),
               builder: (cart) {
                 if (cart.isEmpty) {
-                  return _EmptyCartView(
-                    onBrowseMedicines: () {
-                      if (widget.onBrowseMedicines != null) {
-                        widget.onBrowseMedicines!();
-                        return;
-                      }
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  );
+                  return _EmptyCartView(onBrowseMedicines: _browseMedicines);
                 }
 
                 return Column(
@@ -175,7 +215,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         children: [
                           // Selected single-branch banner
-                          _BranchBanner(cart: cart),
+                          _BranchBanner(
+                            cart: cart,
+                            onGetDirections: () => _getDirections(cart),
+                            onChangePharmacy: _changePharmacy,
+                          ),
                           const SizedBox(height: AppSpacing.md),
                           // Line items
                           ...cart.items.map(
@@ -312,74 +356,113 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 }
 
 class _BranchBanner extends StatelessWidget {
-  const _BranchBanner({required this.cart});
+  const _BranchBanner({
+    required this.cart,
+    required this.onGetDirections,
+    required this.onChangePharmacy,
+  });
 
   final CustomerCart cart;
+  final VoidCallback onGetDirections;
+  final VoidCallback onChangePharmacy;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.primaryLight,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.local_pharmacy_outlined,
-              color: AppColors.primary,
-              size: 22,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'PICKUP AT',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                      color: AppColors.textMuted,
-                    ),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  color: AppColors.primaryLight,
+                  child: const Icon(
+                    Icons.local_pharmacy,
+                    color: AppColors.primary,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    cart.pharmacyName ?? '',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if ((cart.branchName ?? '').isNotEmpty)
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      cart.branchName!,
+                      cart.pharmacyName ?? '',
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
                       ),
                     ),
-                  const SizedBox(height: 2),
-                  Text(
-                    cart.branchAddress ?? '',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
+                    if ((cart.branchName ?? '').isNotEmpty)
+                      Text(
+                        cart.branchName!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      cart.branchAddress ?? '',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onGetDirections,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 40),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  const Text(
-                    'One pharmacy per reservation and pickup code.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  ),
-                ],
+                  child: const Text('Get Directions'),
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onChangePharmacy,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 40),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: const Text('Change Pharmacy'),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -442,13 +525,11 @@ class _CartItemCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   const StatusBadge.rx(),
                 ],
-                IconButton(
-                  tooltip: 'Remove item',
+                TextButton(
                   onPressed: busy ? null : onRemove,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.danger,
-                    size: 20,
+                  child: const Text(
+                    'Remove',
+                    style: TextStyle(color: AppColors.danger),
                   ),
                 ),
               ],
@@ -515,13 +596,22 @@ class _CartItemCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(
-                  item.formattedLineTotal,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    ),
+                    Text(
+                      item.formattedLineTotal,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -550,6 +640,7 @@ class _PrescriptionUploadCard extends StatelessWidget {
     final missingRx = prescriptions.isEmpty;
 
     return Card(
+      color: AppColors.primaryLight,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -665,9 +756,9 @@ class _CartCheckoutCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Total reported amount (${cart.totalUnits} ${cart.totalUnits == 1 ? 'unit' : 'units'})',
-                  style: const TextStyle(
+                const Text(
+                  'Estimated Total',
+                  style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textMuted,
                   ),
@@ -718,7 +809,7 @@ class _CartCheckoutCard extends StatelessWidget {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Place reservation'),
+                  : const Text('Continue to Reservation'),
             ),
           ],
         ),
