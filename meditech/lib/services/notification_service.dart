@@ -19,7 +19,7 @@ class SupabaseNotificationService implements NotificationService {
 
     final rows = await _client
         .from('notifications')
-        .select('id, title, body, read_at, created_at')
+        .select('id, title, body, type, reservation_id, read_at, created_at')
         .eq('recipient_id', id)
         .order('created_at', ascending: false);
     return [for (final row in rows) AppNotification.fromJson(row)];

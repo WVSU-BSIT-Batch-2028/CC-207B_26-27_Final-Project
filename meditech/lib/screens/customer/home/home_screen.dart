@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../models/reservation.dart';
@@ -8,6 +9,7 @@ import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/customer_location_title.dart';
 import '../../../widgets/common/browse_store_card.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -23,7 +25,6 @@ class HomeScreen extends ConsumerWidget {
     this.onCartTap,
     this.onNotificationsTap,
     this.onSearchTap,
-    this.onViewAllPharmaciesTap,
     this.onViewMapsTap,
     this.onOpenReservations,
     this.onOpenReservationDetails,
@@ -35,7 +36,6 @@ class HomeScreen extends ConsumerWidget {
   final VoidCallback? onCartTap;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onSearchTap;
-  final VoidCallback? onViewAllPharmaciesTap;
   final VoidCallback? onViewMapsTap;
   final VoidCallback? onOpenReservations;
   final ValueChanged<String>? onOpenReservationDetails;
@@ -55,6 +55,8 @@ class HomeScreen extends ConsumerWidget {
     final reservations = ref.watch(myReservationsProvider).value ?? const [];
     final active = reservations.where((r) => r.status.isActive).toList();
     final branchesAsync = ref.watch(publicBranchesProvider);
+    final hours = ref.watch(publicBranchHoursProvider).value;
+    final browse = ref.watch(storeBrowseProvider);
 
     return ColoredBox(
       color: Colors.white,
@@ -100,8 +102,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                         SizedBox(width: 4),
                         Flexible(
-                          child: Text(
-                            'La Paz, Iloilo City',
+                          child: CustomerLocationTitle(
                             style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 13,
@@ -214,13 +215,15 @@ class HomeScreen extends ConsumerWidget {
                 _FilterPill(
                   icon: Icons.schedule,
                   label: 'Open now',
-                  onTap: onViewAllPharmaciesTap,
+                  selected: browse.openNow,
+                  onTap: () =>
+                      ref.read(storeBrowseProvider.notifier).toggleOpenNow(),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _FilterPill(
                   icon: Icons.tune,
                   label: 'Sort By',
-                  onTap: onViewAllPharmaciesTap,
+                  onTap: () => _openSortSheet(context, ref, browse.sort),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 FilledButton(
@@ -244,16 +247,30 @@ class HomeScreen extends ConsumerWidget {
             emptyMessage: 'No approved pharmacies are listed yet.',
             onRetry: () => ref.invalidate(publicBranchesProvider),
             builder: (branches) {
+              final visible = _visibleBranches(
+                branches,
+                hours: hours,
+                openNow: browse.openNow,
+                sort: browse.sort,
+              );
+              if (visible.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                  child: Text(
+                    'No pharmacies match these filters.',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                );
+              }
               return Column(
                 children: [
-                  for (var i = 0; i < branches.length; i++) ...[
+                  for (var i = 0; i < visible.length; i++) ...[
                     if (i > 0) const SizedBox(height: AppSpacing.sm),
                     BrowseStoreCard(
-                      name: branches[i].pharmacyName,
-                      addressLine: branches[i].distanceKm == null
-                          ? branches[i].address
-                          : '${branches[i].address} • ${branches[i].distanceKm!.toStringAsFixed(1)} km',
-                      onTap: () => onOpenPharmacy?.call(branches[i]),
+                      name: visible[i].pharmacyName,
+                      addressLine: _addressLine(visible[i]),
+                      isOpen: _branchIsOpen(visible[i], hours),
+                      onTap: () => onOpenPharmacy?.call(visible[i]),
                     ),
                   ],
                 ],
@@ -265,6 +282,161 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
+
+const _iloilo = LatLng(10.7202, 122.5621);
+const _distance = Distance();
+
+String _addressLine(PharmacyDetail branch) {
+  final km = _kilometers(branch);
+  if (km == null) return branch.address;
+  return '${branch.address} • ${km.toStringAsFixed(1)} km';
+}
+
+double? _kilometers(PharmacyDetail branch) {
+  if (branch.distanceKm != null) return branch.distanceKm;
+  if (branch.latitude == 0 && branch.longitude == 0) return null;
+  return _distance.as(
+    LengthUnit.Kilometer,
+    _iloilo,
+    LatLng(branch.latitude, branch.longitude),
+  );
+}
+
+bool _branchIsOpen(
+  PharmacyDetail branch,
+  Map<String, List<PharmacyHours>>? hours,
+) {
+  return pharmacyIsOpenNow(hours?[branch.branchId]);
+}
+
+List<PharmacyDetail> _visibleBranches(
+  List<PharmacyDetail> branches, {
+  required Map<String, List<PharmacyHours>>? hours,
+  required bool openNow,
+  required StoreSort sort,
+}) {
+  final visible = [
+    for (final branch in branches)
+      if (!openNow || _branchIsOpen(branch, hours)) branch,
+  ];
+  if (sort == StoreSort.nearest) {
+    visible.sort((a, b) {
+      final aKm = _kilometers(a) ?? double.infinity;
+      final bKm = _kilometers(b) ?? double.infinity;
+      return aKm.compareTo(bKm);
+    });
+  }
+  return visible;
+}
+
+Future<void> _openSortSheet(
+  BuildContext context,
+  WidgetRef ref,
+  StoreSort current,
+) async {
+  var selected = current;
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Sort by',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                RadioGroup<StoreSort>(
+                  groupValue: selected,
+                  onChanged: (value) {
+                    if (value != null) setSheetState(() => selected = value);
+                  },
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioListTile<StoreSort>(
+                        value: StoreSort.nearest,
+                        activeColor: AppColors.primary,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Nearest'),
+                      ),
+                      RadioListTile<StoreSort>(
+                        value: StoreSort.recommended,
+                        activeColor: AppColors.primary,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Recommended (5+ MedFound)'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () {
+                    ref.read(storeBrowseProvider.notifier).setSort(selected);
+                    Navigator.of(sheetContext).pop();
+                  },
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                  ),
+                  child: const Text('Apply'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+enum StoreSort { nearest, recommended }
+
+class StoreBrowseState {
+  const StoreBrowseState({
+    this.openNow = false,
+    this.sort = StoreSort.recommended,
+  });
+
+  final bool openNow;
+  final StoreSort sort;
+
+  StoreBrowseState copyWith({bool? openNow, StoreSort? sort}) {
+    return StoreBrowseState(
+      openNow: openNow ?? this.openNow,
+      sort: sort ?? this.sort,
+    );
+  }
+}
+
+class StoreBrowseNotifier extends Notifier<StoreBrowseState> {
+  @override
+  StoreBrowseState build() => const StoreBrowseState();
+
+  void toggleOpenNow() => state = state.copyWith(openNow: !state.openNow);
+
+  void setSort(StoreSort sort) => state = state.copyWith(sort: sort);
+}
+
+final storeBrowseProvider = NotifierProvider<StoreBrowseNotifier, StoreBrowseState>(
+  StoreBrowseNotifier.new,
+);
 
 class _CircleAction extends StatelessWidget {
   const _CircleAction({
@@ -308,18 +480,23 @@ class _FilterPill extends StatelessWidget {
   const _FilterPill({
     required this.icon,
     required this.label,
+    this.selected = false,
     this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final bool selected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final foreground = selected ? Colors.white : AppColors.text;
     return Material(
-      color: Colors.white,
-      shape: StadiumBorder(side: BorderSide(color: AppColors.border)),
+      color: selected ? AppColors.primary : Colors.white,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
+      ),
       child: InkWell(
         onTap: onTap,
         customBorder: const StadiumBorder(),
@@ -328,14 +505,14 @@ class _FilterPill extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: AppColors.text),
+              Icon(icon, size: 16, color: foreground),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+                  color: foreground,
                 ),
               ),
             ],

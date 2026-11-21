@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../providers/pharmacy_providers.dart';
-import '../../../providers/cart_providers.dart';
+import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import 'pharmacy_directions_screen.dart';
 
 // Customer pharmacy branch details screen matching wireframe P-12
 class PharmacyDetailsScreen extends ConsumerStatefulWidget {
@@ -58,6 +61,26 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
     });
   }
 
+  void _openDirections(PharmacyDetail pharmacy) {
+    final name = Uri.encodeComponent(pharmacy.pharmacyName);
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/directions?branch=${pharmacy.branchId}&name=$name');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PharmacyDirectionsScreen(
+          branchId: pharmacy.branchId,
+          initialTitle: pharmacy.pharmacyName,
+        ),
+      ),
+    );
+  }
+
+  void _openCart() {
+    if (GoRouter.maybeOf(context) != null) context.push('/cart');
+  }
+
   String _availabilityCode(PharmacyInventoryItem item) {
     return item.availability.name == 'lowStock'
         ? 'low_stock'
@@ -78,7 +101,16 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
         'Pharmacy Details';
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomNavigationBar: CustomerBottomChrome(
+        showBasket: true,
+        onViewCart: _openCart,
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -97,6 +129,20 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      child: Container(
+                        height: 140,
+                        width: double.infinity,
+                        color: AppColors.primaryLight,
+                        child: const Icon(
+                          Icons.storefront,
+                          size: 48,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     // Branch header card
                     Card(
                       child: Padding(
@@ -159,6 +205,12 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            OutlinedButton.icon(
+                              onPressed: () => _openDirections(pharmacy),
+                              icon: const Icon(Icons.directions_outlined),
+                              label: const Text('Get directions'),
                             ),
                             if (hours.isNotEmpty) ...[
                               const Padding(
@@ -273,6 +325,7 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                               requiresPrescription: item.isRx,
                               availability: _availabilityCode(item),
                               priceText: item.formattedPrice,
+                              stockConfirmedAt: item.stockConfirmedAt,
                               onTap: item.availability.canReserve
                                   ? () {
                                       if (widget.onAddInventoryItem != null) {

@@ -95,7 +95,7 @@ void main() {
     expect(find.text('Mercury Drug'), findsOneWidget);
     expect(find.text('Molo Plaza'), findsOneWidget);
     expect(find.text('Biogesic'), findsOneWidget);
-    expect(find.text('Total reported amount (2 units)'), findsOneWidget);
+    expect(find.text('Estimated Total'), findsOneWidget);
     expect(find.text('₱10.00'), findsNWidgets(2));
   });
 
@@ -106,14 +106,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Prescription needed (0/3)'),
+      200,
+    );
     expect(find.text('Prescription needed (0/3)'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Upload at least one prescription file to continue.'),
+      200,
+    );
     expect(
       find.text('Upload at least one prescription file to continue.'),
       findsOneWidget,
     );
 
     final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Place reservation'),
+      find.widgetWithText(FilledButton, 'Continue to Reservation'),
     );
     expect(button.onPressed, isNull);
   });
@@ -140,16 +148,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Place reservation'),
-      200,
+    final list = find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable && widget.axisDirection == AxisDirection.down,
     );
+    await tester.scrollUntilVisible(
+      find.text('Continue to Reservation'),
+      200,
+      scrollable: list,
+    );
+    await tester.drag(list, const Offset(0, -180));
+    await tester.pumpAndSettle();
 
     // Button stays disabled until acknowledgment checkbox is checked
     expect(
       tester
           .widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'Place reservation'),
+            find.widgetWithText(FilledButton, 'Continue to Reservation'),
           )
           .onPressed,
       isNull,
@@ -158,7 +173,7 @@ void main() {
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Place reservation'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue to Reservation'));
     await tester.pumpAndSettle();
 
     expect(find.text('Reservation submitted'), findsOneWidget);
