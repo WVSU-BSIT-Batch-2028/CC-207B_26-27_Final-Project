@@ -14,7 +14,7 @@ cp env.example.json env.json
 flutter run --dart-define-from-file=env.json
 ```
 
-`env.json` is gitignored. Use public Supabase and map keys only. Android builds use Gradle 8.14.3, Android Gradle Plugin 8.11.1 and Kotlin 2.2.20 to support the installed Flutter toolchain. Java 21 is recommended. Select it with `flutter config --jdk-dir=/path/to/jdk21` if Flutter selects a newer incompatible JDK. iOS builds require full Xcode and CocoaPods; the Podfile sets the ML Kit minimum deployment target.
+`env.json` is gitignored. Use public Supabase and map keys only. Android builds use Gradle 8.14.3, Android Gradle Plugin 8.11.1 and Kotlin 2.2.20 to support the installed Flutter toolchain. Use a full Java 21 JDK that includes `jlink`; a stripped runtime such as an IDE’s bundled JBR may not work. Select it with `flutter config --jdk-dir=/path/to/jdk21` if Flutter selects a newer incompatible JDK. iOS builds require full Xcode and CocoaPods; the Podfile sets the ML Kit minimum deployment target.
 
 ## Add my Schedule
 
@@ -56,3 +56,5 @@ flutter test --dart-define-from-file=env.json integration_live/
 ```
 
 Before releasing, verify an actual IUIS/COR export and a clear screenshot on a phone. Confirm notification delivery with the app closed, permission denial, an edited/deleted class and Android reboot behavior. Native OCR and actual notification delivery need a device; Dart tests cover parser/import review, persistence, timezone calculations and native scheduling through a fake backend.
+
+Verified for this branch: static analysis with no issues, 64 passing tests (including native PDF extraction), and a successful Android debug APK build using a full Java 21 JDK. iOS compilation and actual OCR/notification delivery on a phone still require device validation.
