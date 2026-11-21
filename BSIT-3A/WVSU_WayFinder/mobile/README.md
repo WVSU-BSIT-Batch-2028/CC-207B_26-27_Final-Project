@@ -4,7 +4,7 @@ The mobile client uses the same Supabase project, place IDs and data rules as th
 
 ## Run
 
-Requires Flutter 3.41+ / Dart 3.10+, Android API 23+ or iOS 15.5+.
+Requires Flutter 3.41+ / Dart 3.10+, Android (at least API 23; the installed Flutter SDK may require newer) or iOS 15.5+.
 
 ```bash
 flutter pub get

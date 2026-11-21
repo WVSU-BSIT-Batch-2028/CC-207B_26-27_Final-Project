@@ -65,7 +65,15 @@ void main() {
               for (final asset in (output['assets'] as List? ?? [])) {
                 final encoding = asset['encoding'] as Map?;
                 if (encoding?['id'] == 'package:pdfium_dart/libpdfium') {
-                  Pdfrx.pdfiumModulePath = encoding!['file'] as String;
+                  final library = encoding!['file'] as String;
+                  final host = Platform.isMacOS
+                      ? '/mac-'
+                      : Platform.isWindows
+                      ? '/win-'
+                      : '/linux-';
+                  if (library.replaceAll('\\', '/').contains(host)) {
+                    Pdfrx.pdfiumModulePath = library;
+                  }
                 }
               }
             }
