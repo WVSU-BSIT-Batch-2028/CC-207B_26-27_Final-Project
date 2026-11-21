@@ -10,10 +10,15 @@ import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import 'pharmacies_screen.dart';
 import 'verification_panel.dart';
+import 'branch_status_panel.dart';
 
 // Right-side panel showing one application (wireframes A-05, A-07)
 class ApplicationDrawer extends ConsumerWidget {
-  const ApplicationDrawer({super.key, required this.branchId, required this.onClose});
+  const ApplicationDrawer({
+    super.key,
+    required this.branchId,
+    required this.onClose,
+  });
 
   final String branchId;
   final VoidCallback onClose;
@@ -55,15 +60,23 @@ class _DrawerContent extends ConsumerWidget {
   }
 
   // Open a document: photos in a viewer, PDFs in the browser
-  Future<void> _open(BuildContext context, WidgetRef ref, DocumentInfo doc) async {
+  Future<void> _open(
+    BuildContext context,
+    WidgetRef ref,
+    DocumentInfo doc,
+  ) async {
     try {
-      final link = await ref.read(adminPharmacyServiceProvider).documentLink(doc.path);
+      final link = await ref
+          .read(adminPharmacyServiceProvider)
+          .documentLink(doc.path);
       if (!context.mounted) return;
       if (doc.isImage) {
         await showDialog<void>(
           context: context,
           builder: (_) => Dialog(
-            child: InteractiveViewer(child: Image.network(link, fit: BoxFit.contain)),
+            child: InteractiveViewer(
+              child: Image.network(link, fit: BoxFit.contain),
+            ),
           ),
         );
       } else {
@@ -72,7 +85,10 @@ class _DrawerContent extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open this document. Please try again.')));
+          const SnackBar(
+            content: Text('Could not open this document. Please try again.'),
+          ),
+        );
       }
     }
   }
@@ -85,40 +101,79 @@ class _DrawerContent extends ConsumerWidget {
 
     // A titled group of label-value rows
     Widget section(String title, List<(String, String)> rows) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title.toUpperCase(),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted, letterSpacing: 0.5)),
-            const SizedBox(height: AppSpacing.sm),
-            for (final (label, value) in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SizedBox(width: 120,
-                      child: Text(label, style: const TextStyle(color: AppColors.textMuted))),
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final (label, value) in rows)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      label,
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                  ),
                   Expanded(child: Text(value)),
-                ]),
+                ],
               ),
-          ]),
-        );
+            ),
+        ],
+      ),
+    );
 
     return Column(
       children: [
         // Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(d.pharmacyName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                Text('${d.branchName} · ${d.displayId}',
-                    style: const TextStyle(color: AppColors.textMuted)),
-              ]),
-            ),
-            branchStatusBadge(d.status),
-            IconButton(tooltip: 'Close', onPressed: onClose, icon: const Icon(Icons.close)),
-          ]),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d.pharmacyName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '${d.branchName} · ${d.displayId}',
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              branchStatusBadge(d.status),
+              IconButton(
+                tooltip: 'Close',
+                onPressed: onClose,
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
         ),
         const Divider(),
 
@@ -148,17 +203,30 @@ class _DrawerContent extends ConsumerWidget {
                 ('Address', d.address),
                 ('Contact', d.contactNumber),
                 ('Email', d.email),
-                ('Location', '${d.latitude.toStringAsFixed(6)}, ${d.longitude.toStringAsFixed(6)}'),
+                (
+                  'Location',
+                  '${d.latitude.toStringAsFixed(6)}, ${d.longitude.toStringAsFixed(6)}',
+                ),
                 ('Submitted', date.format(d.submittedAt)),
               ]),
               section('FDA License to Operate', [
                 ('LTO number', d.ltoNumber),
-                ('Expires', expired ? '${date.format(d.ltoExpiry)} (expired)' : date.format(d.ltoExpiry)),
+                (
+                  'Expires',
+                  expired
+                      ? '${date.format(d.ltoExpiry)} (expired)'
+                      : date.format(d.ltoExpiry),
+                ),
               ]),
               section('Opening hours', [
                 for (final i in [1, 2, 3, 4, 5, 6, 0])
                   for (final h in d.hours.where((h) => h.weekday == i))
-                    (_days[i], h.isClosed ? 'Closed' : '${_time(h.opensAt)} – ${_time(h.closesAt)}'),
+                    (
+                      _days[i],
+                      h.isClosed
+                          ? 'Closed'
+                          : '${_time(h.opensAt)} – ${_time(h.closesAt)}',
+                    ),
               ]),
               if (d.owner != null)
                 section('Owner account', [
@@ -169,23 +237,38 @@ class _DrawerContent extends ConsumerWidget {
                 ]),
 
               // Documents, opened with short-lived links
-              const Text('DOCUMENTS',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                      color: AppColors.textMuted, letterSpacing: 0.5)),
+              const Text(
+                'DOCUMENTS',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.5,
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               if (d.documents.isEmpty)
-                const Text('No documents uploaded.', style: TextStyle(color: AppColors.textMuted)),
+                const Text(
+                  'No documents uploaded.',
+                  style: TextStyle(color: AppColors.textMuted),
+                ),
               for (final doc in d.documents)
                 Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
-                    leading: Icon(doc.isImage ? Icons.image_outlined : Icons.picture_as_pdf_outlined),
+                    leading: Icon(
+                      doc.isImage
+                          ? Icons.image_outlined
+                          : Icons.picture_as_pdf_outlined,
+                    ),
                     title: Text(switch (doc.kind) {
                       'lto' => 'License to Operate',
                       'storefront' => 'Storefront photo',
                       _ => 'Renewed LTO',
                     }),
-                    subtitle: Text('${(doc.sizeBytes / 1024).toStringAsFixed(0)} KB'),
+                    subtitle: Text(
+                      '${(doc.sizeBytes / 1024).toStringAsFixed(0)} KB',
+                    ),
                     trailing: const Icon(Icons.open_in_new),
                     onTap: () => _open(context, ref, doc),
                   ),
@@ -194,6 +277,9 @@ class _DrawerContent extends ConsumerWidget {
 
               // FDA check, history, and the decision
               VerificationPanel(details: d),
+              // Deactivate or activate (live or offline pharmacies only)
+              if (d.status == 'active' || d.status == 'inactive')
+                BranchStatusPanel(details: d),
             ],
           ),
         ),
