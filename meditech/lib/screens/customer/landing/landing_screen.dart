@@ -4,34 +4,43 @@ import 'package:go_router/go_router.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
-// First customer page: start sign-up, browse as guest, or sign in
+// First customer page matched to the Main Flow landing frame
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final pill = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.lg,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
+              const Spacer(flex: 2),
               Column(
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: const Icon(
                       Icons.menu_book_rounded,
-                      color: AppColors.primary,
-                      size: 30,
+                      color: Colors.white,
+                      size: 32,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -45,24 +54,33 @@ class LandingScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xxl),
               Text(
                 "Let's make finding medicine easier",
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               const Text(
                 'Search, compare, and manage your prescriptions with confidence.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 16),
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 16,
+                  height: 1.4,
+                ),
               ),
-              const Spacer(),
+              const Spacer(flex: 3),
               FilledButton(
                 onPressed: () => context.push('/sign-up'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: pill,
+                ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -75,6 +93,12 @@ class LandingScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               OutlinedButton(
                 onPressed: () => context.go('/home'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: pill,
+                  side: const BorderSide(color: AppColors.border, width: 1.5),
+                  foregroundColor: AppColors.primary,
+                ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -85,27 +109,27 @@ class LandingScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text.rich(
-                TextSpan(
-                  text: 'Already have an account? ',
-                  style: const TextStyle(color: AppColors.textMuted),
+              Center(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: GestureDetector(
-                        onTap: () => context.push('/sign-in'),
-                        child: const Text(
-                          'Sign in',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    const Text(
+                      'Already have an account? ',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                    ),
+                    GestureDetector(
+                      onTap: () => context.push('/sign-in'),
+                      child: const Text(
+                        'Sign in',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
                         ),
                       ),
                     ),
                   ],
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),

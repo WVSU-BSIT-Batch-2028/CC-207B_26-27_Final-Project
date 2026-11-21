@@ -11,12 +11,13 @@ import '../../widgets/theme/app_spacing.dart';
 import 'cart/cart_screen.dart';
 import 'home/home_screen.dart';
 import 'pharmacy/pharmacy_details_screen.dart';
+import 'pharmacy/pharmacy_map_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reservations/my_reservations_screen.dart';
 import 'reservations/reservation_details_screen.dart';
 import 'search/search_screen.dart';
 
-// Main Flow customer shell: home browse, guest gates, AI FAB, bottom tabs
+// Main Flow customer shell matched to the Figma prototype
 class CustomerFrame extends ConsumerStatefulWidget {
   const CustomerFrame({super.key, this.initialIndex = 0});
 
@@ -113,43 +114,23 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     _onTabSelected(index);
   }
 
-  Widget _circleAction({
-    required String tooltip,
-    required IconData icon,
-    required VoidCallback onPressed,
-    int badgeCount = 0,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(left: AppSpacing.sm),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: AppColors.primary,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onPressed,
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: Badge(
-                isLabelVisible: badgeCount > 0,
-                label: Text('$badgeCount'),
-                child: Icon(icon, color: Colors.white, size: 20),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(
+        cartCount: ref.watch(cartItemCountProvider),
+        notificationCount: ref.watch(unreadNotificationCountProvider),
+        onCartTap: _openCart,
+        onNotificationsTap: _openNotifications,
         onSearchTap: () => _onTabSelected(1),
         onViewAllPharmaciesTap: () => _onTabSelected(1),
+        onViewMapsTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const PharmacyMapScreen(),
+            ),
+          );
+        },
         onOpenReservations: () => _onTabSelected(2),
         onOpenReservationDetails: (reservationId) {
           _onTabSelected(2);
@@ -180,64 +161,108 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: AppSpacing.lg,
-        title: const SizedBox.shrink(),
-        actions: [
-          _circleAction(
-            tooltip: 'Cart',
-            icon: Icons.shopping_bag_outlined,
-            badgeCount: ref.watch(cartItemCountProvider),
-            onPressed: _openCart,
-          ),
-          _circleAction(
-            tooltip: 'Notifications',
-            icon: Icons.notifications_none,
-            badgeCount: ref.watch(unreadNotificationCountProvider),
-            onPressed: _openNotifications,
-          ),
-          const SizedBox(width: AppSpacing.md),
-        ],
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(index: _currentIndex, children: screens),
       ),
-      body: IndexedStack(index: _currentIndex, children: screens),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'AI Assistant',
-        backgroundColor: AppColors.primary,
-        onPressed: () => context.push('/assistant'),
-        child: const Icon(Icons.auto_awesome, color: Colors.white),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 72),
+        child: FloatingActionButton(
+          tooltip: 'AI Assistant',
+          backgroundColor: AppColors.primary,
+          elevation: 2,
+          onPressed: () => context.push('/assistant'),
+          child: const Icon(Icons.auto_awesome, color: Colors.white),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _onDestinationSelected,
-        backgroundColor: AppColors.primary,
-        indicatorColor: Colors.white.withValues(alpha: 0.2),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.home, color: Colors.white),
-            label: 'Home',
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.md,
+        ),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.search, color: Colors.white70),
-            selectedIcon: Icon(Icons.search, color: Colors.white),
-            label: 'Search',
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _NavItem(
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home,
+                selected: _currentIndex == 0,
+                onTap: () => _onDestinationSelected(0),
+              ),
+              _NavItem(
+                icon: Icons.search,
+                selectedIcon: Icons.search,
+                selected: _currentIndex == 1,
+                onTap: () => _onDestinationSelected(1),
+              ),
+              _NavItem(
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long,
+                selected: _currentIndex == 2,
+                onTap: () => _onDestinationSelected(2),
+              ),
+              _NavItem(
+                icon: Icons.person_outline,
+                selectedIcon: Icons.person,
+                selected: _currentIndex == 3,
+                onTap: () => _onDestinationSelected(3),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.receipt_long, color: Colors.white),
-            label: 'My Reservations',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline, color: Colors.white70),
-            selectedIcon: Icon(Icons.person, color: Colors.white),
-            label: 'Profile',
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          selected ? selectedIcon : icon,
+          color: selected ? AppColors.primary : Colors.white,
+          size: 22,
+        ),
       ),
     );
   }

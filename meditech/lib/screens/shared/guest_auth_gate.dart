@@ -60,11 +60,23 @@ Future<bool> showGuestAuthGate(
             const SizedBox(height: AppSpacing.xl),
             FilledButton(
               onPressed: () => Navigator.pop(sheetContext, 'sign-in'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
               child: const Text('Sign in'),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton(
               onPressed: () => Navigator.pop(sheetContext, 'sign-up'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
               child: const Text('Create an account'),
             ),
             TextButton(
