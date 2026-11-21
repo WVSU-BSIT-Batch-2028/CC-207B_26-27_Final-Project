@@ -1,0 +1,34 @@
+name: wvsu_wayfinder
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_map: ^8.3.2
+  geolocator: ^14.0.2
+  go_router: ^17.2.3
+  http: ^1.6.0
+  image_picker: ^1.2.2
+  latlong2: ^0.10.1
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  mocktail: ^1.0.5
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/wayfinder-logo.png
+    - assets/demo/places.json
+    - assets/demo/processes.json
+    - assets/demo/campus.json
+    - assets/demo/faculty.json
+    - assets/demo/floorplan-cb-2.png

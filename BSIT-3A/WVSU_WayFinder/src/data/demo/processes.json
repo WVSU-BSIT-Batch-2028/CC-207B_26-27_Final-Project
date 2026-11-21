@@ -1,0 +1,46 @@
+{
+  "_notice": "DEMO FIXTURES. Sample procedures invented for development. Not official WVSU requirements or office order.",
+  "processes": [
+    {
+      "id": "proc-demo-enrollment", "name": "Demo Enrollment", "summary": "Complete your enrollment for the current term (demo procedure).",
+      "beforeYouStart": "Bring your documents in a folder. Offices may close for lunch (demo note).",
+      "requirements": [
+        { "position": 1, "kind": "document", "text": "Student ID" },
+        { "position": 2, "kind": "document", "text": "Assessment form" },
+        { "position": 3, "kind": "document", "text": "Proof of payment" }
+      ],
+      "steps": [
+        { "position": 1, "officePlaceId": "office-demo-registrar", "title": "Registrar", "action": "Submit your enrollment form." },
+        { "position": 2, "officePlaceId": "office-demo-cashier", "title": "Cashier", "action": "Pay the assessed fees." },
+        { "position": 3, "officePlaceId": "office-demo-registrar", "title": "Registrar", "action": "Present your receipt and claim your schedule." }
+      ]
+    },
+    {
+      "id": "proc-demo-clearance", "name": "Demo Clearance", "summary": "Get your end-of-term clearance signed (demo procedure).",
+      "beforeYouStart": "Settle library returns before visiting other offices (demo note).",
+      "requirements": [
+        { "position": 1, "kind": "document", "text": "Clearance form" },
+        { "position": 2, "kind": "document", "text": "Student ID" }
+      ],
+      "steps": [
+        { "position": 1, "officePlaceId": "room-demo-lib-1", "title": "Library", "action": "Confirm you have no unreturned books." },
+        { "position": 2, "officePlaceId": "office-demo-osa", "title": "Office of Student Affairs", "action": "Get the student affairs signature." },
+        { "position": 3, "officePlaceId": "office-demo-cashier", "title": "Cashier", "action": "Confirm no outstanding balance." },
+        { "position": 4, "officePlaceId": "office-demo-registrar", "title": "Registrar", "action": "Submit the completed clearance form." }
+      ]
+    },
+    {
+      "id": "proc-demo-tor", "name": "Demo Transcript of Records", "summary": "Request your transcript (demo procedure).",
+      "beforeYouStart": "Processing time varies (demo note).",
+      "requirements": [
+        { "position": 1, "kind": "document", "text": "Request form" },
+        { "position": 2, "kind": "document", "text": "Valid ID" }
+      ],
+      "steps": [
+        { "position": 1, "officePlaceId": "office-demo-registrar", "title": "Registrar", "action": "File the request form." },
+        { "position": 2, "officePlaceId": "office-demo-cashier", "title": "Cashier", "action": "Pay the transcript fee." },
+        { "position": 3, "officePlaceId": "office-demo-registrar", "title": "Registrar", "action": "Claim your transcript on the release date." }
+      ]
+    }
+  ]
+}

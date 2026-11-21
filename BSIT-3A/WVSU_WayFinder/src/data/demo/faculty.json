@@ -1,0 +1,10 @@
+{
+  "_notice": "DEMO FIXTURES. Invented teachers in the faculty_directory shape. Not official WVSU information.",
+  "faculty": [
+    { "recordId": "demo-fd-1", "fullName": "Demo Prof. Maria Mapped", "collegeUnit": "Demo College of Information and Communications Technology", "collegeCode": "DEMO-CICT", "department": "Demo Department of Computing", "positionTitle": "Demo Associate Professor", "officePlaceId": "room-demo-cb-203", "isPublished": true, "reviewStatus": "verified" },
+    { "recordId": "demo-fd-2", "fullName": "Demo Prof. Juan Unmapped", "collegeUnit": "Demo College of Arts and Sciences", "collegeCode": "DEMO-CAS", "department": "Demo Department of Mathematics", "positionTitle": "Demo Instructor", "isPublished": true, "reviewStatus": "verified" },
+    { "recordId": "demo-fd-3", "fullName": "Demo Prof. Ana Nooffice", "collegeUnit": "Demo College of Education", "collegeCode": "DEMO-COE", "department": "Demo Department of Languages", "positionTitle": "Demo Assistant Professor", "isPublished": true, "reviewStatus": "verified" },
+    { "recordId": "demo-fd-4", "fullName": "Demo Prof. Hidden Unpublished", "department": "Should never appear", "isPublished": false, "reviewStatus": "verified" },
+    { "recordId": "demo-fd-5", "fullName": "Demo Prof. Hidden Pending", "department": "Should never appear", "isPublished": true, "reviewStatus": "pending" }
+  ]
+}
