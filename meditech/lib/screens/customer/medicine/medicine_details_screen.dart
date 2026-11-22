@@ -6,7 +6,7 @@ import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
 import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
-import '../../../widgets/common/customer_location_title.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -73,12 +73,14 @@ class MedicineDetailsScreen extends ConsumerWidget {
     final offersAsync = ref.watch(medicineOffersProvider(medicine.medicineId));
 
     return Scaffold(
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        title: const CustomerLocationTitle(
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        title: CustomerLocationAppBarTitle(
+          heading: medicine.brandName,
         ),
       ),
       bottomNavigationBar: CustomerBottomChrome(
@@ -204,16 +206,20 @@ class MedicineDetailsScreen extends ConsumerWidget {
                       .read(medicineOffersSortProvider.notifier)
                       .setSort(value),
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'price',
-                      child: Text('Lowest price'),
-                    ),
                     PopupMenuItem(
                       value: 'distance',
                       enabled: hasLocation,
                       child: Text(
-                        hasLocation ? 'Nearest' : 'Nearest (enable location)',
+                        hasLocation ? 'Nearest pharmacy' : 'Nearest (enable location)',
                       ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'updated',
+                      child: Text('Recently updated'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'price',
+                      child: Text('Lowest price'),
                     ),
                   ],
                   child: const _FilterLabel(
@@ -266,11 +272,14 @@ class MedicineDetailsScreen extends ConsumerWidget {
                   );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.xs,
                     AppSpacing.lg,
-                    AppSpacing.lg,
+                    customerBottomChromeScrollPadding(
+                      context,
+                      showBasket: true,
+                    ),
                   ),
                   itemCount: visible.length,
                   separatorBuilder: (_, _) =>

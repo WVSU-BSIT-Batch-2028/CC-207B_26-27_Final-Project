@@ -5,6 +5,7 @@ import '../../../providers/assistant_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../screens/shared/sign_in_sheet.dart';
 import '../../../utils/app_failure.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -83,22 +84,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         titleSpacing: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'MediTech Assistant',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            Text(
-              'Here to help you find medicine.',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
+        title: const CustomerLocationAppBarTitle(
+          heading: 'MediTech Assistant',
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -108,7 +95,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       body: Column(
         children: [
           Expanded(
-            child: empty ? _EmptyState(onSuggestion: _useSuggestion) : _ChatList(lines: _lines),
+            child: empty && !_busy
+                ? _EmptyState(onSuggestion: _useSuggestion)
+                : _ChatList(lines: _lines, isTyping: _busy),
           ),
           const Divider(height: 1, color: AppColors.border),
           _Composer(
@@ -194,16 +183,20 @@ class _EmptyState extends StatelessWidget {
 
 // Bubbles for questions the customer already asked
 class _ChatList extends StatelessWidget {
-  const _ChatList({required this.lines});
+  const _ChatList({required this.lines, this.isTyping = false});
 
   final List<_ChatLine> lines;
+  final bool isTyping;
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      itemCount: lines.length,
+      itemCount: lines.length + (isTyping ? 1 : 0),
       itemBuilder: (context, index) {
+        if (isTyping && index == lines.length) {
+          return const _TypingIndicator();
+        }
         final line = lines[index];
         final fromCustomer = line.fromCustomer;
         return Align(
@@ -228,6 +221,81 @@ class _ChatList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.neutralLight,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Assistant is typing',
+              style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            ...List.generate(3, (i) {
+              return AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final phase = (_controller.value + i * 0.2) % 1.0;
+                  final opacity = 0.35 + (phase < 0.5 ? phase * 1.3 : (1 - phase) * 1.3);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Opacity(
+                      opacity: opacity.clamp(0.35, 1.0),
+                      child: const Icon(
+                        Icons.circle,
+                        size: 7,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 }

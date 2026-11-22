@@ -9,6 +9,7 @@ import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/basket_bar.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -39,8 +40,27 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _busy = false;
+  String? _updatingMedicineId;
   bool _acknowledged = false;
   String? _idempotencyKey;
+
+  Future<void> _setItemQuantity(String medicineId, int quantity) async {
+    setState(() => _updatingMedicineId = medicineId);
+    try {
+      await ref
+          .read(cartProvider.notifier)
+          .setQuantity(medicineId: medicineId, quantity: quantity);
+    } catch (error) {
+      if (!mounted) return;
+      showCustomerSnackBar(
+        context,
+        message: 'Could not update quantity. Try again.',
+        showBasket: false,
+      );
+    } finally {
+      if (mounted) setState(() => _updatingMedicineId = null);
+    }
+  }
 
   Future<void> _runAction(Future<void> Function() action) async {
     if (_busy) return;
@@ -71,6 +91,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final snapshotItems = List<CartItem>.from(cart.items);
     final snapshotPharmacy = cart.pharmacyName ?? 'Pharmacy';
     final snapshotBranch = cart.branchName ?? '';
+    final snapshotBranchId = cart.branchId ?? '';
+    final snapshotAddress = snapshotItems.isNotEmpty
+        ? snapshotItems.first.branchAddress
+        : '';
     final snapshotTotal = cart.subtotal;
 
     final result = await ref
@@ -94,8 +118,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         extra: ReservationSubmittedArgs(
           reservationId: result.reservationId,
           referenceNo: result.referenceNo,
+          branchId: snapshotBranchId,
           pharmacyName: snapshotPharmacy,
           branchName: snapshotBranch,
+          branchAddress: snapshotAddress,
           items: snapshotItems,
           totalAmount: snapshotTotal,
         ),
@@ -105,19 +131,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (submittedContext) => ReservationSubmittedScreen(
+        builder: (_) => ReservationSubmittedScreen(
           reservationId: result.reservationId,
           referenceNo: result.referenceNo,
+          branchId: snapshotBranchId,
           pharmacyName: snapshotPharmacy,
           branchName: snapshotBranch,
+          branchAddress: snapshotAddress,
           items: snapshotItems,
           totalAmount: snapshotTotal,
-          onViewReservation: widget.onOpenReservationDetails == null
-              ? null
-              : () {
-                  Navigator.of(submittedContext).pop();
-                  widget.onOpenReservationDetails!(result.reservationId);
-                },
         ),
       ),
     );
@@ -178,10 +200,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final hasItems = cartAsync.value?.isNotEmpty == true;
 
     return Scaffold(
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
       bottomNavigationBar: const CustomerBottomChrome(),
       appBar: AppBar(
-        title: Text(hasItems ? '' : 'Your Cart'),
+        title: CustomerLocationAppBarTitle(
+          heading: hasItems ? null : 'Your Cart',
+        ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         actions: [
@@ -212,7 +238,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   children: [
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        key: const PageStorageKey<String>('customer-cart'),
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          customerBottomChromeScrollPadding(
+                            context,
+                            showBasket: false,
+                          ),
+                        ),
                         children: [
                           // Selected single-branch banner
                           _BranchBanner(
@@ -229,30 +264,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                               child: _CartItemCard(
                                 item: item,
-                                busy: _busy,
-                                onDecrement: () => _runAction(
-                                  () => ref
-                                      .read(cartProvider.notifier)
-                                      .setQuantity(
-                                        medicineId: item.medicineId,
-                                        quantity: item.quantity - 1,
-                                      ),
+                                busy: _updatingMedicineId == item.medicineId,
+                                onDecrement: () => _setItemQuantity(
+                                  item.medicineId,
+                                  item.quantity - 1,
                                 ),
-                                onIncrement: () => _runAction(
-                                  () => ref
-                                      .read(cartProvider.notifier)
-                                      .setQuantity(
-                                        medicineId: item.medicineId,
-                                        quantity: item.quantity + 1,
-                                      ),
+                                onIncrement: () => _setItemQuantity(
+                                  item.medicineId,
+                                  item.quantity + 1,
                                 ),
-                                onRemove: () => _runAction(
-                                  () => ref
-                                      .read(cartProvider.notifier)
-                                      .setQuantity(
-                                        medicineId: item.medicineId,
-                                        quantity: 0,
-                                      ),
+                                onRemove: () => _setItemQuantity(
+                                  item.medicineId,
+                                  0,
                                 ),
                               ),
                             ),

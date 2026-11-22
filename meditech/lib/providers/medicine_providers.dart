@@ -148,10 +148,15 @@ final medicineOffersProvider =
   final sort = ref.watch(medicineOffersSortProvider);
   final filter = ref.watch(medicineSearchFilterProvider);
 
-  return service.getMedicineOffers(
+  final rpcSort = sort == 'updated' ? 'price' : sort;
+  final offers = await service.getMedicineOffers(
     medicineId: medicineId,
-    sort: sort,
+    sort: rpcSort,
     latitude: filter.latitude,
     longitude: filter.longitude,
   );
+  if (sort == 'updated') {
+    offers.sort((a, b) => b.stockConfirmedAt.compareTo(a.stockConfirmedAt));
+  }
+  return offers;
 });

@@ -10,6 +10,7 @@ import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/basket_bar.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -38,6 +39,7 @@ class PharmacyDetailsScreen extends ConsumerStatefulWidget {
 
 class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   Timer? _debounce;
 
   @override
@@ -49,6 +51,7 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -63,9 +66,14 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   }
 
   void _openDirections(PharmacyDetail pharmacy) {
-    final name = Uri.encodeComponent(pharmacy.pharmacyName);
+    final args = DirectionsArgs(
+      pharmacyName: pharmacy.pharmacyName,
+      branchName: pharmacy.branchName,
+      address: pharmacy.address,
+      destination: LatLng(pharmacy.latitude, pharmacy.longitude),
+    );
     if (GoRouter.maybeOf(context) != null) {
-      context.push('/directions?branch=${pharmacy.branchId}&name=$name');
+      context.push('/directions', extra: args);
       return;
     }
     Navigator.of(context).push(
@@ -94,9 +102,6 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(pharmacyDetailProvider(widget.branchId));
     final hoursAsync = ref.watch(pharmacyHoursProvider(widget.branchId));
-    final inventoryAsync = ref.watch(
-      pharmacyInventoryProvider(widget.branchId),
-    );
 
     final title =
         detailAsync.value?.pharmacyName ??
@@ -104,9 +109,18 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
         'Pharmacy Details';
 
     return Scaffold(
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(title),
+        title: CustomerLocationAppBarTitle(
+          heading: title,
+          headingStyle: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+        ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
       ),
@@ -130,7 +144,19 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                 final hours = hoursAsync.value ?? const <PharmacyHours>[];
 
                 return ListView(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  controller: _scrollController,
+                  key: const PageStorageKey<String>(
+                    'customer-pharmacy-details',
+                  ),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    customerBottomChromeScrollPadding(
+                      context,
+                      showBasket: true,
+                    ),
+                  ),
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -304,54 +330,11 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    AsyncView<List<PharmacyInventoryItem>>(
-                      value: inventoryAsync,
-                      isEmpty: (items) => items.isEmpty,
-                      emptyMessage: 'No matching medicines in this branch.',
-                      onRetry: () => ref.invalidate(
-                        pharmacyInventoryProvider(widget.branchId),
-                      ),
-                      builder: (items) {
-                        return ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: items.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppSpacing.sm),
-                          itemBuilder: (context, index) {
-                            final item = items[index];
-                            return MedicineCard(
-                              name: item.brandName,
-                              genericName: item.genericName,
-                              strength: item.strength,
-                              dosageForm: item.dosageForm,
-                              requiresPrescription: item.isRx,
-                              availability: _availabilityCode(item),
-                              priceText: item.formattedPrice,
-                              stockConfirmedAt: item.stockConfirmedAt,
-                              onTap: item.availability.canReserve
-                                  ? () {
-                                      if (widget.onAddInventoryItem != null) {
-                                        widget.onAddInventoryItem!(
-                                          pharmacy,
-                                          item,
-                                        );
-                                        return;
-                                      }
-                                      addMedicineToCartWithBranchCheck(
-                                        context: context,
-                                        ref: ref,
-                                        branchId: pharmacy.branchId,
-                                        medicineId: item.medicineId,
-                                        medicineName: item.brandName,
-                                        pharmacyName: pharmacy.pharmacyName,
-                                      );
-                                    }
-                                  : null,
-                            );
-                          },
-                        );
-                      },
+                    _PharmacyInventoryList(
+                      branchId: widget.branchId,
+                      pharmacy: pharmacy,
+                      onAddInventoryItem: widget.onAddInventoryItem,
+                      availabilityCode: _availabilityCode,
                     ),
                   ],
                 );
@@ -360,6 +343,69 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PharmacyInventoryList extends ConsumerWidget {
+  const _PharmacyInventoryList({
+    required this.branchId,
+    required this.pharmacy,
+    required this.availabilityCode,
+    this.onAddInventoryItem,
+  });
+
+  final String branchId;
+  final PharmacyDetail pharmacy;
+  final String Function(PharmacyInventoryItem item) availabilityCode;
+  final void Function(PharmacyDetail branch, PharmacyInventoryItem item)?
+      onAddInventoryItem;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inventoryAsync = ref.watch(pharmacyInventoryProvider(branchId));
+
+    return AsyncView<List<PharmacyInventoryItem>>(
+      value: inventoryAsync,
+      isEmpty: (items) => items.isEmpty,
+      emptyMessage: 'No matching medicines in this branch.',
+      onRetry: () => ref.invalidate(pharmacyInventoryProvider(branchId)),
+      builder: (items) {
+        return Column(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.sm),
+              MedicineCard(
+                key: ValueKey(items[i].medicineId),
+                name: items[i].brandName,
+                genericName: items[i].genericName,
+                strength: items[i].strength,
+                dosageForm: items[i].dosageForm,
+                requiresPrescription: items[i].isRx,
+                availability: availabilityCode(items[i]),
+                priceText: items[i].formattedPrice,
+                stockConfirmedAt: items[i].stockConfirmedAt,
+                onTap: items[i].availability.canReserve
+                    ? () {
+                        if (onAddInventoryItem != null) {
+                          onAddInventoryItem!(pharmacy, items[i]);
+                          return;
+                        }
+                        addMedicineToCartWithBranchCheck(
+                          context: context,
+                          ref: ref,
+                          branchId: pharmacy.branchId,
+                          medicineId: items[i].medicineId,
+                          medicineName: items[i].brandName,
+                          pharmacyName: pharmacy.pharmacyName,
+                        );
+                      }
+                    : null,
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

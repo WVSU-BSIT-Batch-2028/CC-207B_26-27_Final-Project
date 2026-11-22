@@ -3,23 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/customer_location_provider.dart';
 
-// Shown until the device shares a location
-const customerAreaLabel = '6 Jaro St, La Paz, Iloilo City';
+const customerLocationOffLabel = 'Location is off';
+const customerLocationLoadingLabel = 'Finding your location…';
 
-// Header place name: the device address when location is allowed
+// Header place name from the device, or a short status when unavailable.
 class CustomerLocationTitle extends ConsumerWidget {
-  const CustomerLocationTitle({super.key, this.style});
+  const CustomerLocationTitle({super.key, this.style, this.maxLines = 1});
 
   final TextStyle? style;
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final place = ref.watch(customerLocationProvider).value;
-    final label = place?.label;
+    final placeAsync = ref.watch(customerLocationProvider);
+    final label = placeAsync.when(
+      loading: () => customerLocationLoadingLabel,
+      error: (_, _) => customerLocationOffLabel,
+      data: (place) {
+        final text = place.label?.trim();
+        if (text == null || text.isEmpty) {
+          return customerLocationOffLabel;
+        }
+        return text;
+      },
+    );
+
     return Text(
-      (label == null || label.isEmpty) ? customerAreaLabel : label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      label,
+      maxLines: maxLines,
+      overflow: maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis,
+      softWrap: true,
       style: style,
     );
   }

@@ -92,6 +92,12 @@ Deno.serve(async (req) => {
       if (lockedUntil) return reply(429, { error: lockedMessage, locked_until: lockedUntil });
       return reply(401, { error: wrongDetails });
     }
+    if (error.message.toLowerCase().includes("email not confirmed")) {
+      return reply(403, {
+        error:
+          "Confirm your email from Gmail (check spam), then sign in to finish your profile.",
+      });
+    }
     // Refused for another reason, such as a deactivated account
     return reply(403, { error: error.message });
   }

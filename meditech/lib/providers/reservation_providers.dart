@@ -76,6 +76,13 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
     );
   }
 
+  // Cancels a pending reservation placed by the signed-in customer
+  Future<void> cancelMyReservation(String reservationId) async {
+    final service = ref.read(reservationServiceProvider);
+    await service.cancelMyReservation(reservationId);
+    await refresh();
+  }
+
   // Submits the current cart as a reservation, refreshes cart & reservations
   Future<SubmittedReservationResult> submitReservation({
     required String idempotencyKey,

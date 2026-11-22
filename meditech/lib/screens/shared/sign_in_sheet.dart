@@ -79,12 +79,16 @@ class _CustomerSignInSheetState extends ConsumerState<CustomerSignInSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.92;
     return Padding(
       padding: EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           Text('Sign in', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.md),
           if (_offline) const OfflineBanner(),
@@ -120,7 +124,9 @@ class _CustomerSignInSheetState extends ConsumerState<CustomerSignInSheet> {
             },
             child: const Text('Create an account'),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

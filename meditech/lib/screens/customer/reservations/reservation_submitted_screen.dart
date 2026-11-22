@@ -1,59 +1,183 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/cart.dart';
+import '../../../providers/customer_nav_provider.dart';
+import '../../../providers/pharmacy_providers.dart';
+import '../../../providers/reservation_providers.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../pharmacy/directions_screen.dart';
 
 // Values carried to the confirmation route after Continue to Reservation
 class ReservationSubmittedArgs {
   const ReservationSubmittedArgs({
     required this.reservationId,
     required this.referenceNo,
+    required this.branchId,
     required this.pharmacyName,
     required this.branchName,
+    required this.branchAddress,
     required this.items,
     required this.totalAmount,
   });
 
   final String reservationId;
   final String referenceNo;
+  final String branchId;
   final String pharmacyName;
   final String branchName;
+  final String branchAddress;
   final List<CartItem> items;
   final double totalAmount;
 }
 
 // Confirmation screen shown right after placing a reservation (wireframe P-19)
-class ReservationSubmittedScreen extends StatelessWidget {
+class ReservationSubmittedScreen extends ConsumerStatefulWidget {
   const ReservationSubmittedScreen({
     super.key,
     required this.reservationId,
     required this.referenceNo,
+    required this.branchId,
     required this.pharmacyName,
     required this.branchName,
+    required this.branchAddress,
     required this.items,
     required this.totalAmount,
-    this.onViewReservation,
-    this.onBackToHome,
   });
 
   final String reservationId;
   final String referenceNo;
+  final String branchId;
   final String pharmacyName;
   final String branchName;
+  final String branchAddress;
   final List<CartItem> items;
   final double totalAmount;
-  final VoidCallback? onViewReservation;
-  final VoidCallback? onBackToHome;
+
+  @override
+  ConsumerState<ReservationSubmittedScreen> createState() =>
+      _ReservationSubmittedScreenState();
+}
+
+String _friendlyCancelError(Object error) {
+  final message = error.toString().toLowerCase();
+  if (message.contains('customer_cancel_reservation') &&
+      message.contains('schema cache')) {
+    return 'Cancel is not available on the server yet. Try again in a minute after a refresh.';
+  }
+  if (message.contains('only pending reservations')) {
+    return 'This reservation can no longer be cancelled.';
+  }
+  return 'Could not cancel reservation. Try again.';
+}
+
+class _ReservationSubmittedScreenState
+    extends ConsumerState<ReservationSubmittedScreen> {
+  bool _cancelling = false;
+  bool _cancelled = false;
+
+  Future<void> _confirmCancel() async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel reservation?'),
+        content: const Text(
+          'The pharmacy will no longer prepare this reservation. You can place a new one anytime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep reservation'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel reservation'),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+
+    setState(() => _cancelling = true);
+    try {
+      await ref
+          .read(myReservationsProvider.notifier)
+          .cancelMyReservation(widget.reservationId);
+      if (!mounted) return;
+      setState(() {
+        _cancelling = false;
+        _cancelled = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reservation cancelled.')),
+      );
+      ref.read(customerTabProvider.notifier).select(2);
+      if (GoRouter.maybeOf(context) != null) {
+        context.go('/home');
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _cancelling = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyCancelError(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  void _openDirections() {
+    final branch = ref.read(pharmacyDetailProvider(widget.branchId)).value;
+    final address = widget.branchAddress.isNotEmpty
+        ? widget.branchAddress
+        : (widget.items.isNotEmpty ? widget.items.first.branchAddress : '');
+    final args = DirectionsArgs(
+      pharmacyName: widget.pharmacyName,
+      branchName: widget.branchName,
+      address: address,
+      destination: LatLng(
+        (branch != null && branch.latitude != 0)
+            ? branch.latitude
+            : 10.7202,
+        (branch != null && branch.longitude != 0)
+            ? branch.longitude
+            : 122.5621,
+      ),
+    );
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/directions', extra: args);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DirectionsScreen(
+          pharmacyName: args.pharmacyName,
+          branchName: args.branchName,
+          address: args.address,
+          destination: args.destination,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Reservation Submitted'),
+        title: const CustomerLocationAppBarTitle(
+          heading: 'Reservation Submitted',
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -106,7 +230,9 @@ class ReservationSubmittedScreen extends StatelessWidget {
                             color: AppColors.textMuted,
                           ),
                         ),
-                        StatusBadge.reservation('pending'),
+                        StatusBadge.reservation(
+                          _cancelled ? 'cancelled' : 'pending',
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -114,7 +240,7 @@ class ReservationSubmittedScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            referenceNo,
+                            widget.referenceNo,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
@@ -126,7 +252,9 @@ class ReservationSubmittedScreen extends StatelessWidget {
                           tooltip: 'Copy reference number',
                           icon: const Icon(Icons.copy_outlined, size: 20),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: referenceNo));
+                            Clipboard.setData(
+                              ClipboardData(text: widget.referenceNo),
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Reference number copied.'),
@@ -138,17 +266,17 @@ class ReservationSubmittedScreen extends StatelessWidget {
                     ),
                     const Divider(height: AppSpacing.lg),
                     Text(
-                      pharmacyName,
+                      widget.pharmacyName,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.text,
                       ),
                     ),
-                    if (branchName.isNotEmpty) ...[
+                    if (widget.branchName.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        branchName,
+                        widget.branchName,
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textMuted,
@@ -156,7 +284,7 @@ class ReservationSubmittedScreen extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),
-                    ...items.map(
+                    ...widget.items.map(
                       (item) => Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                         child: Row(
@@ -195,7 +323,7 @@ class ReservationSubmittedScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '₱${totalAmount.toStringAsFixed(2)}',
+                          '₱${widget.totalAmount.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -209,26 +337,26 @@ class ReservationSubmittedScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              onPressed: () {
-                if (onViewReservation != null) {
-                  onViewReservation!();
-                  return;
-                }
-                Navigator.of(context).pop();
-              },
-              child: const Text('View Reservation'),
+            OutlinedButton.icon(
+              onPressed: _cancelling || _cancelled ? null : _confirmCancel,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.danger),
+              ),
+              icon: _cancelling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cancel_outlined),
+              label: const Text('Cancel reservation'),
             ),
             const SizedBox(height: AppSpacing.sm),
-            OutlinedButton(
-              onPressed: () {
-                if (onBackToHome != null) {
-                  onBackToHome!();
-                  return;
-                }
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: const Text('Back to Home'),
+            FilledButton.icon(
+              onPressed: _openDirections,
+              icon: const Icon(Icons.directions_outlined),
+              label: const Text('Get directions'),
             ),
           ],
         ),
