@@ -155,3 +155,14 @@ from (values
   ('Kremil-S', 150, 8.75, 20)
 ) as v(brand, stock, price, threshold)
 join public.medicines m on m.brand_name = v.brand;
+
+-- ===== OpenStreetMap "Not on MediTech" pharmacy listings =====
+insert into public.osm_listings
+  (id, osm_id, name, address, latitude, longitude, last_edited_there, status, hidden_reason, replaced_by_branch_id)
+values
+  ('e0000000-0000-0000-0000-000000000001', 'node/41892014', 'Mediocare Pharmacy', 'Lapuz, Iloilo City', 10.703100, 122.581200, 'Mar 2025', 'shown', null, null),
+  ('e0000000-0000-0000-0000-000000000002', 'way/9823411', 'CarePlus Pharmacy', 'Molo, Iloilo City', 10.697400, 122.544800, 'Jan 2025', 'shown', null, null),
+  ('e0000000-0000-0000-0000-000000000003', 'node/77312098', 'Old Town Drugstore', 'Arevalo, Iloilo City', 10.688900, 122.517500, 'Aug 2024', 'shown', null, null),
+  ('e0000000-0000-0000-0000-000000000004', 'node/55120987', 'Centramed Pharmacy', 'City Proper, Iloilo City', 10.696900, 122.564400, 'Feb 2025', 'replaced', null, 'b0000000-0000-0000-0000-000000000001'),
+  ('e0000000-0000-0000-0000-000000000005', 'way/33219804', 'St. Jude Botika', 'Jaro, Iloilo City', 10.725200, 122.557900, 'Nov 2023', 'hidden', 'Pin was in the wrong barangay.', null)
+on conflict (osm_id) do nothing;

@@ -25,6 +25,10 @@ interface EdgeResult<T> {
 
 interface EdgeQuery extends PromiseLike<EdgeResult<EdgeRow[] | null>> {
   select(columns: string): EdgeQuery;
+  upsert(
+    values: Record<string, unknown> | Record<string, unknown>[],
+    options?: { onConflict?: string },
+  ): EdgeQuery;
   eq(column: string, value: unknown): EdgeQuery;
   or(filters: string): EdgeQuery;
   in(column: string, values: readonly unknown[]): EdgeQuery;
