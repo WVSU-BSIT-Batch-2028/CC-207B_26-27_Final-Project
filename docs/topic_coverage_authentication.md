@@ -1,0 +1,11 @@
+# Topic Coverage – Authentication Module
+
+| File | Class | Description |
+|---|---|---|
+| `lib/services/auth_service.dart` | `AuthService` | Handles Firebase Email/Password authentication (`signInWithEmailAndPassword`, `createUserWithEmailAndPassword`, `sendPasswordResetEmail`, `signOut`), persists user profiles and roles (`patient` or `doctor`) in Cloud Firestore under `users/{uid}`, maps Firebase error codes to user-friendly messages, and safely guards calls when `firebase_config.json` is not configured. |
+| `lib/screens/auth/auth_gate.dart` | `AuthGate` | Listens to Firebase authentication state changes via `StreamBuilder` and resolves the signed-in user's Firestore role via `FutureBuilder` to route them automatically to `LoginScreen`, `PatientShell`, or `DoctorShell`. |
+| `lib/screens/auth/login_screen.dart` | `LoginScreen` | Provides the Email/Password sign-in form with client-side validation (`GlobalKey<FormState>`), password visibility toggle, loading states, error banner display, password reset dialog, and navigation to `RegisterScreen`. |
+| `lib/screens/auth/register_screen.dart` | `RegisterScreen` | Provides the account registration form with fields for full name, email, password, password confirmation, and role selection (`Patient` or `Doctor` via `SegmentedButton`), validating input before creating the user in Firebase Auth and Firestore. |
+| `lib/core/routes/app_routes.dart` | `AppRoutes` | Replaces the temporary `RoleSelectScreen` entry route (`/`) with `AuthGate` and defines named routes (`/login`, `/register`) for navigating across authentication screens while preserving existing shell routes. |
+| `lib/screens/profile/logout_dialog.dart` | `confirmLogout` | Signs out the active user through `AuthService().signOut()` upon confirmation and clears the navigation stack back to `AppRoutes.authGate`. |
+| `lib/screens/profile/profile_screen.dart` | `ProfileScreen` | Updates the profile screen's view-switching navigation to route cleanly to `AppRoutes.authGate` alongside the sign-out flow. |
