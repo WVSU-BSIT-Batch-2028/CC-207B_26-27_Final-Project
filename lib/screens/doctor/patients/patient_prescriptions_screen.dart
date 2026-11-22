@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../models/patient.dart';
-import '../../../models/prescription.dart';
+import '../../../models/doctor_prescription.dart';
 import '../../../services/patients_service.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/h360_button.dart';
@@ -54,7 +54,7 @@ class PatientPrescriptionsScreen extends StatefulWidget {
 
 class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen> {
   _LoadStatus _status = _LoadStatus.loading;
-  List<Prescription> _prescriptions = const [];
+  List<DoctorPrescription> _prescriptions = const [];
   String _error = '';
 
   @override

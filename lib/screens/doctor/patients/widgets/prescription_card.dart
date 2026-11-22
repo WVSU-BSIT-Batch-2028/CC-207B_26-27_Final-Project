@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/date_format.dart';
-import '../../../../models/prescription.dart';
+import '../../../../models/doctor_prescription.dart';
 import '../../../../widgets/h360_card.dart';
 
 /// One card in a patient's prescription list: icon, medicine name and dose,
@@ -11,7 +11,7 @@ import '../../../../widgets/h360_card.dart';
 class PrescriptionCard extends StatelessWidget {
   const PrescriptionCard({super.key, required this.prescription});
 
-  final Prescription prescription;
+  final DoctorPrescription prescription;
 
   /// "Refill Oct 1, 2026" when a refill is planned, otherwise "Started ...".
   String get _dateLine {

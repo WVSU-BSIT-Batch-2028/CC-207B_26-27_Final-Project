@@ -1,0 +1,53 @@
+
+# Topic Coverage – Prescriptions Module (Patient)
+
+## Models
+
+| File | Class | Description |
+|---|---|---|
+| `lib/models/prescription.dart` | `Prescription` | Represents a prescribed medicine, including its name, strength, form, instruction, duration, start date, prescriber, doctor phone, prescribed date, optional refill and last-refill dates, and the doctor's notes. Works out the last day of the course and whether the prescription is still active or a refill is available on a given date. |
+| `lib/models/refill_request.dart` | `RefillRequest` | Represents a patient's request for a refill, including the prescription it belongs to, when it was sent, and its status. |
+| `lib/models/refill_request.dart` | `RefillStatus` / `RefillStatusX` | Defines the refill statuses Pending, Approved, and Declined, including their display labels. |
+| `lib/models/reminder_setting.dart` | `ReminderSetting` / `ReminderMode` | Represents a saved medicine reminder (every 8 hours or a custom daily time) with its start date and notification switch. Provides the summary text for the confirmation message and converts the reminder to and from JSON for saving. |
+| `lib/models/taken_history.dart` | `TakenHistory` | Holds the days on which a prescription was marked as taken, with the number of days and the most recent days. |
+
+## Service
+
+| File | Class | Description |
+|---|---|---|
+| `lib/services/prescription_service.dart` | `PrescriptionService` | Provides mock prescription data, simulates loading, and supports normal, empty, and error scenarios. Records taken doses in the existing local store, saves and loads reminders, creates refill requests, and loads the taken-dose history. |
+| `lib/services/prescription_service.dart` | `PrescriptionException` | Handles errors when prescription data cannot be loaded or when an action such as a refill request fails. |
+| `lib/services/prescription_service.dart` | `PrescriptionActivity` | Groups what has happened with one prescription: whether it was taken today and whether a refill request exists. |
+
+## Shared widgets
+
+| File | Class | Description |
+|---|---|---|
+| `lib/widgets/active_history_toggle.dart` | `ActiveHistoryToggle` | Provides the Active / History switch shown above the prescription list. |
+| `lib/widgets/prescription_info_card.dart` | `PrescriptionInfoCard` | Provides the shared card layout (icon box plus content) used on the prescription detail screens. |
+| `lib/widgets/refill_status_chip.dart` | `RefillStatusChip` | Displays consistent Pending, Approved, and Declined refill labels with an icon and text. |
+| `lib/widgets/taken_history_card.dart` | `TakenHistoryCard` | Displays how many days a medicine was taken and the most recent days. |
+
+## Patient screens
+
+| File | Class | Description |
+|---|---|---|
+| `lib/screens/patient/prescriptions/prescriptions_screen.dart` | `PrescriptionsScreen` | Displays the patient's prescriptions, supports Active and History tabs, opens the matching details screen, and handles loading, empty, and error states with pull-to-refresh. |
+| `lib/screens/patient/prescriptions/prescriptions_screen.dart` | `_PrescriptionCard` | Displays one prescription's name, instruction, and refill or prescribed date. |
+| `lib/screens/patient/prescriptions/prescription_details_screen.dart` | `PrescriptionDetailsScreen` | Displays an active prescription with the doctor's notes, prescriber, and refill information. Allows the patient to mark a dose as taken (with undo), open the reminder screen, and request a refill. |
+| `lib/screens/patient/prescriptions/set_reminder_screen.dart` | `SetReminderScreen` | Allows the patient to choose an every-8-hours or custom-time reminder, pick a start date, turn notifications on or off, and save with a confirmation message. Includes a demo preview of the reminder pop-up. |
+| `lib/screens/patient/prescriptions/prescription_history_details_screen.dart` | `PrescriptionHistoryDetailsScreen` | Displays a finished prescription in read-only form, including the last refill, the doctor's notes, and the doses-taken history. |
+
+## Integration in shared files
+
+| File | Class | Description |
+|---|---|---|
+| `lib/screens/patient/patient_shell.dart` | `PatientShell` | Integrates the Patient Prescriptions screen into the patient's navigation tabs. |
+
+## Tests
+
+| File | Description |
+|---|---|
+| `test/prescription_test.dart` | Checks the prescription title, the active and finished rules, the last day of the course, and when a refill becomes available. |
+| `test/reminder_setting_test.dart` | Checks the reminder summary text and that a reminder survives being saved and loaded as JSON. |
+| `test/taken_history_test.dart` | Checks the taken-day count and the most-recent-days helper. |

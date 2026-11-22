@@ -21,7 +21,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../models/medicine_option.dart';
 import '../../../models/patient.dart';
-import '../../../models/prescription.dart';
+import '../../../models/doctor_prescription.dart';
 import '../../../services/patients_service.dart';
 import '../../../widgets/h360_button.dart';
 import '../../../widgets/h360_card.dart';
@@ -104,7 +104,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
 
     setState(() => _saving = true);
     try {
-      final prescription = Prescription(
+      final prescription = DoctorPrescription(
         id: 'rx-${DateTime.now().millisecondsSinceEpoch}',
         medicineName: medicine.name,
         dosage: _dosage!,

@@ -1,5 +1,48 @@
 import 'appointment_status.dart';
 
+/// Represents the outcome of an appointment after its scheduled date.
+enum AppointmentOutcome {
+  none,
+  done,
+  noShow,
+}
+
+/// Represents the review status of a patient's requested appointment changes.
+enum ChangeRequestStatus {
+  pending,
+  approved,
+  rejected,
+}
+
+/// Stores the new booking details requested by a patient.
+///
+/// These changes do not replace the original appointment until approved
+/// by the doctor.
+class AppointmentChangeRequest {
+  /// Creates a request containing the proposed booking details.
+  const AppointmentChangeRequest({
+    required this.doctorName,
+    required this.specialty,
+    required this.dateTime,
+    required this.location,
+    required this.isVideo,
+    required this.consultationFee,
+    required this.reminderEnabled,
+    required this.requestedAt,
+    this.status = ChangeRequestStatus.pending,
+  });
+
+  final String doctorName;
+  final String specialty;
+  final DateTime dateTime;
+  final String location;
+  final bool isVideo;
+  final double? consultationFee;
+  final bool reminderEnabled;
+  final DateTime requestedAt;
+  final ChangeRequestStatus status;
+}
+
 /// Represents a patient's scheduled medical appointment.
 ///
 /// Shared by the patient and doctor appointment modules.
@@ -19,6 +62,10 @@ class Appointment {
     this.meetingUrl,
     this.patientName,
     this.patientId,
+    this.bookedAt,
+    this.outcome = AppointmentOutcome.none,
+    this.changeRequest,
+    this.editRequestCount = 0,
   });
 
   final String id;
@@ -40,4 +87,25 @@ class Appointment {
 
   /// Patient's unique identifier for future backend integration.
   final String? patientId;
+
+  /// Original date and time when the appointment was booked.
+  ///
+  /// Used to determine whether the patient is still within the
+  /// 24-hour appointment change request period.
+  final DateTime? bookedAt;
+
+  /// Indicates whether the consultation was completed or missed.
+  final AppointmentOutcome outcome;
+
+  /// Pending or reviewed request to change the appointment details.
+  final AppointmentChangeRequest? changeRequest;
+
+  /// Total number of edit requests submitted by the patient.
+  ///
+  /// Every submitted request counts, including requests that are later
+  /// approved or rejected. The maximum allowed count is two.
+  final int editRequestCount;
+
+  /// Number of edit requests the patient can still submit.
+  int get remainingEditRequests => (2 - editRequestCount).clamp(0, 2);
 }

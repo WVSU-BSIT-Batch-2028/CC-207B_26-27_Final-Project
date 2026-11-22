@@ -6,7 +6,7 @@ import '../models/patient.dart';
 import '../models/patient_detail.dart';
 import '../models/patient_lab_result.dart';
 import '../models/patient_record.dart';
-import '../models/prescription.dart';
+import '../models/doctor_prescription.dart';
 import '../models/vital_sign.dart';
 import 'dashboard_service.dart';
 
@@ -272,7 +272,7 @@ class PatientsService {
   /// A known patient with no prescriptions returns an empty list (shows the
   /// empty state). Throws [PatientsException] in the Error demo scenario, or
   /// if no patient has that [patientId].
-  Future<List<Prescription>> fetchPatientPrescriptions(String patientId) async {
+  Future<List<DoctorPrescription>> fetchPatientPrescriptions(String patientId) async {
     await Future<void>.delayed(const Duration(milliseconds: 700));
 
     if (DashboardService.instance.scenario == DemoScenario.error) {
@@ -282,9 +282,9 @@ class PatientsService {
     }
 
     // Sample data. Replace with a backend call later.
-    final samples = <String, List<Prescription>>{
+    final samples = <String, List<DoctorPrescription>>{
       'PAT-101': [
-        Prescription(
+        DoctorPrescription(
           id: 'rx-101-1',
           medicineName: 'Amoxicillin',
           dosage: '500mg',
@@ -295,7 +295,7 @@ class PatientsService {
           refillDate: DateTime(2026, 10, 1),
           notes: 'Take after meals.',
         ),
-        Prescription(
+        DoctorPrescription(
           id: 'rx-101-2',
           medicineName: 'Paracetamol',
           dosage: '500mg',
@@ -305,7 +305,7 @@ class PatientsService {
           startDate: DateTime(2026, 9, 11),
           refillDate: DateTime(2026, 10, 12),
         ),
-        Prescription(
+        DoctorPrescription(
           id: 'rx-101-3',
           medicineName: 'Cetirizine',
           dosage: '10mg',
@@ -318,7 +318,7 @@ class PatientsService {
         ),
       ],
       'PAT-102': [
-        Prescription(
+        DoctorPrescription(
           id: 'rx-102-1',
           medicineName: 'Amlodipine',
           dosage: '5mg',
@@ -328,7 +328,7 @@ class PatientsService {
           startDate: DateTime(2025, 5, 15),
           refillDate: DateTime(2025, 6, 14),
         ),
-        Prescription(
+        DoctorPrescription(
           id: 'rx-102-2',
           medicineName: 'Paracetamol',
           dosage: '500mg',
@@ -339,7 +339,7 @@ class PatientsService {
         ),
       ],
       'PAT-103': [
-        Prescription(
+        DoctorPrescription(
           id: 'rx-103-1',
           medicineName: 'Loperamide',
           dosage: '2mg',
@@ -350,7 +350,7 @@ class PatientsService {
         ),
       ],
       // A patient with no sample prescriptions, so the empty state can be demoed.
-      'PAT-104': <Prescription>[],
+      'PAT-104': <DoctorPrescription>[],
     };
 
     final sample = samples[patientId];
@@ -369,7 +369,7 @@ class PatientsService {
   /// It is stored on the device (shared_preferences), so it is still there
   /// after the app restarts and shows up in [fetchPatientPrescriptions].
   /// Throws [PatientsException] in the Error demo scenario.
-  Future<void> addPrescription(String patientId, Prescription prescription) async {
+  Future<void> addPrescription(String patientId, DoctorPrescription prescription) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
     if (DashboardService.instance.scenario == DemoScenario.error) {
@@ -386,12 +386,12 @@ class PatientsService {
   }
 
   /// Reads back the prescriptions the doctor added for one patient.
-  Future<List<Prescription>> _loadAddedPrescriptions(String patientId) async {
+  Future<List<DoctorPrescription>> _loadAddedPrescriptions(String patientId) async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('$_addedPrescriptionsPrefix$patientId') ?? const <String>[];
     return [
       for (final json in saved)
-        Prescription.fromJson(jsonDecode(json) as Map<String, dynamic>),
+        DoctorPrescription.fromJson(jsonDecode(json) as Map<String, dynamic>),
     ];
   }
 }

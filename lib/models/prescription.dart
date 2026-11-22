@@ -1,82 +1,98 @@
-/// One prescription written for a patient.
+/// A medicine that a doctor prescribed to the patient.
 ///
-/// Shown in the doctor's Patient Prescriptions list and created by the Add
-/// Prescription form.
+/// This model is shared by every Prescriptions screen (list, details,
+/// reminder, history) so they all show the same data. It holds plain data
+/// only: no widgets and no storage code.
 class Prescription {
+  /// Creates a prescription. Fields marked `required` must always be given.
   const Prescription({
     required this.id,
     required this.medicineName,
-    required this.dosage,
+    required this.strength,
     required this.form,
-    required this.timesPerDay,
+    required this.instruction,
     required this.durationDays,
     required this.startDate,
+    required this.prescribedBy,
+    required this.doctorPhone,
+    required this.prescribedOn,
     this.refillDate,
+    this.lastRefill,
     this.notes,
   });
 
-  /// Unique id.
+  /// Unique id, used later to open the details screen and save reminders.
   final String id;
 
-  /// e.g. "Amoxicillin"
+  /// Medicine name only, e.g. "Amoxicillin".
   final String medicineName;
 
-  /// Strength of one dose, e.g. "500mg".
-  final String dosage;
+  /// Strength, e.g. "500mg".
+  final String strength;
 
-  /// What the medicine comes as, e.g. "capsule" or "tablet".
+  /// Type of medicine, e.g. "Capsule" or "Tablet".
   final String form;
 
-  /// How many times a day to take it, e.g. 2.
-  final int timesPerDay;
+  /// Short instruction shown on the card, e.g. "Take 1 capsule - 2x a day".
+  final String instruction;
 
-  /// How many days the patient takes it.
+  /// How many days the patient should take it.
   final int durationDays;
 
-  /// First day of the prescription.
+  /// First day of the treatment.
   final DateTime startDate;
 
-  /// When the patient can refill it, if a refill is planned.
+  /// Doctor who wrote the prescription.
+  final String prescribedBy;
+
+  /// Doctor's contact number (shown on the details screen).
+  final String doctorPhone;
+
+  /// Date the prescription was written.
+  final DateTime prescribedOn;
+
+  /// Date a refill becomes available. Null when no refill is planned.
   final DateTime? refillDate;
 
-  /// The doctor's extra instructions, e.g. "Take after meals".
+  /// Date of the most recent refill (shown in History Details).
+  final DateTime? lastRefill;
+
+  /// Doctor's extra instructions, e.g. "Take after meals" (HCI feedback).
   final String? notes;
 
-  /// e.g. "Amoxicillin 500mg"
-  String get title => '$medicineName $dosage';
+  /// Card title, e.g. "Amoxicillin 500mg".
+  String get title => '$medicineName $strength';
 
-  /// e.g. "Take 1 capsule - 2x a day"
-  String get instructionText => 'Take 1 $form - ${timesPerDay}x a day';
+  /// Last day of the treatment as a date with no time.
+  ///
+  /// Built with the DateTime constructor (not `add(Duration)`) so the result
+  /// is always midnight of the correct calendar day.
+  DateTime get endDate =>
+      DateTime(startDate.year, startDate.month, startDate.day + durationDays);
 
-  /// Last day of the prescription.
-  DateTime get endDate => startDate.add(Duration(days: durationDays));
+  /// The final day the patient takes the medicine (the day before [endDate]).
+  DateTime get lastDay => DateTime(
+        startDate.year,
+        startDate.month,
+        startDate.day + durationDays - 1,
+      );
 
-  /// Turns the prescription into a map, so it can be saved on the device as JSON.
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'medicineName': medicineName,
-        'dosage': dosage,
-        'form': form,
-        'timesPerDay': timesPerDay,
-        'durationDays': durationDays,
-        'startDate': startDate.toIso8601String(),
-        'refillDate': refillDate?.toIso8601String(),
-        'notes': notes,
-      };
+  /// True while the treatment period has not finished yet.
+  ///
+  /// [now] can be passed in so tests do not depend on the real clock.
+  bool isActiveOn(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    return today.isBefore(endDate);
+  }
 
-  /// Builds a prescription back from the map saved by [toJson].
-  factory Prescription.fromJson(Map<String, dynamic> json) {
-    final refill = json['refillDate'] as String?;
-    return Prescription(
-      id: json['id'] as String,
-      medicineName: json['medicineName'] as String,
-      dosage: json['dosage'] as String,
-      form: json['form'] as String,
-      timesPerDay: json['timesPerDay'] as int,
-      durationDays: json['durationDays'] as int,
-      startDate: DateTime.parse(json['startDate'] as String),
-      refillDate: refill == null ? null : DateTime.parse(refill),
-      notes: json['notes'] as String?,
-    );
+  /// True when a refill date is set and that day has arrived.
+  ///
+  /// Used by Prescription Details to enable or disable "Request Refill".
+  bool isRefillAvailableOn(DateTime now) {
+    final refill = refillDate;
+    if (refill == null) return false;
+    final today = DateTime(now.year, now.month, now.day);
+    final refillDay = DateTime(refill.year, refill.month, refill.day);
+    return !refillDay.isAfter(today);
   }
 }
