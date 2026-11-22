@@ -9,10 +9,10 @@ import '../profile/logout_dialog.dart';
 import '../profile/profile_screen.dart';
 import '../../models/user_role.dart';
 import '../onboarding/how_to_use_screen.dart';
-import '../shared/module_placeholder.dart';
 import 'doctor_dashboard_screen.dart';
 import 'doctor_drawer.dart';
 import 'doctor_home_screen.dart';
+import 'patients/patients_tab.dart';
 import 'appointments/doctor_appointments_screen.dart';
 
 /// Doctor frame: Home / Appointments / Patients / Profile / Menu.
@@ -99,13 +99,8 @@ class _DoctorShellState extends State<DoctorShell> {
           DoctorHomeScreen(onNavigate: _goTo, onOpenDashboard: _openDashboard),
           // Replaced with the doctor's AppointmentsScreen.
           const DoctorAppointmentsScreen(),
-          // TODO(Records/Patients owner): replace with the doctor's PatientsScreen.
-          const ModulePlaceholder(
-            title: 'Patients',
-            icon: Icons.groups_rounded,
-            hint:
-                'Patient list, records, lab results and prescriptions will live here.',
-          ),
+          // Patients tab (Gian). Back arrow returns to Home.
+          DoctorPatientsTab(onBack: () => _goTo(0)),
           const ProfileScreen(role: UserRole.doctor),
         ],
       ),

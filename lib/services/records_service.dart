@@ -172,6 +172,57 @@ class RecordsService {
         overallResult: 'Total and LDL cholesterol are above the reference range; HDL is below it.',
         doctorNotes: 'Reduce fatty foods, exercise regularly, and repeat the test in 3 months.',
       ),
+      // 'lab-003', 'lab-201' and 'lab-401' are opened from the doctor's
+      // Patient Lab Results list (View Lab Results popup).
+      'lab-003': LabResultDetail(
+        id: 'lab-003',
+        testName: 'Urinalysis',
+        patientName: 'Jahna Erika Lagne',
+        requestedBy: 'Dr. John Doe',
+        status: 'Complete',
+        date: DateTime(2026, 8, 12),
+        results: const [
+          LabValue(name: 'pH', value: 6.0, unit: '', min: 4.5, max: 8.0),
+          LabValue(name: 'Specific Gravity', value: 1.015, unit: '', min: 1.005, max: 1.030, decimals: 3),
+          LabValue(name: 'WBC (urine)', value: 2, unit: '/HPF', min: 0, max: 5, decimals: 0),
+          LabValue(name: 'RBC (urine)', value: 1, unit: '/HPF', min: 0, max: 3, decimals: 0),
+        ],
+        overallResult: 'Results are within the normal reference range.',
+        doctorNotes: 'No signs of infection.',
+      ),
+      'lab-201': LabResultDetail(
+        id: 'lab-201',
+        testName: 'Lipid Profile',
+        patientName: 'Juan Dae',
+        requestedBy: 'Dr. Maria Santos',
+        status: 'Complete',
+        date: DateTime(2025, 5, 15),
+        results: const [
+          LabValue(name: 'Total Cholesterol', value: 230, unit: 'mg/dL', min: 125, max: 200, decimals: 0),
+          LabValue(name: 'LDL Cholesterol', value: 150, unit: 'mg/dL', min: 0, max: 100, decimals: 0),
+          LabValue(name: 'HDL Cholesterol', value: 45, unit: 'mg/dL', min: 40, max: 100, decimals: 0),
+          LabValue(name: 'Triglycerides', value: 160, unit: 'mg/dL', min: 0, max: 150, decimals: 0),
+        ],
+        overallResult: 'Total cholesterol, LDL and triglycerides are above the reference range.',
+        doctorNotes: 'Follow a low-fat diet and repeat the test in 3 months.',
+      ),
+      'lab-401': LabResultDetail(
+        id: 'lab-401',
+        testName: 'CBC - Complete Blood Count',
+        patientName: 'Carlos Reyes',
+        requestedBy: 'Dr. Maria Santos',
+        status: 'Complete',
+        date: DateTime(2025, 3, 3),
+        results: const [
+          LabValue(name: 'Hemoglobin', value: 15.1, unit: 'g/dL', min: 13.0, max: 17.0),
+          LabValue(name: 'Hematocrit', value: 45, unit: '%', min: 40, max: 52, decimals: 0),
+          LabValue(name: 'WBC Count', value: 6.8, unit: '×10⁹/L', min: 4.0, max: 11.0),
+          LabValue(name: 'RBC Count', value: 5.2, unit: '×10¹²/L', min: 4.5, max: 5.9),
+          LabValue(name: 'Platelets', value: 270, unit: '×10⁹/L', min: 150, max: 450, decimals: 0),
+        ],
+        overallResult: 'Results are within the normal reference range.',
+        doctorNotes: 'No significant abnormalities noted.',
+      ),
     };
 
     final detail = details[id];
