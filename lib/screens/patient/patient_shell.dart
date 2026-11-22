@@ -9,7 +9,7 @@ import '../../widgets/h360_bottom_nav.dart';
 import '../ai/ai_assistant_screen.dart';
 import '../onboarding/how_to_use_screen.dart';
 import '../profile/profile_screen.dart';
-import '../shared/module_placeholder.dart';
+import '../records/records_screen.dart';
 import 'home/home_screen.dart';
 import 'appointments/appointments_screen.dart';
 import 'appointments/video_consultation_screen.dart';
@@ -165,12 +165,8 @@ class _PatientShellState extends State<PatientShell> {
           // Patient Prescriptions (Active / History).
           const PrescriptionsScreen(),
 
-          // TODO(Records owner): replace with RecordsScreen.
-          const ModulePlaceholder(
-            title: 'Records',
-            icon: Icons.folder_shared_rounded,
-            hint: 'Consultations and lab results will live here.',
-          ),
+          // Records tab (Gian). Back arrow returns to Home.
+          RecordsScreen(onBack: () => _goTo(0)),
 
           const ProfileScreen(role: UserRole.patient),
         ],
