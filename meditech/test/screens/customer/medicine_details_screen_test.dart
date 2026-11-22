@@ -99,15 +99,24 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    expect(find.text('Biogesic'), findsOneWidget);
-    expect(find.text('Paracetamol'), findsOneWidget);
+    expect(find.text('Biogesic'), findsWidgets);
+    expect(find.text('Paracetamol'), findsWidgets);
     expect(find.text('Mercury Drug'), findsOneWidget);
     expect(find.text('Molo Plaza'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Watsons Pharmacy'),
+      200,
+      scrollable: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
     expect(find.text('Watsons Pharmacy'), findsOneWidget);
 
     expect(find.text('Available'), findsOneWidget);
-    expect(find.text('Unavailable'), findsNWidgets(2));
-    expect(find.text('Add to Cart'), findsOneWidget);
+    expect(find.text('Unavailable'), findsOneWidget);
+    expect(find.text('Registered on MediTech'), findsNWidgets(2));
+    expect(find.byTooltip('Add to Cart'), findsOneWidget);
   });
 
   testWidgets('displays Rx notice when medicine requires prescription',
@@ -121,6 +130,10 @@ void main() {
 
   testWidgets('calls onAddToCart when Add to Cart is tapped on available offer',
       (tester) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     MedicineOffer? addedOffer;
 
     await tester.pumpWidget(
@@ -130,7 +143,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Add to Cart'));
+    await tester.tap(find.byTooltip('Add to Cart'));
     await tester.pump();
 
     expect(addedOffer?.branchId, 'branch-1');

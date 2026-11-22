@@ -76,7 +76,7 @@ void main() {
     expect(find.text('Paracetamol'), findsOneWidget);
     expect(find.text('From ₱4.25 / tablet'), findsOneWidget);
     expect(find.text('Amoxil'), findsOneWidget);
-    expect(find.text('Rx'), findsOneWidget);
+    expect(find.text('Rx required'), findsOneWidget);
   });
 
   testWidgets('shows empty state message when no medicines match', (tester) async {

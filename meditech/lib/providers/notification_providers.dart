@@ -29,6 +29,20 @@ class NotificationListNotifier extends AsyncNotifier<List<AppNotification>> {
         if (item.id == id) item.copyWith(readAt: DateTime.now().toUtc()) else item,
     ]);
   }
+
+  // Mark every unread row read. Deletes are blocked, so this is "clear".
+  Future<void> markAllRead() async {
+    final current = state.value ?? [];
+    final unread = [for (final item in current) if (item.isUnread) item.id];
+    if (unread.isEmpty) return;
+    final service = ref.read(notificationServiceProvider);
+    final readAt = DateTime.now().toUtc();
+    await Future.wait([for (final id in unread) service.markRead(id)]);
+    state = AsyncData([
+      for (final item in current)
+        if (item.isUnread) item.copyWith(readAt: readAt) else item,
+    ]);
+  }
 }
 
 final notificationListProvider =

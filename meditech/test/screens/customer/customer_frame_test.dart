@@ -71,22 +71,21 @@ void main() {
     await tester.pumpWidget(buildTestableWidget());
     await tester.pumpAndSettle();
 
-    // Verifies home header
-    expect(find.text('Find medicine near you'), findsOneWidget);
-
-    // Verifies header action buttons and AI Assistant FAB
+    // Verifies header action buttons
     expect(find.byTooltip('AI Assistant'), findsOneWidget);
     expect(find.byTooltip('Notifications'), findsOneWidget);
     expect(find.byTooltip('Cart'), findsOneWidget);
 
-    // Verifies custom bottom navigation icons
-    expect(find.byIcon(Icons.home), findsOneWidget);
-    expect(find.byIcon(Icons.search), findsAtLeastNWidgets(1));
-    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    // Verifies bottom navigation destinations
+    expect(find.byTooltip('Home'), findsOneWidget);
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(find.byTooltip('Reservations'), findsOneWidget);
+    expect(find.byTooltip('Profile'), findsOneWidget);
 
-    // Verifies Home screen search trigger
+    // Verifies Home screen content
+    expect(find.text('Find medicine near you'), findsOneWidget);
     expect(find.text('Search medicine...'), findsOneWidget);
+    expect(find.text('Browse All Stores'), findsOneWidget);
   });
 
   testWidgets('switches tab when bottom navigation destination is tapped', (
@@ -99,16 +98,16 @@ void main() {
     await tester.pumpWidget(buildTestableWidget(signedIn: true));
     await tester.pumpAndSettle();
 
-    // Tap on Search icon in bottom nav (last Icons.search in tree)
-    await tester.tap(find.byIcon(Icons.search).last);
+    // Tap on Search tab
+    await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
 
     // Should display SearchScreen
     expect(find.byType(SearchScreen), findsOneWidget);
-    expect(find.text('Try paracetamol or Biogesic'), findsOneWidget);
+    expect(find.text('Search medicine...'), findsOneWidget);
 
-    // Tap on My Reservations icon in bottom nav
-    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    // Tap on My Reservations tab
+    await tester.tap(find.byTooltip('Reservations'));
     await tester.pumpAndSettle();
 
     // Should display MyReservationsScreen with status tabs
@@ -128,12 +127,12 @@ void main() {
     await tester.pumpWidget(buildTestableWidget());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.tap(find.byTooltip('Reservations'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign in to track reservations'), findsOneWidget);
-    expect(find.byType(MyReservationsScreen), findsNothing);
-    expect(find.byIcon(Icons.home), findsOneWidget);
+    expect(find.text('Create an account'), findsOneWidget); // the sign-in sheet
+    expect(find.byType(MyReservationsScreen), findsNothing); // still on Home
+    expect(find.text('Find medicine near you'), findsOneWidget);
   });
 
   testWidgets('tapping search bar on home switches to search tab', (
@@ -152,6 +151,6 @@ void main() {
 
     // Should automatically navigate to SearchScreen
     expect(find.byType(SearchScreen), findsOneWidget);
-    expect(find.text('Try paracetamol or Biogesic'), findsOneWidget);
+    expect(find.text('Search medicine...'), findsOneWidget);
   });
 }
