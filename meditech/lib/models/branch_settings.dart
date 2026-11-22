@@ -1,0 +1,110 @@
+// Represents branch profile and settings information (Ph-36)
+class BranchSettings {
+  final String branchId;
+  final String pharmacyName;
+  final String branchName;
+  final String address;
+  final String contactNumber;
+  final String pharmacyEmail;
+  final String operatingHours;
+  final double? latitude;
+  final double? longitude;
+  final String fdaLto;
+  final DateTime? fdaLtoExpiry;
+  final String? ownerPrcLicense;
+  final DateTime? ownerPrcExpiry;
+  final bool isOwnerPharmacist;
+
+  const BranchSettings({
+    required this.branchId,
+    required this.pharmacyName,
+    required this.branchName,
+    required this.address,
+    required this.contactNumber,
+    this.pharmacyEmail = '',
+    required this.operatingHours,
+    this.latitude,
+    this.longitude,
+    required this.fdaLto,
+    this.fdaLtoExpiry,
+    this.ownerPrcLicense,
+    this.ownerPrcExpiry,
+    this.isOwnerPharmacist = false,
+  });
+
+  factory BranchSettings.fromJson(Map<String, dynamic> json) {
+    return BranchSettings(
+      branchId: json['branch_id']?.toString() ?? json['id']?.toString() ?? '',
+      pharmacyName: json['pharmacy_name']?.toString() ?? json['name']?.toString() ?? '',
+      branchName: json['branch_name']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      contactNumber: json['contact_number']?.toString() ?? '',
+      pharmacyEmail: json['pharmacy_email']?.toString() ?? '',
+      operatingHours: json['operating_hours']?.toString() ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      fdaLto: json['fda_lto']?.toString() ?? '',
+      fdaLtoExpiry: json['fda_lto_expiry'] != null
+          ? DateTime.tryParse(json['fda_lto_expiry'].toString())
+          : null,
+      ownerPrcLicense: json['owner_prc_license']?.toString(),
+      ownerPrcExpiry: json['owner_prc_expiry'] != null
+          ? DateTime.tryParse(json['owner_prc_expiry'].toString())
+          : null,
+      isOwnerPharmacist: json['is_owner_pharmacist'] == true ||
+          (json['owner_prc_license']?.toString().isNotEmpty ?? false),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'branch_id': branchId,
+      'pharmacy_name': pharmacyName,
+      'branch_name': branchName,
+      'address': address,
+      'contact_number': contactNumber,
+      'pharmacy_email': pharmacyEmail,
+      'operating_hours': operatingHours,
+      'latitude': latitude,
+      'longitude': longitude,
+      'fda_lto': fdaLto,
+      'fda_lto_expiry': fdaLtoExpiry?.toIso8601String(),
+      'owner_prc_license': ownerPrcLicense,
+      'owner_prc_expiry': ownerPrcExpiry?.toIso8601String(),
+      'is_owner_pharmacist': isOwnerPharmacist,
+    };
+  }
+
+  BranchSettings copyWith({
+    String? pharmacyName,
+    String? branchName,
+    String? address,
+    String? contactNumber,
+    String? pharmacyEmail,
+    String? operatingHours,
+    double? latitude,
+    double? longitude,
+    String? fdaLto,
+    DateTime? fdaLtoExpiry,
+    String? ownerPrcLicense,
+    DateTime? ownerPrcExpiry,
+    bool? isOwnerPharmacist,
+  }) {
+    return BranchSettings(
+      branchId: branchId,
+      pharmacyName: pharmacyName ?? this.pharmacyName,
+      branchName: branchName ?? this.branchName,
+      address: address ?? this.address,
+      contactNumber: contactNumber ?? this.contactNumber,
+      pharmacyEmail: pharmacyEmail ?? this.pharmacyEmail,
+      operatingHours: operatingHours ?? this.operatingHours,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      fdaLto: fdaLto ?? this.fdaLto,
+      fdaLtoExpiry: fdaLtoExpiry ?? this.fdaLtoExpiry,
+      ownerPrcLicense: ownerPrcLicense ?? this.ownerPrcLicense,
+      ownerPrcExpiry: ownerPrcExpiry ?? this.ownerPrcExpiry,
+      isOwnerPharmacist: isOwnerPharmacist ?? this.isOwnerPharmacist,
+    );
+  }
+}
