@@ -113,4 +113,14 @@ void main() {
     expect(find.text('Biogesic'), findsOneWidget);
     expect(find.text('₱5.50 / tablet'), findsOneWidget);
   });
+
+  testWidgets('renders Get directions button in header card', (tester) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(OutlinedButton, 'Get directions'),
+      findsOneWidget,
+    );
+  });
 }

@@ -20,7 +20,8 @@ class MockReservationService extends Mock implements ReservationService {}
 // A signed-in customer, so the frame lets them into My Reservations
 class _SignedInCustomer extends SessionNotifier {
   @override
-  SignedInAccount? build() => const SignedInAccount(accountType: 'customer', state: 'active');
+  SignedInAccount? build() =>
+      const SignedInAccount(accountType: 'customer', state: 'active');
 }
 
 void main() {
@@ -56,14 +57,13 @@ void main() {
         reservationServiceProvider.overrideWithValue(mockReservationService),
         if (signedIn) sessionProvider.overrideWith(_SignedInCustomer.new),
       ],
-      child: MaterialApp(
-        theme: AppTheme.light,
-        home: const CustomerFrame(),
-      ),
+      child: MaterialApp(theme: AppTheme.light, home: const CustomerFrame()),
     );
   }
 
-  testWidgets('renders customer frame header and navigation tabs', (tester) async {
+  testWidgets('renders customer frame header and navigation tabs', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -88,7 +88,9 @@ void main() {
     expect(find.text('Browse All Stores'), findsOneWidget);
   });
 
-  testWidgets('switches tab when bottom navigation destination is tapped', (tester) async {
+  testWidgets('switches tab when bottom navigation destination is tapped', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -115,7 +117,9 @@ void main() {
   });
 
   // Guests are asked to sign in and stay on their current tab
-  testWidgets('guest tapping My Reservations is asked to sign in', (tester) async {
+  testWidgets('guest tapping My Reservations is asked to sign in', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -131,7 +135,9 @@ void main() {
     expect(find.text('Find medicine near you'), findsOneWidget);
   });
 
-  testWidgets('tapping search bar on home switches to search tab', (tester) async {
+  testWidgets('tapping search bar on home switches to search tab', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
