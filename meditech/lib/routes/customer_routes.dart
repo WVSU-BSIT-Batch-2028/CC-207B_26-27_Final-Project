@@ -13,7 +13,7 @@ import '../screens/customer/landing/landing_screen.dart';
 import '../screens/customer/login/login_screen.dart';
 import '../screens/customer/medicine/medicine_details_screen.dart';
 import '../screens/customer/pharmacy/pharmacy_details_screen.dart';
-import '../screens/customer/pharmacy/pharmacy_directions_screen.dart';
+import '../screens/customer/pharmacy/directions_screen.dart';
 import '../screens/customer/pharmacy/pharmacy_map_screen.dart';
 import '../screens/customer/profile/privacy_notice_screen.dart';
 import '../screens/customer/profile/profile_screen.dart';
@@ -153,10 +153,20 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/directions',
-        builder: (context, state) => PharmacyDirectionsScreen(
-          branchId: state.uri.queryParameters['branch'] ?? '',
-          initialTitle: state.uri.queryParameters['name'],
-        ),
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is! DirectionsArgs) {
+            return const Scaffold(
+              body: Center(child: Text('Directions unavailable.')),
+            );
+          }
+          return DirectionsScreen(
+            pharmacyName: extra.pharmacyName,
+            branchName: extra.branchName,
+            address: extra.address,
+            destination: extra.destination,
+          );
+        },
       ),
       GoRoute(
         path: '/map',

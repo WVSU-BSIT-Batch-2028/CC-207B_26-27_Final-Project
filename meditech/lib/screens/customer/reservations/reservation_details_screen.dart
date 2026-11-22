@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -464,21 +465,30 @@ class _PharmacyCard extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () {
                 final branch = pharmacyAsync.value;
-                final destination = LatLng(
-                  (branch != null && branch.latitude != 0)
-                      ? branch.latitude
-                      : 10.7202,
-                  (branch != null && branch.longitude != 0)
-                      ? branch.longitude
-                      : 122.5621,
+                final args = DirectionsArgs(
+                  pharmacyName: reservation.pharmacyName,
+                  branchName: reservation.branchName,
+                  address: reservation.branchAddress,
+                  destination: LatLng(
+                    (branch != null && branch.latitude != 0)
+                        ? branch.latitude
+                        : 10.7202,
+                    (branch != null && branch.longitude != 0)
+                        ? branch.longitude
+                        : 122.5621,
+                  ),
                 );
+                if (GoRouter.maybeOf(context) != null) {
+                  context.push('/directions', extra: args);
+                  return;
+                }
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => DirectionsScreen(
-                      pharmacyName: reservation.pharmacyName,
-                      branchName: reservation.branchName,
-                      address: reservation.branchAddress,
-                      destination: destination,
+                      pharmacyName: args.pharmacyName,
+                      branchName: args.branchName,
+                      address: args.address,
+                      destination: args.destination,
                     ),
                   ),
                 );

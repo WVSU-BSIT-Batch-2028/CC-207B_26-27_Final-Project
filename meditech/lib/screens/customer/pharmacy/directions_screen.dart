@@ -7,6 +7,21 @@ import '../../../services/route_service.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
+// Values passed into /directions so every Get directions button opens this screen
+class DirectionsArgs {
+  const DirectionsArgs({
+    required this.pharmacyName,
+    required this.branchName,
+    required this.address,
+    required this.destination,
+  });
+
+  final String pharmacyName;
+  final String branchName;
+  final String address;
+  final LatLng destination;
+}
+
 // Screen showing route, distance, and estimated travel time to a pharmacy
 // Matches wireframes P-22 and P-23
 class DirectionsScreen extends StatefulWidget {

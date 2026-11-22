@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../providers/pharmacy_providers.dart';
@@ -12,7 +13,7 @@ import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
-import 'pharmacy_directions_screen.dart';
+import 'directions_screen.dart';
 
 // Customer pharmacy branch details screen matching wireframe P-12
 class PharmacyDetailsScreen extends ConsumerStatefulWidget {
@@ -62,16 +63,26 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   }
 
   void _openDirections(PharmacyDetail pharmacy) {
-    final name = Uri.encodeComponent(pharmacy.pharmacyName);
+    final args = DirectionsArgs(
+      pharmacyName: pharmacy.pharmacyName,
+      branchName: pharmacy.branchName,
+      address: pharmacy.address,
+      destination: LatLng(
+        pharmacy.latitude != 0 ? pharmacy.latitude : 10.7202,
+        pharmacy.longitude != 0 ? pharmacy.longitude : 122.5621,
+      ),
+    );
     if (GoRouter.maybeOf(context) != null) {
-      context.push('/directions?branch=${pharmacy.branchId}&name=$name');
+      context.push('/directions', extra: args);
       return;
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PharmacyDirectionsScreen(
-          branchId: pharmacy.branchId,
-          initialTitle: pharmacy.pharmacyName,
+        builder: (_) => DirectionsScreen(
+          pharmacyName: args.pharmacyName,
+          branchName: args.branchName,
+          address: args.address,
+          destination: args.destination,
         ),
       ),
     );
