@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../providers/pharmacy_providers.dart';
@@ -10,6 +11,7 @@ import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/medicine_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import 'directions_screen.dart';
 
 // Customer pharmacy branch details screen matching wireframe P-12
 class PharmacyDetailsScreen extends ConsumerStatefulWidget {
@@ -159,6 +161,29 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => DirectionsScreen(
+                                        pharmacyName: pharmacy.pharmacyName,
+                                        branchName: pharmacy.branchName,
+                                        address: pharmacy.address,
+                                        destination: LatLng(
+                                          pharmacy.latitude,
+                                          pharmacy.longitude,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.directions_outlined),
+                                label: const Text('Get directions'),
+                              ),
                             ),
                             if (hours.isNotEmpty) ...[
                               const Padding(

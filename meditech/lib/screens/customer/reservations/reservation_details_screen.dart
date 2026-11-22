@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/reservation.dart';
+import '../../../providers/cart_providers.dart';
+import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
+import '../../../services/cart_service.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
+import '../cart/cart_screen.dart';
+import '../pharmacy/directions_screen.dart';
 
 // Customer reservation details screen with live status timeline & pickup code
 // Matches wireframes P-20, P-21, P-26, and P-27
@@ -72,6 +78,10 @@ class ReservationDetailsScreen extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.md),
                 _TimelineCard(reservation: reservation),
+                if (_canReorder(reservation.status)) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _ReorderCard(reservation: reservation),
+                ],
               ],
             ),
           );
@@ -80,6 +90,9 @@ class ReservationDetailsScreen extends ConsumerWidget {
     );
   }
 }
+
+
+
 
 class _HeaderCard extends StatelessWidget {
   const _HeaderCard({required this.reservation});
@@ -166,6 +179,9 @@ class _HeaderCard extends StatelessWidget {
     );
   }
 }
+
+
+
 
 class _PickupCodeOrNoticeCard extends StatelessWidget {
   const _PickupCodeOrNoticeCard({required this.reservation});
@@ -370,68 +386,105 @@ class _PickupCodeOrNoticeCard extends StatelessWidget {
   }
 }
 
-class _PharmacyCard extends StatelessWidget {
+
+
+
+class _PharmacyCard extends ConsumerWidget {
   const _PharmacyCard({required this.reservation});
 
   final CustomerReservation reservation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pharmacyAsync =
+        ref.watch(pharmacyDetailProvider(reservation.branchId));
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.local_pharmacy_outlined,
-              color: AppColors.primary,
-              size: 22,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.local_pharmacy_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'PICKUP BRANCH',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        reservation.pharmacyName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      if (reservation.branchName.isNotEmpty)
+                        Text(
+                          reservation.branchName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      if (reservation.branchAddress.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          reservation.branchAddress,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'PICKUP BRANCH',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                      color: AppColors.textMuted,
+            const SizedBox(height: AppSpacing.md),
+            OutlinedButton.icon(
+              onPressed: () {
+                final branch = pharmacyAsync.value;
+                final destination = LatLng(
+                  (branch != null && branch.latitude != 0)
+                      ? branch.latitude
+                      : 10.7202,
+                  (branch != null && branch.longitude != 0)
+                      ? branch.longitude
+                      : 122.5621,
+                );
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => DirectionsScreen(
+                      pharmacyName: reservation.pharmacyName,
+                      branchName: reservation.branchName,
+                      address: reservation.branchAddress,
+                      destination: destination,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    reservation.pharmacyName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if (reservation.branchName.isNotEmpty)
-                    Text(
-                      reservation.branchName,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  if (reservation.branchAddress.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      reservation.branchAddress,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                );
+              },
+              icon: const Icon(Icons.directions_outlined),
+              label: const Text('Get directions'),
             ),
           ],
         ),
@@ -439,6 +492,9 @@ class _PharmacyCard extends StatelessWidget {
     );
   }
 }
+
+
+
 
 class _ItemsCard extends StatelessWidget {
   const _ItemsCard({required this.reservation});
@@ -551,6 +607,9 @@ class _ItemsCard extends StatelessWidget {
   }
 }
 
+
+
+
 class _PrescriptionsCard extends StatelessWidget {
   const _PrescriptionsCard({required this.reservation});
 
@@ -596,6 +655,9 @@ class _PrescriptionsCard extends StatelessWidget {
     );
   }
 }
+
+
+
 
 class _TimelineCard extends StatelessWidget {
   const _TimelineCard({required this.reservation});
@@ -715,3 +777,157 @@ class _TimelineCard extends StatelessWidget {
     );
   }
 }
+
+bool _canReorder(ReservationStatus status) {
+  return status == ReservationStatus.completed ||
+      status == ReservationStatus.cancelled ||
+      status == ReservationStatus.rejected ||
+      status == ReservationStatus.expired;
+}
+
+class _ReorderCard extends ConsumerStatefulWidget {
+  const _ReorderCard({required this.reservation});
+
+  final CustomerReservation reservation;
+
+  @override
+  ConsumerState<_ReorderCard> createState() => _ReorderCardState();
+}
+
+class _ReorderCardState extends ConsumerState<_ReorderCard> {
+  bool _busy = false;
+
+  Future<void> _handleReorder() async {
+    setState(() => _busy = true);
+    try {
+      final cart = ref.read(cartProvider).value;
+      var replaceBranch = false;
+      if (cart != null &&
+          cart.branchId != null &&
+          cart.branchId != widget.reservation.branchId &&
+          cart.items.isNotEmpty) {
+        final replace = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Start a new cart?'),
+            content: Text(
+              'Your cart already contains items from ${cart.pharmacyName ?? "another pharmacy"}. '
+              'Replace your current cart with items from ${widget.reservation.pharmacyName}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep Current'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Replace Cart'),
+              ),
+            ],
+          ),
+        );
+        if (replace != true) {
+          setState(() => _busy = false);
+          return;
+        }
+        replaceBranch = true;
+      }
+
+      final notifier = ref.read(cartProvider.notifier);
+      if (replaceBranch) {
+        await notifier.clearCart();
+      }
+
+      var itemsAdded = 0;
+      for (final item in widget.reservation.items) {
+        final outcome = await notifier.addItem(
+          branchId: widget.reservation.branchId,
+          medicineId: item.medicineId,
+          quantity: item.quantity,
+          replaceBranch: false,
+        );
+        if (outcome == AddToCartOutcome.added) {
+          itemsAdded++;
+        }
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Reordered $itemsAdded ${itemsAdded == 1 ? "item" : "items"} from ${widget.reservation.pharmacyName}.',
+          ),
+          action: SnackBarAction(
+            label: 'View Cart',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const CartScreen()),
+              );
+            },
+          ),
+        ),
+      );
+
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const CartScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to reorder: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'REORDER',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Add all items from this reservation back into your cart.',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton.icon(
+              onPressed: _busy ? null : _handleReorder,
+              icon: _busy
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.replay_outlined),
+              label: Text(_busy ? 'Reordering...' : 'Reorder items'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+

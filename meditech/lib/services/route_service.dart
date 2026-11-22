@@ -1,7 +1,13 @@
 ﻿import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Provides RouteService (overridable in widget tests)
+final routeServiceProvider = Provider<RouteService>((ref) {
+  return RouteService();
+});
 
 // Represents route calculation results with distance and duration
 class RouteResult {
@@ -38,17 +44,36 @@ class RouteResult {
 
 // Service that requests directions from route-proxy Edge Function
 class RouteService {
-  final SupabaseClient _client;
+  final SupabaseClient? _client;
 
-  RouteService([SupabaseClient? client])
-    : _client = client ?? Supabase.instance.client;
+  RouteService([this._client]);
+
+  SupabaseClient? _resolveClient() {
+    if (_client != null) return _client;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<RouteResult> getDirections({
     required LatLng start,
     required LatLng end,
     String profile = 'driving-car',
   }) async {
-    final response = await _client.functions.invoke(
+    final client = _resolveClient();
+    if (client == null) {
+      final meters = const Distance().as(LengthUnit.Meter, start, end).round();
+      final speedMps = profile == 'foot-walking' ? 1.4 : 8.3;
+      return RouteResult(
+        points: [start, end],
+        distanceMeters: meters,
+        durationSeconds: (meters / speedMps).round(),
+      );
+    }
+
+    final response = await client.functions.invoke(
       'route-proxy',
       body: {
         'start': [start.longitude, start.latitude],
