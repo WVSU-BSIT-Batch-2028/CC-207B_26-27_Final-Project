@@ -45,6 +45,12 @@ class AdminFrame extends StatelessWidget {
         icon: Icons.dashboard_outlined,
         allowedRoles: ['admin'],
       ),
+      const TabletNavigationItem(
+        id: 'listings',
+        label: 'Not on MediTech',
+        icon: Icons.location_off_outlined,
+        allowedRoles: ['admin'],
+      ),
       TabletNavigationItem(
         id: 'pharmacies',
         label: 'Pharmacies',

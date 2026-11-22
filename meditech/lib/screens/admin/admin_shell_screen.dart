@@ -6,15 +6,13 @@ import '../../providers/session_providers.dart';
 import '../../widgets/tablet/admin_frame.dart';
 import 'audit/audit_list_screen.dart';
 import 'catalogue/catalogue_screen.dart';
+import 'listings/osm_listings_screen.dart';
 import 'pharmacies/pharmacies_screen.dart';
 import 'requests/medicine_requests_screen.dart';
 
 // Approved admins land in the tablet shell instead of the sign-in page
 class AdminShellScreen extends ConsumerWidget {
-  const AdminShellScreen({
-    super.key,
-    required this.section,
-  });
+  const AdminShellScreen({super.key, required this.section});
 
   final String section;
 
@@ -23,6 +21,8 @@ class AdminShellScreen extends ConsumerWidget {
       case 'overview':
       case 'pharmacies':
         context.go('/pharmacies');
+      case 'listings':
+        context.go('/listings');
       case 'catalogue':
         context.go('/catalogue');
       case 'requests':
@@ -37,11 +37,12 @@ class AdminShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = switch (section) {
-      'catalogue' || 'requests' || 'audit' => section,
+      'listings' || 'catalogue' || 'requests' || 'audit' => section,
       _ => 'pharmacies',
     };
 
     final body = switch (selected) {
+      'listings' => const OsmListingsScreen(),
       'catalogue' => const CatalogueScreen(),
       'requests' => const MedicineRequestsScreen(),
       'audit' => const AuditListScreen(),

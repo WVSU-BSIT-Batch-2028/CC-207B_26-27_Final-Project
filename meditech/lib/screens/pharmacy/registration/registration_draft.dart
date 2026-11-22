@@ -28,6 +28,7 @@ class RegistrationDraft {
   final pharmacyEmail = TextEditingController();
   final latitude = TextEditingController();
   final longitude = TextEditingController();
+  String? claimedOsmListingId;
 
   // Hours for each day (0 = Sunday); every day starts open
   final days = List.generate(7, (_) => DayHoursDraft(isOpen: true));
