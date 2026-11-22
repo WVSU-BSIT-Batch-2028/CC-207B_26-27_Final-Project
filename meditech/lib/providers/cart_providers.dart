@@ -1,9 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/cart.dart';
+import '../screens/customer/cart/cart_screen.dart';
+import '../screens/shared/guest_auth_gate.dart';
 import '../services/cart_service.dart';
+import 'session_providers.dart';
 
 // Provides CartService (overridable in widget tests)
 final cartServiceProvider = Provider<CartService>((ref) {
@@ -93,4 +97,106 @@ final cartProvider = AsyncNotifierProvider<CartNotifier, CustomerCart>(
 // Convenience badge count of total medicine units in cart
 final cartItemCountProvider = Provider<int>((ref) {
   return ref.watch(cartProvider).value?.totalUnits ?? 0;
+});
+
+// Adds a medicine to the customer's single-branch cart, asking confirmation
+// if they already have items from a different pharmacy branch.
+Future<void> addMedicineToCartWithBranchCheck({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String branchId,
+  required String medicineId,
+  required String medicineName,
+  required String pharmacyName,
+}) async {
+  // Guests must sign in before reserving (DB requires a customer account)
+  if (ref.read(sessionProvider) == null) {
+    final signedIn = await showGuestAuthGate(
+      context,
+      title: 'Sign in to reserve',
+      message:
+          'Create or sign in to a MediTech account to add medicines and place a reservation.',
+    );
+    if (!context.mounted || !signedIn) return;
+    // Reload cart against the new customer session before adding
+    await ref.read(cartProvider.notifier).refresh();
+  }
+
+  final notifier = ref.read(cartProvider.notifier);
+
+  try {
+    final outcome = await notifier.addItem(
+      branchId: branchId,
+      medicineId: medicineId,
+    );
+
+    if (!context.mounted) return;
+
+    if (outcome == AddToCartOutcome.branchConflict) {
+      final currentPharmacy =
+          ref.read(cartProvider).value?.pharmacyName ?? 'another pharmacy';
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Start a new cart?'),
+          content: Text(
+            'Your cart already contains items from $currentPharmacy. '
+            'Replace your current cart with items from $pharmacyName?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Keep Current'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Replace Cart'),
+            ),
+          ],
+        ),
+      );
+
+      if (replace != true) return;
+
+      await notifier.addItem(
+        branchId: branchId,
+        medicineId: medicineId,
+        replaceBranch: true,
+      );
+    }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added $medicineName from $pharmacyName.'),
+        action: SnackBarAction(
+          label: 'View Cart',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const CartScreen()),
+            );
+          },
+        ),
+      ),
+    );
+  } on PostgrestException catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error.message.isNotEmpty
+              ? error.message
+              : 'Could not add this medicine to your cart.',
+        ),
+      ),
+    );
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not add this medicine to your cart. Try again.'),
+      ),
+    );
+  }
+}
 });

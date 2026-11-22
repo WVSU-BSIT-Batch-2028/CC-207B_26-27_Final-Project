@@ -105,6 +105,108 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
+        child: IndexedStack(index: _currentIndex, children: screens),
+      ),
+      // Only on Home so the FAB does not block Search medicine taps
+      floatingActionButton: _currentIndex == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 72),
+              child: FloatingActionButton(
+                tooltip: 'AI Assistant',
+                backgroundColor: AppColors.primary,
+                elevation: 2,
+                onPressed: () => context.push('/assistant'),
+                child: const Icon(Icons.auto_awesome, color: Colors.white),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.md,
+        ),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _NavItem(
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home,
+                selected: _currentIndex == 0,
+                onTap: () => _onDestinationSelected(0),
+              ),
+              _NavItem(
+                icon: Icons.search,
+                selectedIcon: Icons.search,
+                selected: _currentIndex == 1,
+                onTap: () => _onDestinationSelected(1),
+              ),
+              _NavItem(
+                icon: Icons.receipt_long_outlined,
+                selectedIcon: Icons.receipt_long,
+                selected: _currentIndex == 2,
+                onTap: () => _onDestinationSelected(2),
+              ),
+              _NavItem(
+                icon: Icons.person_outline,
+                selectedIcon: Icons.person,
+                selected: _currentIndex == 3,
+                onTap: () => _onDestinationSelected(3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          selected ? selectedIcon : icon,
+          color: selected ? AppColors.primary : Colors.white,
+          size: 22,
+        ),
         child: IndexedStack(index: currentIndex, children: screens),
       ),
       bottomNavigationBar: const CustomerBottomChrome(),

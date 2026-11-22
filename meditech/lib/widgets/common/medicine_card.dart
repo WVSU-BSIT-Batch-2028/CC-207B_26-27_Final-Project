@@ -42,6 +42,8 @@ class MedicineCard extends StatelessWidget {
     this.requiresPrescription = false,
     this.stockConfirmedAt,
     this.onTap,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String name;
@@ -51,11 +53,101 @@ class MedicineCard extends StatelessWidget {
   final String? priceText;
   final String? availability;
   final bool requiresPrescription;
+
+  // Number of pharmacies carrying this item
+  final int? pharmacyCount;
+
+  // Called when the card body is tapped
   final DateTime? stockConfirmedAt;
   final VoidCallback? onTap;
 
+  // Optional trailing action (prototype "Add to Cart")
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
   @override
   Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            genericName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (requiresPrescription) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      const StatusBadge.rx(),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '$strength · $dosageForm',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (availability != null)
+                            StatusBadge.availability(availability!)
+                          else if (pharmacyCount != null)
+                            Text(
+                              '$pharmacyCount ${pharmacyCount == 1 ? 'pharmacy' : 'pharmacies'} nearby',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          if (priceText != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              priceText!,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ],
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -137,9 +229,23 @@ class MedicineCard extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.add, size: 20),
                     ),
-                ],
-              ),
-            ],
+                    if (actionLabel != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      FilledButton(
+                        onPressed: onAction,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(116, 40),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                        ),
+                        child: Text(actionLabel!),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

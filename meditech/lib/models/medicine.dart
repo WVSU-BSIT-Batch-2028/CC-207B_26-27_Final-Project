@@ -24,6 +24,14 @@ enum MedicineAvailability {
   bool get canReserve =>
       this == MedicineAvailability.available ||
       this == MedicineAvailability.lowStock;
+
+  // Button label on offer / inventory cards
+  String get cartActionLabel => switch (this) {
+        MedicineAvailability.available || MedicineAvailability.lowStock =>
+          'Add to Cart',
+        MedicineAvailability.unconfirmed => 'Unconfirmed',
+        MedicineAvailability.unavailable => 'Unavailable',
+      };
 }
 
 // Grouped medicine row returned by search_medicines
