@@ -1,35 +1,43 @@
 import 'package:flutter/material.dart';
 
 import '../../screens/ai/ai_assistant_screen.dart';
+import '../../screens/auth/auth_gate.dart';
+import '../../screens/auth/login_screen.dart';
+import '../../screens/auth/register_screen.dart';
 import '../../screens/doctor/doctor_shell.dart';
 import '../../screens/patient/patient_shell.dart';
-import '../../screens/role/role_select_screen.dart';
 
 /// Named routes + page transitions. Add new full-screen routes here.
 class AppRoutes {
   AppRoutes._();
 
-  static const String roleGate = '/'; // temporary: pick patient or doctor
+  static const String authGate = '/';
+  static const String login = '/login';
+  static const String register = '/register';
   static const String patientShell = '/patient';
   static const String doctorShell = '/doctor';
   static const String assistant = '/assistant';
 
-  /// Where the app starts. Skip the role gate while developing:
+  /// Where the app starts. Skip auth while developing if needed:
   ///   flutter run -d chrome --dart-define=START_ROUTE=/doctor
   static const String initialRoute =
-      String.fromEnvironment('START_ROUTE', defaultValue: roleGate);
+      String.fromEnvironment('START_ROUTE', defaultValue: authGate);
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case login:
+        return _fade(const LoginScreen(), settings);
+      case register:
+        return _fade(const RegisterScreen(), settings);
       case patientShell:
         return _fade(const PatientShell(), settings);
       case doctorShell:
         return _fade(const DoctorShell(), settings);
       case assistant:
         return _slideUp(const AiAssistantScreen(), settings);
-      case roleGate:
+      case authGate:
       default:
-        return _fade(const RoleSelectScreen(), settings);
+        return _fade(const AuthGate(), settings);
     }
   }
 

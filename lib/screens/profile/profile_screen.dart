@@ -60,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _switchView() {
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.roleGate, (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.authGate, (route) => false);
   }
 
   @override
