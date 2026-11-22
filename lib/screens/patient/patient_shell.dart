@@ -9,7 +9,6 @@ import '../../widgets/h360_bottom_nav.dart';
 import '../ai/ai_assistant_screen.dart';
 import '../onboarding/how_to_use_screen.dart';
 import '../profile/profile_screen.dart';
-import '../records/records_screen.dart';
 import '../shared/module_placeholder.dart';
 import 'home/home_screen.dart';
 import 'appointments/appointments_screen.dart';
@@ -18,6 +17,7 @@ import 'appointments/booking/doctor_selection_screen.dart';
 import 'appointments/booking/date_time_selection_screen.dart';
 import 'appointments/booking/appointment_details_screen.dart';
 import 'appointments/booking/appointment_confirmation_screen.dart';
+import 'prescriptions/prescriptions_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 ///
@@ -162,15 +162,16 @@ class _PatientShellState extends State<PatientShell> {
             onJoinConsultation: _openVideoConsultation,
           ),
 
-          // TODO(Prescriptions owner): replace with PrescriptionsScreen.
+          // Patient Prescriptions (Active / History).
+          const PrescriptionsScreen(),
+
+          // TODO(Records owner): replace with RecordsScreen.
           const ModulePlaceholder(
-            title: 'Prescriptions',
-            icon: Icons.medication_rounded,
-            hint:
-                'Prescription list, reminders and refill requests will live here.',
+            title: 'Records',
+            icon: Icons.folder_shared_rounded,
+            hint: 'Consultations and lab results will live here.',
           ),
-          // Records tab (Gian). Back arrow returns to Home.
-          RecordsScreen(onBack: () => _goTo(0)),
+
           const ProfileScreen(role: UserRole.patient),
         ],
       ),
