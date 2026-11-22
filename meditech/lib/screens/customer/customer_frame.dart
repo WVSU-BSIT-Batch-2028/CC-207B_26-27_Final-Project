@@ -3,18 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/cart_providers.dart';
+import '../../providers/customer_nav_provider.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/session_providers.dart';
 import '../../screens/shared/guest_auth_gate.dart';
-import '../../widgets/theme/app_colors.dart';
-import '../../widgets/theme/app_spacing.dart';
-import 'cart/cart_screen.dart';
+import '../../widgets/common/basket_bar.dart';
 import 'home/home_screen.dart';
-import 'pharmacy/pharmacy_details_screen.dart';
-import 'pharmacy/pharmacy_map_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reservations/my_reservations_screen.dart';
-import 'reservations/reservation_details_screen.dart';
 import 'search/search_screen.dart';
 
 // Main Flow customer shell matched to the Figma prototype
@@ -28,16 +24,20 @@ class CustomerFrame extends ConsumerStatefulWidget {
 }
 
 class _CustomerFrameState extends ConsumerState<CustomerFrame> {
-  late int _currentIndex;
-
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    if (widget.initialIndex != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(customerTabProvider.notifier).select(widget.initialIndex);
+        }
+      });
+    }
   }
 
   void _onTabSelected(int index) {
-    setState(() => _currentIndex = index);
+    ref.read(customerTabProvider.notifier).select(index);
   }
 
   Future<bool> _ensureSignedIn({
@@ -58,26 +58,7 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
       return;
     }
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (cartContext) => CartScreen(
-          onBrowseMedicines: () {
-            Navigator.of(cartContext).pop();
-            _onTabSelected(1);
-          },
-          onOpenReservationDetails: (reservationId) {
-            _onTabSelected(2);
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ReservationDetailsScreen(
-                  reservationId: reservationId,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
+    context.push('/cart');
   }
 
   Future<void> _openNotifications() async {
@@ -92,30 +73,9 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     context.push('/notifications');
   }
 
-  Future<void> _onDestinationSelected(int index) async {
-    if (index == 2 && ref.read(sessionProvider) == null) {
-      if (!await _ensureSignedIn(
-        title: 'Sign in to track reservations',
-        message:
-            'See active pickups, confirmations, and past orders in one place.',
-      )) {
-        return;
-      }
-    }
-    if (index == 3 && ref.read(sessionProvider) == null) {
-      if (!await _ensureSignedIn(
-        title: 'Sign in to open your profile',
-        message: 'Manage your account, privacy notice, and password from here.',
-      )) {
-        return;
-      }
-    }
-    if (!mounted) return;
-    _onTabSelected(index);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(customerTabProvider);
     final screens = [
       HomeScreen(
         cartCount: ref.watch(cartItemCountProvider),
@@ -123,37 +83,18 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
         onCartTap: _openCart,
         onNotificationsTap: _openNotifications,
         onSearchTap: () => _onTabSelected(1),
-        onViewAllPharmaciesTap: () => _onTabSelected(1),
-        onViewMapsTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const PharmacyMapScreen(),
-            ),
-          );
-        },
+        onViewMapsTap: () => context.push('/map'),
         onOpenReservations: () => _onTabSelected(2),
         onOpenReservationDetails: (reservationId) {
           _onTabSelected(2);
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => ReservationDetailsScreen(
-                reservationId: reservationId,
-              ),
-            ),
-          );
+          context.push('/reservations/$reservationId');
         },
         onOpenPharmacy: (pharmacy) {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => PharmacyDetailsScreen(
-                branchId: pharmacy.branchId,
-                initialTitle: pharmacy.pharmacyName,
-              ),
-            ),
-          );
+          final name = Uri.encodeComponent(pharmacy.pharmacyName);
+          context.push('/pharmacies/${pharmacy.branchId}?name=$name');
         },
       ),
-      const SearchScreen(),
+      SearchScreen(onBack: () => _onTabSelected(0)),
       MyReservationsScreen(
         onBrowseMedicines: () => _onTabSelected(1),
       ),
@@ -266,7 +207,9 @@ class _NavItem extends StatelessWidget {
           color: selected ? AppColors.primary : Colors.white,
           size: 22,
         ),
+        child: IndexedStack(index: currentIndex, children: screens),
       ),
+      bottomNavigationBar: const CustomerBottomChrome(),
     );
   }
 }

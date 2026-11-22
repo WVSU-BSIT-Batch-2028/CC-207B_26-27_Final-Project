@@ -15,17 +15,22 @@ void main() {
         GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
         GoRoute(path: '/sign-in', builder: (_, _) => const LoginScreen()),
         GoRoute(path: '/sign-up', builder: (_, _) => const SignUpScreen()),
-        GoRoute(path: '/home', builder: (_, _) => const Scaffold(body: Text('Home'))),
+        GoRoute(
+          path: '/home',
+          builder: (_, _) => const Scaffold(body: Text('Home')),
+        ),
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpWidget(
+      ProviderScope(child: MaterialApp.router(routerConfig: router)),
+    );
 
-    await tester.tap(find.text('Already have an account? Sign in'));
+    await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Email or mobile'), findsOneWidget);
+    expect(find.text('Email address'), findsOneWidget);
   });
 
   // Get started opens create account
@@ -35,11 +40,16 @@ void main() {
       routes: [
         GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
         GoRoute(path: '/sign-up', builder: (_, _) => const SignUpScreen()),
-        GoRoute(path: '/home', builder: (_, _) => const Scaffold(body: Text('Home'))),
+        GoRoute(
+          path: '/home',
+          builder: (_, _) => const Scaffold(body: Text('Home')),
+        ),
       ],
     );
 
-    await tester.pumpWidget(ProviderScope(child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpWidget(
+      ProviderScope(child: MaterialApp.router(routerConfig: router)),
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, 'Get started'));
     await tester.pumpAndSettle();

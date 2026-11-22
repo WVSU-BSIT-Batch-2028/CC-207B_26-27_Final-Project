@@ -6,6 +6,25 @@ import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
+// Values carried to the confirmation route after Continue to Reservation
+class ReservationSubmittedArgs {
+  const ReservationSubmittedArgs({
+    required this.reservationId,
+    required this.referenceNo,
+    required this.pharmacyName,
+    required this.branchName,
+    required this.items,
+    required this.totalAmount,
+  });
+
+  final String reservationId;
+  final String referenceNo;
+  final String pharmacyName;
+  final String branchName;
+  final List<CartItem> items;
+  final double totalAmount;
+}
+
 // Confirmation screen shown right after placing a reservation (wireframe P-19)
 class ReservationSubmittedScreen extends StatelessWidget {
   const ReservationSubmittedScreen({

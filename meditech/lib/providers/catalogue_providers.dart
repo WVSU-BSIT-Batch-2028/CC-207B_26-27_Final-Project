@@ -67,6 +67,9 @@ class CatalogueFilterController extends Notifier<CatalogueFilter> {
   @override
   CatalogueFilter build() => const CatalogueFilter();
 
+  // Start fresh with one status, e.g. when opened from an overview card
+  void showOnly(String? status) => state = CatalogueFilter(status: status, perPage: state.perPage);
+
   // Changing what's shown always goes back to page 1
   void setStatus(String? status) => state = state.copyWith(status: status, page: 0);
   void setSearch(String search) => state = state.copyWith(search: search.trim(), page: 0);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/reservation.dart';
@@ -58,6 +59,10 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
   ReservationFilterTab _selectedTab = ReservationFilterTab.active;
 
   void _openDetails(String reservationId) {
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/reservations/$reservationId');
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ReservationDetailsScreen(reservationId: reservationId),

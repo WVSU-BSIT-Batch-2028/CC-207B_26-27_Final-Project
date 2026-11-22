@@ -54,6 +54,11 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             AuditDetailScreen(id: state.pathParameters['id']!),
       ),
+      GoRoute(
+        path: '/listings',
+        builder: (context, state) =>
+            const AdminShellScreen(section: 'listings'),
+      ),
     ],
   );
 });

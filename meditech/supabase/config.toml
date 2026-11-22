@@ -469,3 +469,18 @@ entrypoint = "./functions/submit-application/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/submit-application/*.html" ]
+
+[functions.osm-sync]
+enabled = true
+verify_jwt = false
+import_map = "./functions/osm-sync/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/osm-sync/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/osm-sync/*.html" ]
+[functions.route-proxy]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/route-proxy/index.ts"

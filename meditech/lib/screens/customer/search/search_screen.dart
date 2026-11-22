@@ -2,24 +2,50 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
 import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/customer_location_title.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
-import '../../../widgets/common/medicine_card.dart';
+import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 import '../medicine/medicine_details_screen.dart';
 
 // Customer medicine search screen matching wireframes P-09 and P-10
+
+class RecentSearchesNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() => const [];
+
+  void add(String term) {
+    final trimmed = term.trim();
+    if (trimmed.isEmpty) return;
+    state = [
+      trimmed,
+      for (final item in state)
+        if (item.toLowerCase() != trimmed.toLowerCase()) item,
+    ].take(8).toList();
+  }
+
+  void clear() => state = const [];
+}
+
+final recentSearchesProvider =
+    NotifierProvider<RecentSearchesNotifier, List<String>>(
+  RecentSearchesNotifier.new,
+);
+
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({
     super.key,
     this.isOffline = false,
     this.onMedicineSelected,
+    this.onBack,
   });
 
   // Shows the offline banner when true
@@ -27,6 +53,9 @@ class SearchScreen extends ConsumerStatefulWidget {
 
   // Called when a customer taps a medicine result card
   final ValueChanged<MedicineSearchResult>? onMedicineSelected;
+
+  // Shell uses this to return to the home tab
+  final VoidCallback? onBack;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -57,6 +86,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!mounted) return;
       ref.read(medicineSearchFilterProvider.notifier).setQuery(value);
     });
+  }
+
+  void _remember(String term) {
+    ref.read(recentSearchesProvider.notifier).add(term);
+  }
+
+  void _openMedicine(MedicineSearchResult med) {
+    _remember(med.brandName);
+    if (widget.onMedicineSelected != null) {
+      widget.onMedicineSelected!(med);
+      return;
+    }
+    if (GoRouter.maybeOf(context) != null) {
+      context.push('/medicines', extra: med);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MedicineDetailsScreen(medicine: med),
+      ),
+    );
   }
 
   void _clearSearch() {
@@ -243,94 +293,297 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final filter = ref.watch(medicineSearchFilterProvider);
     final resultsAsync = ref.watch(medicineSearchResultsProvider);
-    final formsAsync = ref.watch(dosageFormsProvider);
-    final dosageForms = formsAsync.value ?? const ['Tablet', 'Capsule'];
+    final recent = ref.watch(recentSearchesProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.isOffline) const OfflineBanner(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Search',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
+    return Material(
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.isOffline) const OfflineBanner(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              0,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Back',
+                  onPressed: widget.onBack,
+                  icon: const Icon(Icons.arrow_back),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              // Search input matching wireframe P-09
-              TextField(
-                controller: _searchController,
-                onChanged: _onQueryChanged,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'Try paracetamol or Biogesic',
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: AppColors.textMuted,
+                const Expanded(
+                  child: CustomerLocationTitle(
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          tooltip: 'Clear search',
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: _clearSearch,
-                        )
-                      : null,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              // Horizontal filter chips + Sort & More Filters chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onQueryChanged,
+              textInputAction: TextInputAction.search,
+              onSubmitted: _remember,
+              decoration: InputDecoration(
+                hintText: 'Search medicine...',
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    AppChip(
-                      label: 'All',
-                      selected: filter.dosageForm == null,
-                      onSelected: (_) => ref
-                          .read(medicineSearchFilterProvider.notifier)
-                          .setDosageForm(null),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    ...dosageForms.map(
-                      (form) => Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.sm),
-                        child: AppChip(
-                          label: form,
-                          selected: filter.dosageForm == form,
-                          onSelected: (_) => ref
-                              .read(medicineSearchFilterProvider.notifier)
-                              .setDosageForm(
-                                filter.dosageForm == form ? null : form,
-                              ),
-                        ),
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearSearch,
                       ),
+                    IconButton(
+                      tooltip: _sortLabel(filter.sort),
+                      icon: const Icon(Icons.swap_vert),
+                      onPressed: _openSortSheet,
                     ),
-                    AppChip(
-                      label: _sortLabel(filter.sort),
-                      icon: Icons.swap_vert,
-                      selected: filter.sort != 'relevance',
-                      onSelected: (_) => _openSortSheet(),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    AppChip(
-                      label: filter.activeExtraFilterCount > 0
+                    IconButton(
+                      tooltip: filter.activeExtraFilterCount > 0
                           ? 'Filters (${filter.activeExtraFilterCount})'
                           : 'Filters',
-                      icon: Icons.tune,
-                      selected: filter.activeExtraFilterCount > 0,
-                      onSelected: (_) => _openFilterSheet(),
+                      icon: const Icon(Icons.tune),
+                      onPressed: _openFilterSheet,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: AsyncView<List<MedicineSearchResult>>(
+              value: resultsAsync,
+              isEmpty: (items) => items.isEmpty && recent.isEmpty,
+              emptyMessage: 'No matching medicines found.',
+              onRetry: () => ref.invalidate(medicineSearchResultsProvider),
+              builder: (items) {
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                    120,
+                  ),
+                  children: [
+                    if (recent.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Recent Searches',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                ref.read(recentSearchesProvider.notifier).clear(),
+                            child: const Text('Clear all'),
+                          ),
+                        ],
+                      ),
+                      ...recent.map(
+                        (term) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.history,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          title: Text(term),
+                          onTap: () {
+                            _searchController.text = term;
+                            _onQueryChanged(term);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    const Text(
+                      'In Stock at Nearby Pharmacies',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        AppChip(
+                          label: 'All',
+                          selected: filter.dosageForm == null,
+                          onSelected: (_) => ref
+                              .read(medicineSearchFilterProvider.notifier)
+                              .setDosageForm(null),
+                        ),
+                        for (final form
+                            in ref.watch(dosageFormsProvider).value ??
+                                const <String>[])
+                          AppChip(
+                            label: form,
+                            selected: filter.dosageForm == form,
+                            onSelected: (_) => ref
+                                .read(medicineSearchFilterProvider.notifier)
+                                .setDosageForm(
+                                  filter.dosageForm == form ? null : form,
+                                ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (items.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                        child: Text(
+                          'No matching medicines found.',
+                          style: TextStyle(color: AppColors.textMuted),
+                        ),
+                      )
+                    else
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i > 0) const SizedBox(height: AppSpacing.sm),
+                        _StockMedicineCard(
+                          medicine: items[i],
+                          onTap: () => _openMedicine(items[i]),
+                        ),
+                      ],
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockMedicineCard extends StatelessWidget {
+  const _StockMedicineCard({required this.medicine, required this.onTap});
+
+  final MedicineSearchResult medicine;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  color: AppColors.primaryLight,
+                  child: const Icon(Icons.medication, color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      medicine.brandName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          medicine.genericName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            ' • ${medicine.strength} • ${medicine.dosageForm}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          medicine.formattedLowestPrice,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            ' • ${medicine.pharmacyCount} ${medicine.pharmacyCount == 1 ? 'pharmacy' : 'pharmacies'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (medicine.pharmacyCount > 0)
+                          StatusBadge.availability('available'),
+                        if (medicine.isRx)
+                          const StatusBadge(
+                            'Rx required',
+                            tone: BadgeTone.info,
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -352,38 +605,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   AppSpacing.xs,
                   AppSpacing.lg,
                   120,
+              const SizedBox(width: AppSpacing.sm),
+              IconButton(
+                tooltip: 'View ${medicine.brandName}',
+                onPressed: onTap,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                 ),
-                itemCount: items.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (context, index) {
-                  final med = items[index];
-                  return MedicineCard(
-                    name: med.brandName,
-                    genericName: med.genericName,
-                    strength: med.strength,
-                    dosageForm: med.dosageForm,
-                    requiresPrescription: med.isRx,
-                    pharmacyCount: med.pharmacyCount,
-                    priceText: med.formattedLowestPrice,
-                    onTap: () {
-                      if (widget.onMedicineSelected != null) {
-                        widget.onMedicineSelected!(med);
-                        return;
-                      }
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => MedicineDetailsScreen(medicine: med),
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
+                icon: const Icon(Icons.add),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

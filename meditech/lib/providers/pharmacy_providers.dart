@@ -15,6 +15,12 @@ final publicBranchesProvider =
   return ref.watch(pharmacyServiceProvider).listPublicBranches();
 });
 
+// Opening hours keyed by branch, used by the home "Open now" filter
+final publicBranchHoursProvider =
+    FutureProvider.autoDispose<Map<String, List<PharmacyHours>>>((ref) async {
+  return ref.watch(pharmacyServiceProvider).listPublicHours();
+});
+
 // Loads approved branch info for Pharmacy Details
 final pharmacyDetailProvider =
     FutureProvider.family<PharmacyDetail?, String>((ref, branchId) async {

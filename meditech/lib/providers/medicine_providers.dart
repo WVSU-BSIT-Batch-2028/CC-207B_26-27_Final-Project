@@ -80,6 +80,11 @@ class MedicineSearchFilterNotifier extends Notifier<MedicineSearchFilterState> {
     state = state.copyWith(location: value);
   }
 
+  void setCoordinates(double latitude, double longitude) {
+    if (state.latitude == latitude && state.longitude == longitude) return;
+    state = state.copyWith(latitude: latitude, longitude: longitude);
+  }
+
   void setSort(String sortMode) {
     state = state.copyWith(sort: sortMode);
   }
