@@ -22,6 +22,8 @@ import '../screens/customer/reservations/reservation_submitted_screen.dart';
 import '../screens/customer/sign_up/account_created_screen.dart';
 import '../screens/customer/sign_up/sign_up_screen.dart';
 import '../models/medicine.dart';
+import '../models/osm_listing.dart';
+import '../screens/customer/pharmacy/osm_listing_details_screen.dart';
 import '../screens/shared/change_password_screen.dart';
 import '../screens/shared/notification_list_screen.dart';
 import '../providers/session_providers.dart';
@@ -42,8 +44,14 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
-      GoRoute(path: '/home', builder: (context, state) => const CustomerFrame()),
-      GoRoute(path: '/sign-in', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const CustomerFrame(),
+      ),
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => const LoginScreen(),
+      ),
       GoRoute(path: '/login', redirect: (context, state) => '/sign-in'),
       GoRoute(
         path: '/forgot-password',
@@ -63,14 +71,26 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => const SignUpScreen(),
+      ),
       GoRoute(
         path: '/account-created',
         builder: (context, state) => const AccountCreatedScreen(),
       ),
-      GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
-      GoRoute(path: '/assistant', builder: (context, state) => const AssistantScreen()),
-      GoRoute(path: '/privacy', builder: (context, state) => const PrivacyNoticeScreen()),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/assistant',
+        builder: (context, state) => const AssistantScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyNoticeScreen(),
+      ),
       GoRoute(
         path: '/change-password',
         builder: (context, state) => const ChangePasswordScreen(),
@@ -150,6 +170,20 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
           branchId: state.pathParameters['branchId']!,
           initialTitle: state.uri.queryParameters['name'],
         ),
+      ),
+      GoRoute(
+        path: '/osm-listing/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final initial = state.extra is OsmListing
+              ? state.extra as OsmListing
+              : null;
+          return OsmListingDetailsScreen(
+            listingId: id,
+            initialListing: initial,
+            onGetDirections: () => context.push('/map'),
+          );
+        },
       ),
     ],
   );
