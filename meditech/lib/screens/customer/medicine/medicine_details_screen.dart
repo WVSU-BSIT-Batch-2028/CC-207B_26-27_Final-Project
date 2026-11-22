@@ -364,19 +364,16 @@ class _MedicineOfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Keep pharmacy open and Add to Cart on separate targets so the button
-    // is not swallowed by a parent InkWell (especially on Flutter web).
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: onOpenPharmacy,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Row(
+      child: InkWell(
+        onTap: onOpenPharmacy,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ClipRRect(
@@ -438,58 +435,6 @@ class _MedicineOfferCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: AppColors.textMuted,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    offer.address,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (offer.distanceKm != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    '${offer.distanceKm!.toStringAsFixed(1)} km',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '₱${offer.pricePerUnit.toStringAsFixed(2)} / ${medicine.unitSold}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-                  FilledButton(
-                  onPressed: onAddToCart,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(116, 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
@@ -547,11 +492,10 @@ class _MedicineOfferCard extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.add, size: 20),
                   ),
-                  child: Text(offer.availability.cartActionLabel),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

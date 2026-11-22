@@ -63,26 +63,18 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
   }
 
   void _openDirections(PharmacyDetail pharmacy) {
-    final args = DirectionsArgs(
-      pharmacyName: pharmacy.pharmacyName,
-      branchName: pharmacy.branchName,
-      address: pharmacy.address,
-      destination: LatLng(
-        pharmacy.latitude != 0 ? pharmacy.latitude : 10.7202,
-        pharmacy.longitude != 0 ? pharmacy.longitude : 122.5621,
-      ),
-    );
+    final name = Uri.encodeComponent(pharmacy.pharmacyName);
     if (GoRouter.maybeOf(context) != null) {
-      context.push('/directions', extra: args);
+      context.push('/directions?branch=${pharmacy.branchId}&name=$name');
       return;
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => DirectionsScreen(
-          pharmacyName: args.pharmacyName,
-          branchName: args.branchName,
-          address: args.address,
-          destination: args.destination,
+          pharmacyName: pharmacy.pharmacyName,
+          branchName: pharmacy.branchName,
+          address: pharmacy.address,
+          destination: LatLng(pharmacy.latitude, pharmacy.longitude),
         ),
       ),
     );
@@ -336,8 +328,6 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                               requiresPrescription: item.isRx,
                               availability: _availabilityCode(item),
                               priceText: item.formattedPrice,
-                              actionLabel: item.availability.cartActionLabel,
-                              onAction: item.availability.canReserve
                               stockConfirmedAt: item.stockConfirmedAt,
                               onTap: item.availability.canReserve
                                   ? () {

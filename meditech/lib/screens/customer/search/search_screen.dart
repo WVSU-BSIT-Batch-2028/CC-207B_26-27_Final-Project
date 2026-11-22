@@ -588,23 +588,6 @@ class _StockMedicineCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-        // Results list with loading, empty (P-10), and error states
-        Expanded(
-          child: AsyncView<List<MedicineSearchResult>>(
-            value: resultsAsync,
-            isEmpty: (items) => items.isEmpty,
-            emptyMessage: 'No matching medicines found.',
-            onRetry: () => ref.invalidate(medicineSearchResultsProvider),
-            builder: (items) {
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                  AppSpacing.lg,
-                  120,
               const SizedBox(width: AppSpacing.sm),
               IconButton(
                 tooltip: 'View ${medicine.brandName}',
