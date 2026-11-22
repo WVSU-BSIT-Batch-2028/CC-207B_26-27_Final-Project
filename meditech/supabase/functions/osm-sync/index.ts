@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       return reply(403, { error: "Only active administrators can sync listings." });
     }
 
-    // Query pharmacies in the Iloilo City bounding box from Overpass API
+    // Query pharmacies in the Iloilo City bounding box from Overpass API mirrors
     const overpassQuery = `
       [out:json][timeout:25];
       (
@@ -100,18 +100,40 @@ Deno.serve(async (req) => {
       out center meta;
     `;
 
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "MediTech-OSM-Sync/1.0",
-      },
-      body: `data=${encodeURIComponent(overpassQuery)}`,
-      signal: AbortSignal.timeout(30_000),
-    });
+    const overpassMirrors = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    ];
 
-    if (!response.ok) {
-      return reply(502, { error: "Could not reach OpenStreetMap Overpass API." });
+    let response: Response | null = null;
+    let lastStatus = 0;
+
+    for (const mirror of overpassMirrors) {
+      try {
+        const res = await fetch(mirror, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "MediTech-OSM-Sync/1.0",
+          },
+          body: `data=${encodeURIComponent(overpassQuery)}`,
+          signal: AbortSignal.timeout(15_000),
+        });
+        lastStatus = res.status;
+        if (res.ok) {
+          response = res;
+          break;
+        }
+      } catch {
+        // Try next mirror on network error or timeout
+      }
+    }
+
+    if (!response) {
+      return reply(502, {
+        error: `Could not reach OpenStreetMap Overpass API (last HTTP ${lastStatus || "timeout"}).`,
+      });
     }
 
     const payload = await response.json();
