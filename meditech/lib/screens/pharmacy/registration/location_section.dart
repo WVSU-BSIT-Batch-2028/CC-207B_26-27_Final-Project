@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../widgets/common/app_text_field.dart';
+import '../../../widgets/common/nearby_osm_listings_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import 'registration_draft.dart';
@@ -46,6 +47,7 @@ class _LocationSectionState extends State<LocationSection> {
     setState(() {
       d.latitude.text = spot.latitude.toStringAsFixed(6);
       d.longitude.text = spot.longitude.toStringAsFixed(6);
+      d.claimedOsmListingId = null;
       _showBubble = true;
     });
     if (moveMap) _map.move(spot, max(_map.camera.zoom, 16));
@@ -55,7 +57,8 @@ class _LocationSectionState extends State<LocationSection> {
   // Use the device's location
   Future<void> _useCurrentLocation(FormFieldState<bool> field) async {
     void tell(String message) =>
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
 
     setState(() => _locating = true);
     try {
@@ -69,7 +72,9 @@ class _LocationSectionState extends State<LocationSection> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        tell('Location permission was denied. Tap the map to drop a pin instead.');
+        tell(
+          'Location permission was denied. Tap the map to drop a pin instead.',
+        );
         return;
       }
       final position = await Geolocator.getCurrentPosition();
@@ -82,7 +87,8 @@ class _LocationSectionState extends State<LocationSection> {
   }
 
   // Drop the pin in the middle of what the map is showing
-  void _dropPin(FormFieldState<bool> field) => _setPin(_map.camera.center, field, moveMap: false);
+  void _dropPin(FormFieldState<bool> field) =>
+      _setPin(_map.camera.center, field, moveMap: false);
 
   // Zoom in or out with the buttons
   void _zoom(double by) =>
@@ -91,7 +97,10 @@ class _LocationSectionState extends State<LocationSection> {
   // Typing in the boxes moves the pin
   void _typed(FormFieldState<bool> field) {
     final spot = _pin;
-    setState(() => _showBubble = true);
+    setState(() {
+      d.claimedOsmListingId = null;
+      _showBubble = true;
+    });
     if (spot != null) _map.move(spot, _map.camera.zoom);
     field.didChange(spot != null);
   }
@@ -115,11 +124,16 @@ class _LocationSectionState extends State<LocationSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title
-            const Row(children: [
-              Icon(Icons.place, color: AppColors.primary),
-              SizedBox(width: AppSpacing.sm),
-              Text('Store location', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            ]),
+            const Row(
+              children: [
+                Icon(Icons.place, color: AppColors.primary),
+                SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Store location',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.xs),
             const Text(
               "Do this while you're at the store for the most accurate pin. "
@@ -135,10 +149,15 @@ class _LocationSectionState extends State<LocationSection> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _locating ? null : () => _useCurrentLocation(field),
+                  onPressed: _locating
+                      ? null
+                      : () => _useCurrentLocation(field),
                   icon: _locating
-                      ? const SizedBox(width: 16, height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.my_location),
                   label: const Text('Use my current location'),
                 ),
@@ -166,10 +185,12 @@ class _LocationSectionState extends State<LocationSection> {
                           initialCenter: pin ?? _iloilo,
                           initialZoom: pin != null ? 17 : 14,
                           // Tap anywhere to move the pin there
-                          onTap: (_, spot) => _setPin(spot, field, moveMap: false),
+                          onTap: (_, spot) =>
+                              _setPin(spot, field, moveMap: false),
                           // Page scrolling with the mouse wheel shouldn't zoom the map
                           interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.all &
+                            flags:
+                                InteractiveFlag.all &
                                 ~InteractiveFlag.scrollWheelZoom &
                                 ~InteractiveFlag.rotate,
                           ),
@@ -181,32 +202,45 @@ class _LocationSectionState extends State<LocationSection> {
                           ),
                           // Soft green circle around the pin
                           if (pin != null)
-                            CircleLayer(circles: [
-                              CircleMarker(
-                                point: pin,
-                                radius: 28,
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                borderColor: AppColors.primary.withValues(alpha: 0.3),
-                                borderStrokeWidth: 1,
-                              ),
-                            ]),
+                            CircleLayer(
+                              circles: [
+                                CircleMarker(
+                                  point: pin,
+                                  radius: 28,
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  borderColor: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  borderStrokeWidth: 1,
+                                ),
+                              ],
+                            ),
                           // The pin, with its tip on the exact spot
                           if (pin != null)
-                            MarkerLayer(markers: [
-                              Marker(
-                                point: pin,
-                                width: 220,
-                                height: 120,
-                                alignment: Alignment.topCenter,
-                                child: _PinWithBubble(
-                                  spot: pin,
-                                  showBubble: _showBubble,
-                                  onCloseBubble: () => setState(() => _showBubble = false),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: pin,
+                                  width: 220,
+                                  height: 120,
+                                  alignment: Alignment.topCenter,
+                                  child: _PinWithBubble(
+                                    spot: pin,
+                                    showBubble: _showBubble,
+                                    onCloseBubble: () =>
+                                        setState(() => _showBubble = false),
+                                  ),
                                 ),
-                              ),
-                            ]),
+                              ],
+                            ),
                           const RichAttributionWidget(
-                            attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                            attributions: [
+                              TextSourceAttribution(
+                                'OpenStreetMap contributors',
+                              ),
+                            ],
                           ),
                         ],
                       )
@@ -223,7 +257,10 @@ class _LocationSectionState extends State<LocationSection> {
                         child: Center(
                           child: Card(
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.sm,
+                              ),
                               child: Text('Tap the map to drop a pin'),
                             ),
                           ),
@@ -234,17 +271,27 @@ class _LocationSectionState extends State<LocationSection> {
                     Positioned(
                       right: AppSpacing.md,
                       bottom: AppSpacing.xl,
-                      child: Column(children: [
-                        _MapButton(icon: Icons.add, tooltip: 'Zoom in', onTap: () => _zoom(1)),
-                        const SizedBox(height: AppSpacing.sm),
-                        _MapButton(icon: Icons.remove, tooltip: 'Zoom out', onTap: () => _zoom(-1)),
-                        const SizedBox(height: AppSpacing.sm),
-                        _MapButton(
-                          icon: Icons.gps_fixed,
-                          tooltip: 'Go to my location',
-                          onTap: () => _useCurrentLocation(field),
-                        ),
-                      ]),
+                      child: Column(
+                        children: [
+                          _MapButton(
+                            icon: Icons.add,
+                            tooltip: 'Zoom in',
+                            onTap: () => _zoom(1),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _MapButton(
+                            icon: Icons.remove,
+                            tooltip: 'Zoom out',
+                            onTap: () => _zoom(-1),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _MapButton(
+                            icon: Icons.gps_fixed,
+                            tooltip: 'Go to my location',
+                            onTap: () => _useCurrentLocation(field),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -259,51 +306,99 @@ class _LocationSectionState extends State<LocationSection> {
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: const Row(children: [
-                  Icon(Icons.check_circle, color: AppColors.primary),
-                  SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text.rich(TextSpan(children: [
-                      TextSpan(text: 'Location set successfully! ',
-                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
-                      TextSpan(text: 'You can adjust the pin anytime.',
-                          style: TextStyle(color: AppColors.textMuted)),
-                    ])),
-                  ),
-                ]),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.primary),
+                    SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Location set successfully! ',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'You can adjust the pin anytime.',
+                              style: TextStyle(color: AppColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
             ],
 
             // Coordinate boxes; typing moves the pin
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: AppTextField(
-                  label: 'Latitude',
-                  hint: '10.720200',
-                  controller: d.latitude,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                  onChanged: (_) => _typed(field),
-                  validator: (v) => _coordinate(v, 90),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: AppTextField(
+                    label: 'Latitude',
+                    hint: '10.720200',
+                    controller: d.latitude,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    onChanged: (_) => _typed(field),
+                    validator: (v) => _coordinate(v, 90),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: AppTextField(
-                  label: 'Longitude',
-                  hint: '122.562100',
-                  controller: d.longitude,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                  onChanged: (_) => _typed(field),
-                  validator: (v) => _coordinate(v, 180),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: AppTextField(
+                    label: 'Longitude',
+                    hint: '122.562100',
+                    controller: d.longitude,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    onChanged: (_) => _typed(field),
+                    validator: (v) => _coordinate(v, 180),
+                  ),
                 ),
+              ],
+            ),
+
+            // Nearby OpenStreetMap duplicate check once the pin is set
+            if (pin != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              NearbyOsmListingsCard(
+                latitude: pin.latitude,
+                longitude: pin.longitude,
+                selectedListingId: d.claimedOsmListingId,
+                onSelectListing: (listing) {
+                  setState(() {
+                    d.claimedOsmListingId = listing?.id;
+                    if (listing != null && d.pharmacyName.text.trim().isEmpty) {
+                      d.pharmacyName.text = listing.name;
+                    }
+                    if (listing != null &&
+                        d.address.text.trim().isEmpty &&
+                        listing.address.isNotEmpty) {
+                      d.address.text = listing.address;
+                    }
+                  });
+                },
               ),
-            ]),
+            ],
 
             if (error != null && pin == null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(error, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                child: Text(
+                  error,
+                  style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                ),
               ),
           ],
         );
@@ -314,7 +409,11 @@ class _LocationSectionState extends State<LocationSection> {
 
 // The pin, with a "Selected Location" bubble above it
 class _PinWithBubble extends StatelessWidget {
-  const _PinWithBubble({required this.spot, required this.showBubble, required this.onCloseBubble});
+  const _PinWithBubble({
+    required this.spot,
+    required this.showBubble,
+    required this.onCloseBubble,
+  });
 
   final LatLng spot;
   final bool showBubble;
@@ -327,27 +426,52 @@ class _PinWithBubble extends StatelessWidget {
       children: [
         if (showBubble)
           Container(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.xs, AppSpacing.xs),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.xs,
+              AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppRadius.sm),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                const Text('Selected location',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                Text('${spot.latitude.toStringAsFixed(6)}, ${spot.longitude.toStringAsFixed(6)}',
-                    style: const TextStyle(fontSize: 12)),
-              ]),
-              IconButton(
-                tooltip: 'Hide',
-                visualDensity: VisualDensity.compact,
-                iconSize: 16,
-                onPressed: onCloseBubble,
-                icon: const Icon(Icons.close),
-              ),
-            ]),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Selected location',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '${spot.latitude.toStringAsFixed(6)}, ${spot.longitude.toStringAsFixed(6)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: 'Hide',
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 16,
+                  onPressed: onCloseBubble,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
           ),
         const Icon(Icons.location_pin, size: 40, color: AppColors.primary),
       ],
@@ -357,7 +481,11 @@ class _PinWithBubble extends StatelessWidget {
 
 // A small white square button on the map
 class _MapButton extends StatelessWidget {
-  const _MapButton({required this.icon, required this.tooltip, required this.onTap});
+  const _MapButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String tooltip;

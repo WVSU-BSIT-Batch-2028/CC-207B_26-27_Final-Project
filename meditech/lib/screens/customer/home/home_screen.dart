@@ -5,6 +5,9 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../models/pharmacy.dart';
 import '../../../models/reservation.dart';
+import '../../../models/osm_listing.dart';
+import '../../../providers/osm_listing_providers.dart';
+import '../pharmacy/osm_listing_details_screen.dart';
 import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../providers/session_providers.dart';
@@ -57,6 +60,8 @@ class HomeScreen extends ConsumerWidget {
     final branchesAsync = ref.watch(publicBranchesProvider);
     final hours = ref.watch(publicBranchHoursProvider).value;
     final browse = ref.watch(storeBrowseProvider);
+    final osmListings =
+        ref.watch(shownOsmListingsProvider).value ?? const <OsmListing>[];
 
     return ColoredBox(
       color: Colors.white,
@@ -188,15 +193,18 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            ...active.take(3).map(
-              (reservation) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _ActiveReservationCard(
-                  reservation: reservation,
-                  onTap: () => onOpenReservationDetails?.call(reservation.id),
+            ...active
+                .take(3)
+                .map(
+                  (reservation) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _ActiveReservationCard(
+                      reservation: reservation,
+                      onTap: () =>
+                          onOpenReservationDetails?.call(reservation.id),
+                    ),
+                  ),
                 ),
-              ),
-            ),
             const SizedBox(height: AppSpacing.md),
           ],
           const Text(
@@ -243,7 +251,7 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           AsyncView<List<PharmacyDetail>>(
             value: branchesAsync,
-            isEmpty: (items) => items.isEmpty,
+            isEmpty: (items) => items.isEmpty && osmListings.isEmpty,
             emptyMessage: 'No approved pharmacies are listed yet.',
             onRetry: () => ref.invalidate(publicBranchesProvider),
             builder: (branches) {
@@ -253,7 +261,8 @@ class HomeScreen extends ConsumerWidget {
                 openNow: browse.openNow,
                 sort: browse.sort,
               );
-              if (visible.isEmpty) {
+              final showOsm = !browse.openNow && osmListings.isNotEmpty;
+              if (visible.isEmpty && !showOsm) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
                   child: Text(
@@ -273,6 +282,47 @@ class HomeScreen extends ConsumerWidget {
                       onTap: () => onOpenPharmacy?.call(visible[i]),
                     ),
                   ],
+                  if (showOsm) ...[
+                    if (visible.isNotEmpty)
+                      const SizedBox(height: AppSpacing.lg),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'More pharmacies nearby',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (var i = 0; i < osmListings.length; i++) ...[
+                      if (i > 0) const SizedBox(height: AppSpacing.sm),
+                      BrowseStoreCard(
+                        name: osmListings[i].name,
+                        addressLine: _osmAddressLine(osmListings[i]),
+                        isRegistered: false,
+                        onTap: () {
+                          if (GoRouter.maybeOf(context) != null) {
+                            context.push(
+                              '/osm-listing/${osmListings[i].id}',
+                              extra: osmListings[i],
+                            );
+                          } else {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => OsmListingDetailsScreen(
+                                  listingId: osmListings[i].id,
+                                  initialListing: osmListings[i],
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ],
                 ],
               );
             },
@@ -290,6 +340,19 @@ String _addressLine(PharmacyDetail branch) {
   final km = _kilometers(branch);
   if (km == null) return branch.address;
   return '${branch.address} • ${km.toStringAsFixed(1)} km';
+}
+
+String _osmAddressLine(OsmListing listing) {
+  final base = listing.address.isNotEmpty
+      ? listing.address
+      : 'Location from OpenStreetMap';
+  if (listing.latitude == 0 && listing.longitude == 0) return base;
+  final km = _distance.as(
+    LengthUnit.Kilometer,
+    _iloilo,
+    LatLng(listing.latitude, listing.longitude),
+  );
+  return '$base • ${km.toStringAsFixed(1)} km';
 }
 
 double? _kilometers(PharmacyDetail branch) {
@@ -434,9 +497,10 @@ class StoreBrowseNotifier extends Notifier<StoreBrowseState> {
   void setSort(StoreSort sort) => state = state.copyWith(sort: sort);
 }
 
-final storeBrowseProvider = NotifierProvider<StoreBrowseNotifier, StoreBrowseState>(
-  StoreBrowseNotifier.new,
-);
+final storeBrowseProvider =
+    NotifierProvider<StoreBrowseNotifier, StoreBrowseState>(
+      StoreBrowseNotifier.new,
+    );
 
 class _CircleAction extends StatelessWidget {
   const _CircleAction({
@@ -495,7 +559,9 @@ class _FilterPill extends StatelessWidget {
     return Material(
       color: selected ? AppColors.primary : Colors.white,
       shape: StadiumBorder(
-        side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.border,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -524,10 +590,7 @@ class _FilterPill extends StatelessWidget {
 }
 
 class _GuestBanner extends StatelessWidget {
-  const _GuestBanner({
-    required this.onSignIn,
-    required this.onCreateAccount,
-  });
+  const _GuestBanner({required this.onSignIn, required this.onCreateAccount});
 
   final VoidCallback onSignIn;
   final VoidCallback onCreateAccount;
@@ -594,10 +657,7 @@ class _GuestBanner extends StatelessWidget {
 }
 
 class _ActiveReservationCard extends StatelessWidget {
-  const _ActiveReservationCard({
-    required this.reservation,
-    this.onTap,
-  });
+  const _ActiveReservationCard({required this.reservation, this.onTap});
 
   final CustomerReservation reservation;
   final VoidCallback? onTap;

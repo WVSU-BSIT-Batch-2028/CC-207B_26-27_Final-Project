@@ -46,10 +46,16 @@ class BrowseStoreCard extends StatelessWidget {
                 child: Container(
                   width: 64,
                   height: 64,
-                  color: AppColors.primaryLight,
-                  child: const Icon(
-                    Icons.local_pharmacy,
-                    color: AppColors.primary,
+                  color: isRegistered
+                      ? AppColors.primaryLight
+                      : AppColors.neutralLight,
+                  child: Icon(
+                    isRegistered
+                        ? Icons.local_pharmacy
+                        : Icons.local_pharmacy_outlined,
+                    color: isRegistered
+                        ? AppColors.primary
+                        : AppColors.textMuted,
                     size: 28,
                   ),
                 ),
@@ -67,28 +73,34 @@ class BrowseStoreCard extends StatelessWidget {
                         color: AppColors.text,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, size: 14, color: Color(0xFFF5A623)),
-                        const SizedBox(width: 2),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
+                    if (isRegistered) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: Color(0xFFF5A623),
                           ),
-                        ),
-                        Text(
-                          ' ($reviewCount)',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
+                          const SizedBox(width: 2),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          Text(
+                            ' ($reviewCount)',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     Text(
                       addressLine,
@@ -104,19 +116,26 @@ class BrowseStoreCard extends StatelessWidget {
                       spacing: AppSpacing.sm,
                       runSpacing: AppSpacing.xs,
                       children: [
-                        _Pill(
-                          label: isOpen ? 'Open' : 'Closed',
-                          background: isOpen
-                              ? AppColors.primaryLight
-                              : AppColors.dangerLight,
-                          foreground:
-                              isOpen ? AppColors.primary : AppColors.danger,
-                        ),
-                        if (isRegistered)
+                        if (isRegistered) ...[
+                          _Pill(
+                            label: isOpen ? 'Open' : 'Closed',
+                            background: isOpen
+                                ? AppColors.primaryLight
+                                : AppColors.dangerLight,
+                            foreground: isOpen
+                                ? AppColors.primary
+                                : AppColors.danger,
+                          ),
                           const _Pill(
                             label: 'Registered on MediTech',
                             background: AppColors.primaryLight,
                             foreground: AppColors.primary,
+                          ),
+                        ] else
+                          const _Pill(
+                            label: 'Not on MediTech',
+                            background: AppColors.neutralLight,
+                            foreground: AppColors.textMuted,
                           ),
                       ],
                     ),
