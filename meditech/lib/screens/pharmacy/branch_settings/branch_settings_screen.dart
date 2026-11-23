@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../models/branch_settings.dart';
 import '../../../providers/branch_settings_providers.dart';
+import '../../../utils/app_failure.dart';
+import '../../../utils/pick_profile_image.dart';
 import '../../../providers/pharmacy_staff_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
@@ -28,6 +30,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
 
   DateTime? _prcExpiry;
   bool _isSaving = false;
+  bool _storefrontUploading = false;
   bool _initialized = false;
 
   @override
@@ -47,6 +50,39 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     _prcNumberController.text = settings.ownerPrcLicense ?? '';
     _prcExpiry = settings.ownerPrcExpiry;
     _initialized = true;
+  }
+
+  String _mimeFromFileName(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  Future<void> _uploadStorefront() async {
+    final picked = await pickProfileImageBytes(context);
+    if (picked == null || !mounted) return;
+
+    setState(() => _storefrontUploading = true);
+    try {
+      await ref.read(branchStorefrontServiceProvider).uploadStorefront(
+            fileName: picked.fileName,
+            bytes: picked.bytes,
+            mimeType: _mimeFromFileName(picked.fileName),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Storefront photo updated. Customers will see it on your branch page.')),
+      );
+    } on AppFailure catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _storefrontUploading = false);
+    }
   }
 
   Future<void> _save(BranchSettings settings) async {
@@ -149,6 +185,34 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                             context.push('/change-password');
                           }
                         },
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
+
+                    if (isOwner) ...[
+                      PharmacySettingsSectionCard(
+                        title: 'Storefront photo',
+                        children: [
+                          const Text(
+                            'Shown at the top of your branch page in the patient app.',
+                            style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: FilledButton.icon(
+                              onPressed: _storefrontUploading ? null : _uploadStorefront,
+                              icon: _storefrontUploading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.photo_camera_outlined, size: 18),
+                              label: const Text('Upload storefront photo'),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.xl),
                     ],

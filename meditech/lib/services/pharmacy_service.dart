@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/pharmacy.dart';
+import 'medicine_image_fallback.dart';
 
 // Talks to Supabase for approved pharmacy branch details, hours, and inventory
 class PharmacyService {
@@ -99,10 +100,38 @@ class PharmacyService {
     );
 
     final rows = response as List<dynamic>;
-    return rows
+    final items = rows
         .map(
           (row) => PharmacyInventoryItem.fromJson(row as Map<String, dynamic>),
         )
         .toList();
+
+    final missing =
+        items.where((i) => i.imagePath == null || i.imagePath!.isEmpty).map((i) => i.medicineId);
+    final paths = await medicineImagePathsById(_client, missing);
+    if (paths.isEmpty) return items;
+
+    return [
+      for (final i in items)
+        if (paths[i.medicineId] != null && (i.imagePath == null || i.imagePath!.isEmpty))
+          PharmacyInventoryItem(
+            inventoryId: i.inventoryId,
+            medicineId: i.medicineId,
+            medicineDisplayId: i.medicineDisplayId,
+            brandName: i.brandName,
+            genericName: i.genericName,
+            strength: i.strength,
+            dosageForm: i.dosageForm,
+            unitSold: i.unitSold,
+            packDescription: i.packDescription,
+            isRx: i.isRx,
+            pricePerUnit: i.pricePerUnit,
+            availability: i.availability,
+            stockConfirmedAt: i.stockConfirmedAt,
+            imagePath: paths[i.medicineId],
+          )
+        else
+          i,
+    ];
   }
 }

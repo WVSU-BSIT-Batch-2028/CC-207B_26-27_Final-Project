@@ -12,6 +12,7 @@ import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../pharmacy/pharmacy_details_screen.dart';
+import '../../../utils/public_media_urls.dart';
 import '../../../widgets/common/medicine_card.dart';
 
 // Filters the pharmacy list on the medicine screen. Null shows every offer.
@@ -122,6 +123,19 @@ class MedicineDetailsScreen extends ConsumerWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (medicineImagePublicUrl(medicine.imagePath) != null) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            child: Image.network(
+                              medicineImagePublicUrl(medicine.imagePath)!,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

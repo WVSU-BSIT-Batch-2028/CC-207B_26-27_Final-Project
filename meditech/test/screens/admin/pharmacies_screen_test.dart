@@ -40,7 +40,7 @@ void main() {
 
     expect(find.text('Demo Waiting Pharmacy'), findsOneWidget);
     expect(find.text('Rosa Villareal'), findsOneWidget);
-    expect(find.text('Pending'), findsWidgets); // the tab and the badge
+    expect(find.text('Pending Approval'), findsWidgets);
   });
 
   // Long names, every status, and several pages on narrow windows: no overflow

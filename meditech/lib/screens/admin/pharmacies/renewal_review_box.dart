@@ -9,6 +9,8 @@ import '../../../providers/lto_renewal_providers.dart';
 import '../../../services/lto_renewal_service.dart';
 import '../../../widgets/dialogs/confirm_dialog.dart';
 import '../../../widgets/dialogs/reason_dialog.dart';
+import '../../../widgets/tablet/tablet_controls.dart';
+import '../../../widgets/tablet/tablet_dialogs.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -42,9 +44,10 @@ class _RenewalReviewBoxState extends ConsumerState<RenewalReviewBox> {
       final link = await ref.read(ltoRenewalServiceProvider).fileLink(r.storagePath);
       if (!mounted) return;
       if (r.isImage) {
-        await showDialog<void>(
+        await showTabletImageViewer(
           context: context,
-          builder: (_) => Dialog(child: InteractiveViewer(child: Image.network(link))),
+          imageUrl: link,
+          title: 'Renewed LTO',
         );
       } else {
         await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
@@ -130,10 +133,7 @@ class _RenewalReviewBoxState extends ConsumerState<RenewalReviewBox> {
           Expanded(
             child: OutlinedButton(
               onPressed: _busy ? null : () => _reject(r),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.danger,
-                side: const BorderSide(color: AppColors.danger),
-              ),
+              style: TabletControls.dangerOutlined(),
               child: const Text('Reject'),
             ),
           ),
@@ -141,6 +141,7 @@ class _RenewalReviewBoxState extends ConsumerState<RenewalReviewBox> {
           Expanded(
             child: FilledButton(
               onPressed: _busy ? null : () => _accept(r),
+              style: TabletControls.actionFilled(),
               child: const Text('Accept'),
             ),
           ),

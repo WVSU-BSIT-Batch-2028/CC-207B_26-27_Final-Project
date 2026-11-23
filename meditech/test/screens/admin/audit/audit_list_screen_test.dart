@@ -18,7 +18,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('AUD-000001'), findsOneWidget);
-    expect(find.text('sign_in · Signed in'), findsOneWidget);
+    expect(find.text('Sign-in'), findsOneWidget);
+    expect(find.text('Signed in'), findsOneWidget);
+    expect(find.text('Demo Admin'), findsOneWidget);
   });
 }
 

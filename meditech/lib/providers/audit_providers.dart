@@ -15,3 +15,13 @@ final auditDetailProvider =
     FutureProvider.family<AuditRecord?, String>((ref, id) {
   return ref.watch(auditServiceProvider).loadOne(id);
 });
+
+class SelectedAuditController extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? id) => state = id;
+}
+
+final selectedAuditProvider =
+    NotifierProvider<SelectedAuditController, String?>(SelectedAuditController.new);

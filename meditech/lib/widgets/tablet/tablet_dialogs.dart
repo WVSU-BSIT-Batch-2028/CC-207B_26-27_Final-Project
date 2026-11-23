@@ -414,3 +414,109 @@ Future<void> showTabletMessageDialog({
     },
   );
 }
+
+// Zoomable preview for an uploaded photo (LTO scan, storefront, etc.)
+Future<void> showTabletImageViewer({
+  required BuildContext context,
+  required String imageUrl,
+  String title = 'Document preview',
+}) {
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (dialogContext) {
+      final size = MediaQuery.sizeOf(dialogContext);
+      final maxW = (size.width * 0.88).clamp(360.0, 760.0);
+      final maxDialogH = (size.height - 48).clamp(320.0, 720.0);
+
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.white,
+          child: SizedBox(
+            width: maxW,
+            height: maxDialogH,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 4, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ColoredBox(
+                    color: const Color(0xFFF3F4F6),
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4,
+                      child: Center(
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(child: CircularProgressIndicator());
+                          },
+                          errorBuilder: (_, _, _) => const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'Could not load this image.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Color(0xFF6B7280)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      side: const BorderSide(color: Color(0xFFD1D5DB)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}

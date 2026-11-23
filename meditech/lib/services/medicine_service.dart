@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/medicine.dart';
+import 'medicine_image_fallback.dart';
 
 // Talks to Supabase to search medicines and load pharmacy offers
 class MedicineService {
@@ -33,9 +34,35 @@ class MedicineService {
     );
 
     final rows = response as List<dynamic>;
-    return rows
+    final results = rows
         .map((row) => MedicineSearchResult.fromJson(row as Map<String, dynamic>))
         .toList();
+
+    final missing =
+        results.where((m) => m.imagePath == null || m.imagePath!.isEmpty).map((m) => m.medicineId);
+    final paths = await medicineImagePathsById(_client, missing);
+    if (paths.isEmpty) return results;
+
+    return [
+      for (final m in results)
+        if (paths[m.medicineId] != null && (m.imagePath == null || m.imagePath!.isEmpty))
+          MedicineSearchResult(
+            medicineId: m.medicineId,
+            displayId: m.displayId,
+            brandName: m.brandName,
+            genericName: m.genericName,
+            strength: m.strength,
+            dosageForm: m.dosageForm,
+            unitSold: m.unitSold,
+            isRx: m.isRx,
+            lowestPrice: m.lowestPrice,
+            pharmacyCount: m.pharmacyCount,
+            nearestKm: m.nearestKm,
+            imagePath: paths[m.medicineId],
+          )
+        else
+          m,
+    ];
   }
 
   // Loads approved pharmacy offers for a single medicine
