@@ -93,6 +93,10 @@ class AppointmentService {
       if (role == UserRole.patient) {
         // Required by the Firestore security rules.
         query = query.where('patientId', isEqualTo: uid);
+      } else {
+        // A doctor only sees the appointments assigned to them.
+        // Required by the Firestore security rules.
+        query = query.where('doctorId', isEqualTo: uid);
       }
 
       final snapshot = await query.get();
@@ -134,6 +138,7 @@ class AppointmentService {
   /// Creates an appointment for the currently signed-in patient.
   Future<Appointment> createAppointment({
     required String title,
+    required String doctorId,
     required String doctorName,
     required String specialty,
     required DateTime dateTime,
@@ -190,6 +195,7 @@ class AppointmentService {
         title: title,
         patientName: resolvedPatientName,
         patientId: uid,
+        doctorId: doctorId,
         doctorName: doctorName,
         specialty: specialty,
         dateTime: dateTime,
@@ -307,6 +313,7 @@ class AppointmentService {
       return _copyAppointment(
         appointment,
         title: 'Consultation with ${request.doctorName}',
+        doctorId: request.doctorId,
         doctorName: request.doctorName,
         specialty: request.specialty,
         dateTime: request.dateTime,
@@ -471,6 +478,7 @@ class AppointmentService {
   /// the request. Every submitted request consumes one edit request.
   Future<Appointment> requestAppointmentChange({
     required String appointmentId,
+    required String doctorId,
     required String doctorName,
     required String specialty,
     required DateTime dateTime,
@@ -511,6 +519,7 @@ class AppointmentService {
       }
 
       final request = AppointmentChangeRequest(
+        doctorId: doctorId,
         doctorName: doctorName,
         specialty: specialty,
         dateTime: dateTime,
@@ -647,6 +656,7 @@ class AppointmentService {
       'title': appointment.title,
       'patientId': appointment.patientId,
       'patientName': appointment.patientName,
+      'doctorId': appointment.doctorId,
       'doctorName': appointment.doctorName,
       'specialty': appointment.specialty,
       'dateTime': Timestamp.fromDate(appointment.dateTime),
@@ -671,6 +681,7 @@ class AppointmentService {
     AppointmentChangeRequest request,
   ) {
     return {
+      'doctorId': request.doctorId,
       'doctorName': request.doctorName,
       'specialty': request.specialty,
       'dateTime': Timestamp.fromDate(request.dateTime),
@@ -705,6 +716,7 @@ class AppointmentService {
       title: data['title'] as String? ?? 'Consultation',
       patientName: data['patientName'] as String?,
       patientId: data['patientId'] as String?,
+      doctorId: data['doctorId'] as String?,
       doctorName: data['doctorName'] as String? ?? 'Doctor',
       specialty: data['specialty'] as String? ?? 'General Consultation',
       dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
@@ -733,6 +745,7 @@ class AppointmentService {
     Map<String, dynamic> data,
   ) {
     return AppointmentChangeRequest(
+      doctorId: data['doctorId'] as String?,
       doctorName: data['doctorName'] as String? ?? '',
       specialty: data['specialty'] as String? ?? '',
       dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
@@ -794,6 +807,7 @@ class AppointmentService {
   Appointment _copyAppointment(
     Appointment appointment, {
     String? title,
+    String? doctorId,
     String? doctorName,
     String? specialty,
     DateTime? dateTime,
@@ -812,6 +826,7 @@ class AppointmentService {
     return Appointment(
       id: appointment.id,
       title: title ?? appointment.title,
+      doctorId: doctorId ?? appointment.doctorId,
       doctorName: doctorName ?? appointment.doctorName,
       specialty: specialty ?? appointment.specialty,
       dateTime: dateTime ?? appointment.dateTime,
@@ -837,6 +852,7 @@ class AppointmentService {
     required ChangeRequestStatus status,
   }) {
     return AppointmentChangeRequest(
+      doctorId: request.doctorId,
       doctorName: request.doctorName,
       specialty: request.specialty,
       dateTime: request.dateTime,
