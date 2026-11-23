@@ -19,7 +19,6 @@ enum ChangeRequestStatus {
 /// These changes do not replace the original appointment until approved
 /// by the doctor.
 class AppointmentChangeRequest {
-  /// Creates a request containing the proposed booking details.
   const AppointmentChangeRequest({
     required this.doctorName,
     required this.specialty,
@@ -29,8 +28,12 @@ class AppointmentChangeRequest {
     required this.consultationFee,
     required this.reminderEnabled,
     required this.requestedAt,
+    this.doctorId,
     this.status = ChangeRequestStatus.pending,
   });
+
+  /// Firebase UID of the requested doctor.
+  final String? doctorId;
 
   final String doctorName;
   final String specialty;
@@ -47,7 +50,6 @@ class AppointmentChangeRequest {
 ///
 /// Shared by the patient and doctor appointment modules.
 class Appointment {
-  /// Creates an appointment with its basic information and optional details.
   const Appointment({
     required this.id,
     required this.title,
@@ -55,6 +57,7 @@ class Appointment {
     required this.specialty,
     required this.dateTime,
     required this.location,
+    this.doctorId,
     this.isVideo = false,
     this.status = AppointmentStatus.confirmed,
     this.consultationFee,
@@ -70,6 +73,13 @@ class Appointment {
 
   final String id;
   final String title;
+
+  /// Firebase UID of the doctor assigned to this appointment.
+  ///
+  /// Nullable to support existing appointment records created before
+  /// doctor-specific assignment was implemented.
+  final String? doctorId;
+
   final String doctorName;
   final String specialty;
   final DateTime dateTime;

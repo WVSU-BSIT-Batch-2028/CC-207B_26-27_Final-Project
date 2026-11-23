@@ -19,7 +19,14 @@ import 'widgets/patient_record_tab_bar.dart';
 
 /// The screens that live inside the Patients tab. The enum order is the same
 /// as the IndexedStack children below.
-enum _PatientsPage { list, details, records, labResults, prescriptions, addPrescription }
+enum _PatientsPage {
+  list,
+  details,
+  records,
+  labResults,
+  prescriptions,
+  addPrescription
+}
 
 /// Doctor Patients tab. [onBack] switches the app to the Home tab.
 class DoctorPatientsTab extends StatefulWidget {
@@ -73,11 +80,13 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
   }
 
   /// "Add Prescription" was tapped: show the form.
-  void _addPrescription() => setState(() => _page = _PatientsPage.addPrescription);
+  void _addPrescription() =>
+      setState(() => _page = _PatientsPage.addPrescription);
 
   /// Back from the form, or after a prescription was saved: show the
   /// prescriptions list again (it loads fresh, so the new one is in it).
-  void _backToPrescriptions() => setState(() => _page = _PatientsPage.prescriptions);
+  void _backToPrescriptions() =>
+      setState(() => _page = _PatientsPage.prescriptions);
 
   /// A lab result card was tapped: open the "Lab Results" popup (View Lab
   /// Results). It is the same popup the patient sees, so it is reused.

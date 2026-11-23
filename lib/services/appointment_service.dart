@@ -49,7 +49,6 @@ class AppointmentService {
 
   Future<void> _requireRole(UserRole requiredRole) async {
     final uid = _requireSignedIn();
-
     final role = await _authService.getUserRole(uid);
 
     if (role != requiredRole) {
@@ -57,6 +56,28 @@ class AppointmentService {
         requiredRole == UserRole.doctor
             ? 'Only doctors can perform this action.'
             : 'Only patients can perform this action.',
+      );
+    }
+  }
+
+  /// Verifies that the selected Firebase account is a registered doctor.
+  Future<void> _requireRegisteredDoctor(String doctorId) async {
+    final normalizedId = doctorId.trim();
+
+    if (normalizedId.isEmpty) {
+      throw const AppointmentException(
+        'Please select a valid registered doctor.',
+      );
+    }
+
+    final doctorDocument =
+        await _firestore.collection('users').doc(normalizedId).get();
+
+    final doctorData = doctorDocument.data();
+
+    if (!doctorDocument.exists || doctorData?['role'] != 'doctor') {
+      throw const AppointmentException(
+        'The selected doctor is not a registered doctor.',
       );
     }
   }
@@ -75,8 +96,7 @@ class AppointmentService {
   // Fetch appointments
   // ---------------------------------------------------------------------------
 
-  /// Retrieves appointments belonging to the signed-in patient or all
-  /// appointments when accessed by a doctor.
+  /// Retrieves only appointments belonging to the signed-in account.
   Future<List<Appointment>> fetchAppointments() async {
     if (DashboardService.instance.scenario == DemoScenario.error) {
       throw const AppointmentException(
@@ -91,8 +111,13 @@ class AppointmentService {
       Query<Map<String, dynamic>> query = _appointments;
 
       if (role == UserRole.patient) {
-        // Required by the Firestore security rules.
         query = query.where('patientId', isEqualTo: uid);
+      } else if (role == UserRole.doctor) {
+        query = query.where('doctorId', isEqualTo: uid);
+      } else {
+        throw const AppointmentException(
+          'Your account does not have permission to access appointments.',
+        );
       }
 
       final snapshot = await query.get();
@@ -134,6 +159,7 @@ class AppointmentService {
   /// Creates an appointment for the currently signed-in patient.
   Future<Appointment> createAppointment({
     required String title,
+    required String doctorId,
     required String doctorName,
     required String specialty,
     required DateTime dateTime,
@@ -168,6 +194,8 @@ class AppointmentService {
     }
 
     try {
+      await _requireRegisteredDoctor(doctorId);
+
       final userDocument = await _firestore.collection('users').doc(uid).get();
 
       final accountName = userDocument.data()?['fullName'] as String?;
@@ -182,7 +210,6 @@ class AppointmentService {
                       : patientName;
 
       final bookedAt = DateTime.now();
-
       final document = _appointments.doc();
 
       final appointment = Appointment(
@@ -190,6 +217,7 @@ class AppointmentService {
         title: title,
         patientName: resolvedPatientName,
         patientId: uid,
+        doctorId: doctorId.trim(),
         doctorName: doctorName,
         specialty: specialty,
         dateTime: dateTime,
@@ -307,6 +335,7 @@ class AppointmentService {
       return _copyAppointment(
         appointment,
         title: 'Consultation with ${request.doctorName}',
+        doctorId: request.doctorId,
         doctorName: request.doctorName,
         specialty: request.specialty,
         dateTime: request.dateTime,
@@ -471,6 +500,7 @@ class AppointmentService {
   /// the request. Every submitted request consumes one edit request.
   Future<Appointment> requestAppointmentChange({
     required String appointmentId,
+    required String doctorId,
     required String doctorName,
     required String specialty,
     required DateTime dateTime,
@@ -482,51 +512,69 @@ class AppointmentService {
     await _prepareManagementAction();
     await _requireRole(UserRole.patient);
 
-    return _updateAppointment(appointmentId, (appointment) {
-      _ensureWithinChangeRequestWindow(appointment);
-      _ensureUpcoming(appointment);
+    try {
+      await _requireRegisteredDoctor(doctorId);
 
-      if (appointment.status == AppointmentStatus.cancelled) {
-        throw const AppointmentException(
-          'A cancelled appointment cannot be edited.',
+      return await _updateAppointment(appointmentId, (appointment) {
+        _ensureWithinChangeRequestWindow(appointment);
+        _ensureUpcoming(appointment);
+
+        if (appointment.status == AppointmentStatus.cancelled) {
+          throw const AppointmentException(
+            'A cancelled appointment cannot be edited.',
+          );
+        }
+
+        if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
+          throw const AppointmentException(
+            'You already have a change request waiting for doctor approval.',
+          );
+        }
+
+        if (appointment.editRequestCount >= maximumEditRequests) {
+          throw const AppointmentException(
+            'You have used both allowed edit requests for this appointment.',
+          );
+        }
+
+        if (!dateTime.isAfter(DateTime.now())) {
+          throw const AppointmentException(
+            'The requested appointment date and time must be in the future.',
+          );
+        }
+
+        final request = AppointmentChangeRequest(
+          doctorId: doctorId.trim(),
+          doctorName: doctorName,
+          specialty: specialty,
+          dateTime: dateTime,
+          location: location,
+          isVideo: isVideo,
+          consultationFee: consultationFee,
+          reminderEnabled: reminderEnabled,
+          requestedAt: DateTime.now(),
         );
-      }
 
-      if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
-        throw const AppointmentException(
-          'You already have a change request waiting for doctor approval.',
+        return _copyAppointment(
+          appointment,
+          changeRequest: request,
+          editRequestCount: appointment.editRequestCount + 1,
         );
-      }
-
-      if (appointment.editRequestCount >= maximumEditRequests) {
-        throw const AppointmentException(
-          'You have used both allowed edit requests for this appointment.',
-        );
-      }
-
-      if (!dateTime.isAfter(DateTime.now())) {
-        throw const AppointmentException(
-          'The requested appointment date and time must be in the future.',
-        );
-      }
-
-      final request = AppointmentChangeRequest(
-        doctorName: doctorName,
-        specialty: specialty,
-        dateTime: dateTime,
-        location: location,
-        isVideo: isVideo,
-        consultationFee: consultationFee,
-        reminderEnabled: reminderEnabled,
-        requestedAt: DateTime.now(),
+      });
+    } on AppointmentException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw AppointmentException(
+        _firebaseErrorMessage(
+          e,
+          "We couldn't update the appointment. Please try again.",
+        ),
       );
-
-      return _copyAppointment(
-        appointment,
-        changeRequest: request,
-        editRequestCount: appointment.editRequestCount + 1,
+    } catch (_) {
+      throw const AppointmentException(
+        "We couldn't update the appointment. Please try again.",
       );
-    });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -535,13 +583,39 @@ class AppointmentService {
 
   /// Reads, validates, and updates an appointment atomically.
   ///
-  /// A transaction prevents simultaneous requests from overwriting each
-  /// other's changes or bypassing the edit-request limit.
+  /// Verifies that the signed-in patient or assigned doctor owns
+  /// the appointment before applying any changes.
+  ///
+  /// The transaction prevents simultaneous requests from overwriting
+  /// each other's changes or bypassing the edit-request limit.
   Future<Appointment> _updateAppointment(
     String appointmentId,
     Appointment Function(Appointment appointment) update,
   ) async {
     try {
+      final uid = _requireSignedIn();
+      final role = await _authService.getUserRole(uid);
+
+      if (role != UserRole.patient && role != UserRole.doctor) {
+        throw const AppointmentException(
+          'Your account does not have permission to update appointments.',
+        );
+      }
+
+      // Resolve the linked patient ID if the account uses one.
+      String? linkedPatientId;
+
+      if (role == UserRole.patient) {
+        final userDocument =
+            await _firestore.collection('users').doc(uid).get();
+
+        final patientIdValue = userDocument.data()?['patientId'];
+
+        if (patientIdValue is String) {
+          linkedPatientId = patientIdValue;
+        }
+      }
+
       final reference = _appointments.doc(appointmentId);
 
       return await _firestore.runTransaction<Appointment>(
@@ -558,6 +632,28 @@ class AppointmentService {
             snapshot.id,
             snapshot.data()!,
           );
+
+          // Patients may update only appointments linked to their account.
+          if (role == UserRole.patient) {
+            final ownsAppointment = appointment.patientId == uid ||
+                (linkedPatientId != null &&
+                    appointment.patientId == linkedPatientId);
+
+            if (!ownsAppointment) {
+              throw const AppointmentException(
+                'You do not have permission to update this appointment.',
+              );
+            }
+          }
+
+          // Doctors may update only appointments assigned to their UID.
+          if (role == UserRole.doctor) {
+            if (appointment.doctorId != uid) {
+              throw const AppointmentException(
+                'You are not the doctor assigned to this appointment.',
+              );
+            }
+          }
 
           final updatedAppointment = update(appointment);
 
@@ -647,6 +743,7 @@ class AppointmentService {
       'title': appointment.title,
       'patientId': appointment.patientId,
       'patientName': appointment.patientName,
+      'doctorId': appointment.doctorId,
       'doctorName': appointment.doctorName,
       'specialty': appointment.specialty,
       'dateTime': Timestamp.fromDate(appointment.dateTime),
@@ -671,6 +768,7 @@ class AppointmentService {
     AppointmentChangeRequest request,
   ) {
     return {
+      'doctorId': request.doctorId,
       'doctorName': request.doctorName,
       'specialty': request.specialty,
       'dateTime': Timestamp.fromDate(request.dateTime),
@@ -705,6 +803,7 @@ class AppointmentService {
       title: data['title'] as String? ?? 'Consultation',
       patientName: data['patientName'] as String?,
       patientId: data['patientId'] as String?,
+      doctorId: data['doctorId'] as String?,
       doctorName: data['doctorName'] as String? ?? 'Doctor',
       specialty: data['specialty'] as String? ?? 'General Consultation',
       dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
@@ -733,6 +832,7 @@ class AppointmentService {
     Map<String, dynamic> data,
   ) {
     return AppointmentChangeRequest(
+      doctorId: data['doctorId'] as String?,
       doctorName: data['doctorName'] as String? ?? '',
       specialty: data['specialty'] as String? ?? '',
       dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
@@ -794,6 +894,7 @@ class AppointmentService {
   Appointment _copyAppointment(
     Appointment appointment, {
     String? title,
+    String? doctorId,
     String? doctorName,
     String? specialty,
     DateTime? dateTime,
@@ -812,6 +913,7 @@ class AppointmentService {
     return Appointment(
       id: appointment.id,
       title: title ?? appointment.title,
+      doctorId: doctorId ?? appointment.doctorId,
       doctorName: doctorName ?? appointment.doctorName,
       specialty: specialty ?? appointment.specialty,
       dateTime: dateTime ?? appointment.dateTime,
@@ -837,6 +939,7 @@ class AppointmentService {
     required ChangeRequestStatus status,
   }) {
     return AppointmentChangeRequest(
+      doctorId: request.doctorId,
       doctorName: request.doctorName,
       specialty: request.specialty,
       dateTime: request.dateTime,

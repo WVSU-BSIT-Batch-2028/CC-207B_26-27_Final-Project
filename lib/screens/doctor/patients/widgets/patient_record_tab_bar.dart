@@ -21,7 +21,8 @@ enum PatientRecordTab {
 /// others are outlined. A [Wrap] is used so the pills move to a second line
 /// instead of overflowing when the text size is Large or Extra large.
 class PatientRecordTabBar extends StatelessWidget {
-  const PatientRecordTabBar({super.key, required this.selected, required this.onChanged});
+  const PatientRecordTabBar(
+      {super.key, required this.selected, required this.onChanged});
 
   /// The tab that is currently active.
   final PatientRecordTab selected;
@@ -48,7 +49,9 @@ class PatientRecordTabBar extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
-            side: BorderSide(color: tab == selected ? AppColors.brandNavy : AppColors.border),
+            side: BorderSide(
+                color:
+                    tab == selected ? AppColors.brandNavy : AppColors.border),
           ),
       ],
     );

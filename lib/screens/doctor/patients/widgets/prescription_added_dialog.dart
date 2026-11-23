@@ -29,7 +29,10 @@ class PrescriptionAddedDialog extends StatelessWidget {
               // Small heading
               Text(
                 'Confirmation',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -39,11 +42,15 @@ class PrescriptionAddedDialog extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Prescription added successfully',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navy),
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 32),
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppColors.success, size: 32),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),

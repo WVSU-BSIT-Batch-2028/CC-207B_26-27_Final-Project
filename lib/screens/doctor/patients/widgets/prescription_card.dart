@@ -38,7 +38,8 @@ class PrescriptionCard extends StatelessWidget {
               color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(Icons.medication_outlined, color: AppColors.primary, size: 28),
+            child: Icon(Icons.medication_outlined,
+                color: AppColors.primary, size: 28),
           ),
           const SizedBox(width: AppSpacing.md),
 
@@ -49,12 +50,18 @@ class PrescriptionCard extends StatelessWidget {
               children: [
                 Text(
                   p.title,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   p.instructionText,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
                 ),
                 Text(
                   _dateLine,
@@ -64,7 +71,8 @@ class PrescriptionCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Note: $note',
-                    style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    style:
+                        TextStyle(fontSize: 14, color: AppColors.textPrimary),
                   ),
                 ],
               ],

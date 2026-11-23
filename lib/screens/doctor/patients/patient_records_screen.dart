@@ -64,7 +64,8 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final record = await PatientsService.instance.fetchPatientRecord(widget.patient.id);
+      final record =
+          await PatientsService.instance.fetchPatientRecord(widget.patient.id);
       // The doctor may have left the screen while we waited.
       if (!mounted) return;
       setState(() {
@@ -81,7 +82,8 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
   }
 
   /// "None" when the list is empty, otherwise the items joined with commas.
-  String _listOrNone(List<String> items) => items.isEmpty ? 'None' : items.join(', ');
+  String _listOrNone(List<String> items) =>
+      items.isEmpty ? 'None' : items.join(', ');
 
   /// One line per vital, e.g. "BP: 120/60 mmHg". The number comes from
   /// VitalSign.value, so it is formatted exactly like on the patient's Home.
@@ -157,7 +159,10 @@ class _PatientRecordsScreenState extends State<PatientRecordsScreen> {
           // Medical History: one card per condition
           Text(
             'Medical History',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navy),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navy),
           ),
           gap,
           if (record.history.isEmpty)
