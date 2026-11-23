@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/food.dart';
 import '../services/supabase_service.dart';
 import '../services/strapi_service.dart';
 
@@ -17,7 +18,7 @@ class _BackendTestScreenState extends State<BackendTestScreen> {
   bool loadingSupabase = false;
   bool loadingStrapi = false;
 
-  List<Map<String, dynamic>> foodItems = [];
+  List<Food> foodItems = [];
 
   Future<void> testSupabase() async {
     setState(() {
@@ -128,12 +129,20 @@ class _BackendTestScreenState extends State<BackendTestScreen> {
             const SizedBox(height: 20),
 
             ...foodItems.map((item) {
-              return ListTile(
-                leading: const Icon(Icons.restaurant),
-                title: Text(item['name']?.toString() ?? 'Unnamed Food'),
-                subtitle: Text('Price: ${item['price'] ?? 'Not set'}'),
-              );
-            }),
+  return ListTile(
+    leading: const Icon(
+      Icons.restaurant,
+      color: Color.fromARGB(255, 232, 105, 14),
+    ),
+    title: Text(item.name),
+    subtitle: Text(
+      'Price: ₱${item.price.toStringAsFixed(2)}',
+    ),
+    trailing: Text(
+      item.isAvailable ? 'Available' : 'Unavailable',
+    ),
+  );
+}),
           ],
         ),
       ),
