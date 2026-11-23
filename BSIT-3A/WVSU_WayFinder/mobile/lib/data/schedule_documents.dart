@@ -168,6 +168,33 @@ class ScheduleDocumentStore extends ChangeNotifier {
         }
         return document;
       });
+  Future<ScheduleDocument> addBytes(List<int> bytes, {required String name}) =>
+      _serialize(() async {
+        await load();
+        if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
+          throw const FormatException('Choose a nonempty schedule smaller than 20 MB.');
+        }
+        final extension = name.split('.').last.toLowerCase();
+        if (!['pdf', 'png', 'jpg', 'jpeg', 'webp'].contains(extension)) {
+          throw const FormatException('Choose a PDF, PNG, JPG or WebP schedule.');
+        }
+        final folder = await _folder();
+        await folder.create(recursive: true);
+        final id = newScheduleId();
+        final relative = '$id.$extension';
+        final destination = File('${folder.path}/$relative');
+        final document = ScheduleDocument(id: id, storagePath: relative,
+          uploadedAt: DateTime.now().toUtc(), name: name, path: destination.path);
+        try {
+          await destination.writeAsBytes(bytes, flush: true);
+          await _persist([document, ..._uploads]);
+        } catch (_) {
+          if (await destination.exists()) await destination.delete();
+          rethrow;
+        }
+        return document;
+      });
+
   Future<void> updateText(String id, String text) => _serialize(() async {
     await load();
     await _persist([

@@ -141,20 +141,22 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
           type: FileType.custom,
           allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
           allowMultiple: false,
-          withData: false,
+          withData: true,
         );
         if (picked == null) return;
         final file = picked.files.single;
         if (file.size > 20 * 1024 * 1024) {
           throw const FormatException('Choose a schedule smaller than 20 MB.');
         }
-        if (file.path == null) {
+        if (file.path == null && file.bytes == null) {
           throw const FormatException(
             'Open this import on an Android or iOS phone.',
           );
         }
         name = file.name;
-        final document = await documents.addFile(file.path!, name: file.name);
+        final document = file.bytes != null
+            ? await documents.addBytes(file.bytes!, name: file.name)
+            : await documents.addFile(file.path!, name: file.name);
         if (!mounted) return;
         setState(() {
           _document = document;
