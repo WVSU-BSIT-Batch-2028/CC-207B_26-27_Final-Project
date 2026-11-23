@@ -29,9 +29,12 @@ class AppointmentChangeRequest {
     required this.consultationFee,
     required this.reminderEnabled,
     required this.requestedAt,
+    this.doctorId,
     this.status = ChangeRequestStatus.pending,
   });
 
+  /// uid of the doctor the patient wants to move to (`users/{uid}`).
+  final String? doctorId;
   final String doctorName;
   final String specialty;
   final DateTime dateTime;
@@ -62,6 +65,7 @@ class Appointment {
     this.meetingUrl,
     this.patientName,
     this.patientId,
+    this.doctorId,
     this.bookedAt,
     this.outcome = AppointmentOutcome.none,
     this.changeRequest,
@@ -87,6 +91,10 @@ class Appointment {
 
   /// Patient's unique identifier for future backend integration.
   final String? patientId;
+
+  /// uid of the doctor who owns this appointment (`users/{uid}`).
+  /// Only that doctor can see it; the Firestore rules depend on it.
+  final String? doctorId;
 
   /// Original date and time when the appointment was booked.
   ///

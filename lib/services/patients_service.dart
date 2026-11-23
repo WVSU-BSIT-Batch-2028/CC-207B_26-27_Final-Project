@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/doctor_prescription.dart';
 import '../models/patient.dart';
@@ -36,33 +37,48 @@ class PatientsService {
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
-  /// Returns every patient (active and history), most recent visit first.
+  /// Returns the signed-in doctor's own patients (active and history), most
+  /// recent visit first.
   ///
-  /// Three reads build the list: the patient accounts, all profiles, and all
-  /// consultations (grouped here to find each patient's last visit).
+  /// A patient belongs to a doctor when either:
+  /// - the patient has a (not cancelled) appointment whose `doctorId` is this
+  ///   doctor's uid, or
+  /// - this doctor already wrote a consultation, lab result or prescription
+  ///   for the patient (those documents carry the doctor's `doctorId`).
+  ///
+  /// Every query filters by `doctorId == uid`, so one doctor never loads
+  /// another doctor's patients. Then one read per patient gets the account
+  /// and the profile. The last visit comes from this doctor's consultations.
   ///
   /// Reuses the demo switch from Home (long-press the avatar) so the empty
   /// and error states can still be shown during the presentation.
   Future<List<Patient>> fetchPatients() async {
     _demoThrowsIfError("We couldn't load your patients. Check your connection and try again.");
     if (_demoIsEmpty()) return const <Patient>[];
+    final doctorId = _doctorUid();
 
     return _guard(() async {
-      final results = await Future.wait([
-        _db.collection('users').where('role', isEqualTo: 'patient').get(),
-        _db.collection('patientProfiles').get(),
-        _db.collection('consultations').get(),
-      ]);
-      final users = results[0];
-      final profiles = results[1];
-      final consultations = results[2];
+      Future<QuerySnapshot<Map<String, dynamic>>> mine(String collection) =>
+          _db.collection(collection).where('doctorId', isEqualTo: doctorId).get();
 
-      // Profiles by patient uid.
-      final profileById = <String, Map<String, dynamic>>{
-        for (final doc in profiles.docs) doc.id: doc.data(),
+      final results = await Future.wait([
+        mine('appointments'),
+        mine('consultations'),
+        mine('labResults'),
+        mine('prescriptions'),
+      ]);
+      final appointments = results[0];
+      final consultations = results[1];
+
+      // The uids of this doctor's patients.
+      final patientIds = <String>{
+        for (final doc in appointments.docs)
+          if (doc.data()['status'] != 'cancelled') ..._idList(doc.data()['patientId']),
+        for (final result in results.skip(1))
+          for (final doc in result.docs) ..._idList(doc.data()['patientId']),
       };
 
-      // Each patient's most recent consultation date.
+      // Each patient's most recent consultation date (with this doctor).
       final lastVisitById = <String, DateTime>{};
       for (final doc in consultations.docs) {
         final data = doc.data();
@@ -73,10 +89,23 @@ class PatientsService {
         if (current == null || date.isAfter(current)) lastVisitById[patientId] = date;
       }
 
-      final patients = <Patient>[
-        for (final user in users.docs)
-          _toPatient(user.id, user.data(), profileById[user.id], lastVisitById[user.id]),
-      ];
+      // One account + one profile read per patient.
+      final loaded = await Future.wait([
+        for (final id in patientIds)
+          Future.wait([
+            _db.collection('users').doc(id).get(),
+            _db.collection('patientProfiles').doc(id).get(),
+          ]),
+      ]);
+
+      final patients = <Patient>[];
+      for (final pair in loaded) {
+        final user = pair[0];
+        final userData = user.data();
+        // Skip an id with no account, or an account that is not a patient.
+        if (userData == null || userData['role'] != 'patient') continue;
+        patients.add(toPatient(user.id, userData, pair[1].data(), lastVisitById[user.id]));
+      }
 
       // Most recent visit first; patients with no visit yet go last, by name.
       patients.sort((a, b) {
@@ -103,7 +132,7 @@ class PatientsService {
       final conditions = <String>[];
       final main = _text(profile?['condition'], '');
       if (main.isNotEmpty) conditions.add(main);
-      for (final entry in _historyOf(profile)) {
+      for (final entry in historyOf(profile)) {
         if (!conditions.contains(entry.condition)) conditions.add(entry.condition);
       }
 
@@ -126,7 +155,7 @@ class PatientsService {
 
       return PatientRecord(
         patientId: patientId,
-        history: _historyOf(profile),
+        history: historyOf(profile),
         allergies: _stringList(profile?['allergies']),
         immunizations: _stringList(profile?['immunizations']),
         vitals: vitals,
@@ -166,7 +195,7 @@ class PatientsService {
       final snap = await _db.collection('prescriptions').where('patientId', isEqualTo: patientId).get();
       final prescriptions = <DoctorPrescription>[];
       for (final doc in snap.docs) {
-        final prescription = _toPrescription(doc.id, doc.data());
+        final prescription = toPrescription(doc.id, doc.data());
         if (prescription != null) prescriptions.add(prescription);
       }
       prescriptions.sort((a, b) => b.startDate.compareTo(a.startDate));
@@ -189,6 +218,7 @@ class PatientsService {
       await _db.collection('prescriptions').doc(prescription.id).set({
         // Fields from FIRESTORE_PLAN.md
         'patientId': patientId,
+        'doctorId': _doctorUid(),
         'medicine': prescription.medicineName,
         'dosage': prescription.dosage,
         'frequency': '${prescription.timesPerDay}x a day',
@@ -233,6 +263,7 @@ class PatientsService {
       await _db.collection('consultations').doc().set({
         // Fields from FIRESTORE_PLAN.md
         'patientId': patientId,
+        'doctorId': _doctorUid(),
         'appointmentId': appointmentId,
         'doctorName': doctorName,
         'date': Timestamp.fromDate(date),
@@ -256,7 +287,8 @@ class PatientsService {
   }
 
   /// Builds a [Patient] from the account, the optional profile and the last visit.
-  Patient _toPatient(
+  @visibleForTesting
+  Patient toPatient(
     String uid,
     Map<String, dynamic> user,
     Map<String, dynamic>? profile,
@@ -279,7 +311,8 @@ class PatientsService {
   }
 
   /// The profile's `medicalHistory` list (maps of condition and diagnosedYear).
-  List<MedicalHistoryEntry> _historyOf(Map<String, dynamic>? profile) {
+  @visibleForTesting
+  List<MedicalHistoryEntry> historyOf(Map<String, dynamic>? profile) {
     final raw = profile?['medicalHistory'];
     if (raw is! List) return const <MedicalHistoryEntry>[];
     return [
@@ -303,7 +336,7 @@ class PatientsService {
       final byType = <VitalType, List<VitalReading>>{};
       for (final doc in snap.docs) {
         final data = doc.data();
-        final type = _vitalTypeFrom(data['type']);
+        final type = vitalTypeFrom(data['type']);
         final date = _toDate(data['date']);
         final value = data['value'];
         if (type == null || date == null || value is! num) continue;
@@ -338,7 +371,8 @@ class PatientsService {
   }
 
   /// "bloodPressure", "blood_pressure" and "Blood Pressure" all mean the same type.
-  VitalType? _vitalTypeFrom(Object? raw) {
+  @visibleForTesting
+  VitalType? vitalTypeFrom(Object? raw) {
     final text = raw?.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
     for (final type in VitalType.values) {
       if (type.name.toLowerCase() == text) return type;
@@ -376,14 +410,15 @@ class PatientsService {
   /// it has no start date. It accepts both the plan's fields (`medicine`,
   /// `frequency`, `endDate`) and the extras (`timesPerDay`, `durationDays`),
   /// so prescriptions written by a teammate also show up.
-  DoctorPrescription? _toPrescription(String id, Map<String, dynamic> data) {
+  @visibleForTesting
+  DoctorPrescription? toPrescription(String id, Map<String, dynamic> data) {
     final start = _toDate(data['startDate']);
     if (start == null) return null;
     final end = _toDate(data['endDate']);
 
     final timesPerDay = data['timesPerDay'] is num
         ? (data['timesPerDay'] as num).toInt()
-        : _timesFromText(data['frequency']);
+        : timesFromText(data['frequency']);
     final durationDays = data['durationDays'] is num
         ? (data['durationDays'] as num).toInt()
         : (end != null ? end.difference(start).inDays.clamp(1, 3650).toInt() : 1);
@@ -403,12 +438,27 @@ class PatientsService {
   }
 
   /// "2x a day" -> 2, "Twice a day" -> 2, "Once a day" -> 1; 1 if unclear.
-  int _timesFromText(Object? raw) {
+  @visibleForTesting
+  int timesFromText(Object? raw) {
     final text = raw?.toString().toLowerCase() ?? '';
     final number = RegExp(r'\d+').firstMatch(text);
     if (number != null) return int.parse(number.group(0)!);
     if (text.contains('twice')) return 2;
     return 1;
+  }
+
+  /// A uid (text) as a one-item list, or an empty list when it is missing.
+  /// Used with `...` so documents without a patientId are skipped.
+  List<String> _idList(Object? value) =>
+      value is String && value.isNotEmpty ? [value] : const <String>[];
+
+  /// The signed-in doctor's uid. Throws if nobody is signed in.
+  String _doctorUid() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw const PatientsException('Please sign in again to see your patients.');
+    }
+    return user.uid;
   }
 
   /// The signed-in doctor's name from `users/{uid}`, or "Doctor".
