@@ -50,7 +50,9 @@ class PatientCard extends StatelessWidget {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 ),
                 Text(
-                  'Last visit: ${formatLongDate(patient.lastVisit)}',
+                  patient.lastVisit == null
+                      ? 'No visits yet'
+                      : 'Last visit: ${formatLongDate(patient.lastVisit!)}',
                   style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                 ),
               ],

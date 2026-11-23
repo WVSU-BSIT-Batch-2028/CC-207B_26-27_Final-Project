@@ -10,6 +10,7 @@ import '../../../models/patient.dart';
 import '../../../models/patient_lab_result.dart';
 import '../../records/lab_result_details_dialog.dart';
 import 'patient_details_screen.dart';
+import 'add_consultation_note_screen.dart';
 import 'add_prescription_screen.dart';
 import 'patient_lab_results_screen.dart';
 import 'patient_prescriptions_screen.dart';
@@ -19,7 +20,7 @@ import 'widgets/patient_record_tab_bar.dart';
 
 /// The screens that live inside the Patients tab. The enum order is the same
 /// as the IndexedStack children below.
-enum _PatientsPage { list, details, records, labResults, prescriptions, addPrescription }
+enum _PatientsPage { list, details, records, labResults, prescriptions, addPrescription, addConsultationNote }
 
 /// Doctor Patients tab. [onBack] switches the app to the Home tab.
 class DoctorPatientsTab extends StatefulWidget {
@@ -56,6 +57,9 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
 
   /// "View Full Record" was tapped: show the Records pill of Patient Records.
   void _openFullRecord() => setState(() => _page = _PatientsPage.records);
+
+  /// "Add Consultation Notes" was tapped: show the form.
+  void _addConsultationNote() => setState(() => _page = _PatientsPage.addConsultationNote);
 
   /// Back from a record screen: show the details again.
   void _backToDetails() => setState(() => _page = _PatientsPage.details);
@@ -107,6 +111,7 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
             patient: selected,
             onBack: _backToList,
             onViewFullRecord: _openFullRecord,
+            onAddConsultationNote: _addConsultationNote,
           ),
         // The record screens are built only while open, so they load fresh each time.
         if (selected != null && _page == _PatientsPage.records)
@@ -144,6 +149,15 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
             patient: selected,
             onBack: _backToPrescriptions,
             onSaved: _backToPrescriptions,
+          )
+        else
+          const SizedBox.shrink(),
+        if (selected != null && _page == _PatientsPage.addConsultationNote)
+          AddConsultationNoteScreen(
+            key: ValueKey(selected.id),
+            patient: selected,
+            onBack: _backToDetails,
+            onSaved: _backToDetails,
           )
         else
           const SizedBox.shrink(),

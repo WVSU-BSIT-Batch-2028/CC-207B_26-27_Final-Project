@@ -6,8 +6,12 @@ import '../../../../widgets/h360_button.dart';
 
 /// The "Prescription added successfully" confirmation popup, shown after the
 /// doctor saves a prescription. The doctor must tap OK to continue.
+/// It is also used for the consultation notes, with a different [message].
 class PrescriptionAddedDialog extends StatelessWidget {
-  const PrescriptionAddedDialog({super.key});
+  const PrescriptionAddedDialog({super.key, this.message = 'Prescription added successfully'});
+
+  /// The confirmation text next to the check mark.
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +42,7 @@ class PrescriptionAddedDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Prescription added successfully',
+                      message,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navy),
                     ),
                   ),
