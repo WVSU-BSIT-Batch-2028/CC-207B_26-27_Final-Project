@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/branch_reservation.dart';
+import '../utils/app_failure.dart';
 
 abstract class BranchReservationService {
   Future<List<BranchReservation>> getReservations(String branchId);
@@ -19,11 +21,21 @@ class SupabaseBranchReservationService implements BranchReservationService {
 
   SupabaseBranchReservationService(this._client);
 
-  @override
-  Future<List<BranchReservation>> getReservations(String branchId) async {
-    final response = await _client
-        .from('reservations')
-        .select('''
+  static void _applyCustomerProfileFields(Map<String, dynamic> map) {
+    var profile = map['customer_profiles'] as Map<String, dynamic>?;
+    profile ??= (map['accounts'] as Map<String, dynamic>?)?['customer_profiles']
+        as Map<String, dynamic>?;
+    if (profile != null) {
+      final f = profile['first_name'] as String? ?? '';
+      final l = profile['last_name'] as String? ?? '';
+      map['customer_name'] = '$f $l'.trim();
+      map['customer_phone'] = profile['mobile'] as String?;
+    } else {
+      map['customer_name'] = 'Customer';
+    }
+  }
+
+  static const _listSelect = '''
           id,
           reference_no,
           customer_id,
@@ -37,39 +49,64 @@ class SupabaseBranchReservationService implements BranchReservationService {
           ready_at,
           completed_at,
           closed_reason,
-          customer_profiles (first_name, last_name, contact_number),
+          accounts!customer_id (
+            customer_profiles (first_name, last_name, mobile)
+          ),
           reservation_items (
             line_no, medicine_id, inventory_item_id, brand_name,
             generic_name, strength, dosage_form, unit_sold,
             is_rx, unit_price, quantity, held_quantity
-          ),
-          reservation_prescriptions (
-            id, display_id, storage_path, mime_type, size_bytes, uploaded_at
-          ),
-          reservation_status_history (
-            id, from_status, to_status, actor_role, reason, created_at,
-            actor_id
           )
-        ''')
-        .eq('branch_id', branchId)
-        .order('submitted_at', ascending: false);
+        ''';
 
-    return (response as List<dynamic>).map((row) {
+  static const _listSelectPlain = '''
+          id,
+          reference_no,
+          customer_id,
+          branch_id,
+          status,
+          has_rx,
+          total_amount,
+          submitted_at,
+          expires_at,
+          confirmed_at,
+          ready_at,
+          completed_at,
+          closed_reason,
+          reservation_items (
+            line_no, medicine_id, inventory_item_id, brand_name,
+            generic_name, strength, dosage_form, unit_sold,
+            is_rx, unit_price, quantity, held_quantity
+          )
+        ''';
+
+  List<BranchReservation> _mapReservationRows(List<dynamic> rows) {
+    return rows.map((row) {
       final map = Map<String, dynamic>.from(row as Map<String, dynamic>);
-      final profile = map['customer_profiles'] as Map<String, dynamic>?;
-      if (profile != null) {
-        final f = profile['first_name'] as String? ?? '';
-        final l = profile['last_name'] as String? ?? '';
-        map['customer_name'] = '$f $l'.trim();
-        map['customer_phone'] = profile['contact_number'] as String?;
-      } else {
-        map['customer_name'] = 'Customer';
-      }
+      _applyCustomerProfileFields(map);
       map['items'] = map['reservation_items'];
-      map['prescriptions'] = map['reservation_prescriptions'];
-      map['history'] = map['reservation_status_history'];
+      map['prescriptions'] = map['reservation_prescriptions'] ?? [];
+      map['history'] = map['reservation_status_history'] ?? [];
       return BranchReservation.fromJson(map);
     }).toList();
+  }
+
+  @override
+  Future<List<BranchReservation>> getReservations(String branchId) async {
+    // Branch scope is enforced by RLS (my_branch_id()); do not filter by JWT alone.
+    try {
+      final response = await _client
+          .from('reservations')
+          .select(_listSelect)
+          .order('submitted_at', ascending: false);
+      return _mapReservationRows(response as List<dynamic>);
+    } on PostgrestException {
+      final response = await _client
+          .from('reservations')
+          .select(_listSelectPlain)
+          .order('submitted_at', ascending: false);
+      return _mapReservationRows(response as List<dynamic>);
+    }
   }
 
   @override
@@ -90,7 +127,9 @@ class SupabaseBranchReservationService implements BranchReservationService {
           ready_at,
           completed_at,
           closed_reason,
-          customer_profiles (first_name, last_name, contact_number),
+          accounts!customer_id (
+            customer_profiles (first_name, last_name, mobile)
+          ),
           reservation_items (
             line_no, medicine_id, inventory_item_id, brand_name,
             generic_name, strength, dosage_form, unit_sold,
@@ -109,15 +148,7 @@ class SupabaseBranchReservationService implements BranchReservationService {
 
     if (response == null) return null;
     final map = Map<String, dynamic>.from(response);
-    final profile = map['customer_profiles'] as Map<String, dynamic>?;
-    if (profile != null) {
-      final f = profile['first_name'] as String? ?? '';
-      final l = profile['last_name'] as String? ?? '';
-      map['customer_name'] = '$f $l'.trim();
-      map['customer_phone'] = profile['contact_number'] as String?;
-    } else {
-      map['customer_name'] = 'Customer';
-    }
+    _applyCustomerProfileFields(map);
 
     final rawItems = (map['reservation_items'] as List<dynamic>? ?? []);
     final items = rawItems.map((item) {
@@ -138,31 +169,39 @@ class SupabaseBranchReservationService implements BranchReservationService {
     return BranchReservation.fromJson(map);
   }
 
+  Future<void> _rpcVoid(Future<void> Function() call) async {
+    try {
+      await call();
+    } on PostgrestException catch (error) {
+      throw AppFailure.fromPostgrest(error);
+    }
+  }
+
   @override
   Future<void> confirmReservation(String reservationId) async {
-    await _client.rpc(
-      'confirm_reservation',
-      params: {'p_reservation_id': reservationId},
-    );
+    await _rpcVoid(() => _client.rpc(
+          'confirm_reservation',
+          params: {'p_reservation_id': reservationId},
+        ));
   }
 
   @override
   Future<void> rejectReservation(String reservationId, String reason) async {
-    await _client.rpc(
-      'reject_reservation',
-      params: {
-        'p_reservation_id': reservationId,
-        'p_reason': reason,
-      },
-    );
+    await _rpcVoid(() => _client.rpc(
+          'reject_reservation',
+          params: {
+            'p_reservation_id': reservationId,
+            'p_reason': reason,
+          },
+        ));
   }
 
   @override
   Future<void> markReady(String reservationId) async {
-    await _client.rpc(
-      'mark_ready',
-      params: {'p_reservation_id': reservationId},
-    );
+    await _rpcVoid(() => _client.rpc(
+          'mark_ready',
+          params: {'p_reservation_id': reservationId},
+        ));
   }
 
   @override
@@ -179,24 +218,24 @@ class SupabaseBranchReservationService implements BranchReservationService {
 
   @override
   Future<void> completeReservation(String reservationId, String code) async {
-    await _client.rpc(
-      'complete_reservation',
-      params: {
-        'p_reservation_id': reservationId,
-        'p_code': code,
-      },
-    );
+    await _rpcVoid(() => _client.rpc(
+          'complete_reservation',
+          params: {
+            'p_reservation_id': reservationId,
+            'p_code': code,
+          },
+        ));
   }
 
   @override
   Future<void> cancelReservation(String reservationId, String reason) async {
-    await _client.rpc(
-      'cancel_reservation',
-      params: {
-        'p_reservation_id': reservationId,
-        'p_reason': reason,
-      },
-    );
+    await _rpcVoid(() => _client.rpc(
+          'cancel_reservation',
+          params: {
+            'p_reservation_id': reservationId,
+            'p_reason': reason,
+          },
+        ));
   }
 
   @override

@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/employee.dart';
 import '../utils/app_failure.dart';
+import 'staff_avatar_service.dart';
 
 // Returned when a new employee account is created with a one-time password
 class CreatedEmployee {
@@ -60,9 +62,27 @@ abstract class EmployeeService {
     bool markVerified = false,
     bool ownerConfirmed = false,
   });
+
+  Future<String?> uploadEmployeeAvatar({
+    required String employeeAccountId,
+    required String fileName,
+    required Uint8List bytes,
+  });
+
+  Future<void> updateProfile({
+    required String employeeId,
+    required String firstName,
+    String? middleName,
+    required String lastName,
+  });
 }
 
 class SupabaseEmployeeService implements EmployeeService {
+  SupabaseEmployeeService({StaffAvatarService? avatarService})
+      : _avatarService = avatarService ?? StaffAvatarService();
+
+  final StaffAvatarService _avatarService;
+
   SupabaseClient get _client => Supabase.instance.client;
 
   String _formatDate(DateTime date) {
@@ -101,21 +121,49 @@ class SupabaseEmployeeService implements EmployeeService {
     try {
       return await call();
     } on PostgrestException catch (error) {
-      throw AppFailure(error.message);
+      throw AppFailure.fromPostgrest(error);
     } on SocketException {
       throw const AppFailure('Could not reach Supabase.');
     }
   }
 
+  Future<List<Employee>> _loadEmployeesFromTable() async {
+    final branchId = await _client.rpc('my_branch_id') as String?;
+    if (branchId == null) return [];
+
+    const core = '''
+      account_id,
+      display_id,
+      role,
+      first_name,
+      middle_name,
+      last_name,
+      prc_license_no,
+      prc_license_expiry,
+      license_status,
+      is_active
+    ''';
+
+    List<dynamic> rows;
+    try {
+      rows = await _client
+          .from('staff_members')
+          .select('$core, avatar_path')
+          .eq('branch_id', branchId);
+    } on PostgrestException catch (error) {
+      if (!error.message.toLowerCase().contains('avatar_path')) rethrow;
+      rows = await _client.from('staff_members').select(core).eq('branch_id', branchId);
+    }
+
+    return [
+      for (final raw in rows)
+        if (raw is Map) Employee.fromJson(Map<String, dynamic>.from(raw)),
+    ];
+  }
+
   @override
   Future<List<Employee>> loadMine() async {
-    return _runRpc(() async {
-      final rows = await _client.rpc('list_branch_employees');
-      if (rows is! List) return [];
-      return [
-        for (final row in rows) Employee.fromJson(Map<String, dynamic>.from(row as Map)),
-      ];
-    });
+    return _runRpc(_loadEmployeesFromTable);
   }
 
   @override
@@ -205,6 +253,36 @@ class SupabaseEmployeeService implements EmployeeService {
         'p_mark_verified': markVerified,
         'p_owner_confirmed': ownerConfirmed,
       });
+    });
+  }
+
+  @override
+  Future<String?> uploadEmployeeAvatar({
+    required String employeeAccountId,
+    required String fileName,
+    required Uint8List bytes,
+  }) {
+    return _avatarService.uploadForEmployee(
+      employeeAccountId: employeeAccountId,
+      fileName: fileName,
+      bytes: bytes,
+    );
+  }
+
+  @override
+  Future<void> updateProfile({
+    required String employeeId,
+    required String firstName,
+    String? middleName,
+    required String lastName,
+  }) async {
+    await _invoke({
+      'action': 'update_profile',
+      'employee_id': employeeId,
+      'first_name': firstName.trim(),
+      if (middleName != null && middleName.trim().isNotEmpty)
+        'middle_name': middleName.trim(),
+      'last_name': lastName.trim(),
     });
   }
 }

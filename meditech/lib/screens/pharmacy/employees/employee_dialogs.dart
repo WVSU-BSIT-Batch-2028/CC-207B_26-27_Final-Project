@@ -110,6 +110,169 @@ Future<void> showTemporaryPasswordDialog(
 }
 
 // Ph-34: Dialog to add a new pharmacist or staff member
+class EmployeeProfileDraft {
+  const EmployeeProfileDraft({
+    required this.firstName,
+    this.middleName,
+    required this.lastName,
+  });
+
+  final String firstName;
+  final String? middleName;
+  final String lastName;
+}
+
+Future<EmployeeProfileDraft?> showEditEmployeeProfileDialog(
+  BuildContext context, {
+  required Employee employee,
+}) {
+  return showDialog<EmployeeProfileDraft>(
+    context: context,
+    builder: (context) => _EditEmployeeProfileDialog(employee: employee),
+  );
+}
+
+class _EditEmployeeProfileDialog extends StatefulWidget {
+  const _EditEmployeeProfileDialog({required this.employee});
+
+  final Employee employee;
+
+  @override
+  State<_EditEmployeeProfileDialog> createState() =>
+      _EditEmployeeProfileDialogState();
+}
+
+class _EditEmployeeProfileDialogState extends State<_EditEmployeeProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _firstName;
+  late final TextEditingController _middleName;
+  late final TextEditingController _lastName;
+  String? _formError;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.employee;
+    _firstName = TextEditingController(text: e.firstName);
+    _middleName = TextEditingController(text: e.middleName ?? '');
+    _lastName = TextEditingController(text: e.lastName);
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _middleName.dispose();
+    _lastName.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    setState(() => _formError = null);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.of(context).pop(
+      EmployeeProfileDraft(
+        firstName: _firstName.text.trim(),
+        middleName: _middleName.text.trim().isEmpty ? null : _middleName.text.trim(),
+        lastName: _lastName.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Edit profile',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.employee.displayId} · Username cannot be changed here.',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                if (_formError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(_formError!, style: const TextStyle(color: AppColors.danger)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppTextField(
+                        label: 'First name',
+                        controller: _firstName,
+                        validator: (v) => _namePattern.hasMatch((v ?? '').trim())
+                            ? null
+                            : 'Enter 2 to 50 letters.',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: AppTextField(
+                        label: 'Last name',
+                        controller: _lastName,
+                        validator: (v) => _namePattern.hasMatch((v ?? '').trim())
+                            ? null
+                            : 'Enter 2 to 50 letters.',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  label: 'Middle name (optional)',
+                  controller: _middleName,
+                  validator: (v) {
+                    final trimmed = (v ?? '').trim();
+                    if (trimmed.isEmpty) return null;
+                    return _namePattern.hasMatch(trimmed) ? null : 'Enter 2 to 50 letters.';
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _save,
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<CreatedEmployee?> showAddEmployeeDialog(
   BuildContext context, {
   required Future<CreatedEmployee> Function({

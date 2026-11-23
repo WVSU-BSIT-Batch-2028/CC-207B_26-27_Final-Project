@@ -27,6 +27,14 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        restoreSessionIfNeeded(
+          currentSession: ref.read(sessionProvider),
+          setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+        );
+      }
+    });
     if (widget.initialIndex != 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

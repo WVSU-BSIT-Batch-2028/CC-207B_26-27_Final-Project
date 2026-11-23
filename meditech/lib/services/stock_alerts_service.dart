@@ -17,31 +17,17 @@ class StockAlertsService {
   // Returns all alert items categorized into the 4 tabs
   Future<Map<StockAlertType, List<StockAlertItem>>> loadStockAlerts() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    final sixtyDaysFromNow = now.add(const Duration(days: 60));
+    final sixtyDaysFromNow = today.add(const Duration(days: 60));
 
-    final response = await _client
-        .from('inventory_items')
-        .select('''
-          id,
-          medicine_id,
-          stock_quantity,
-          held_quantity,
-          price_per_unit,
-          low_stock_threshold,
-          nearest_expiry,
-          stock_confirmed_at,
-          out_of_stock,
-          is_active,
-          medicines!inner (
-            brand_name,
-            generic_name,
-            strength,
-            dosage_forms ( name ),
-            units ( name )
-          )
-        ''')
-        .eq('is_active', true);
+    final response = await _client.from('inventory_items').select(
+          'id, medicine_id, stock_quantity, held_quantity, '
+          'low_stock_threshold, nearest_expiry, stock_confirmed_at, '
+          'out_of_stock_flag, is_active, '
+          'medicines(brand_name, generic_name, strength, '
+          'dosage_forms(name), units(name))',
+        );
 
     final lowStock = <StockAlertItem>[];
     final outOfStock = <StockAlertItem>[];
@@ -57,7 +43,10 @@ class StockAlertsService {
       final stock = (map['stock_quantity'] as num?)?.toInt() ?? 0;
       final held = (map['held_quantity'] as num?)?.toInt() ?? 0;
       final threshold = (map['low_stock_threshold'] as num?)?.toInt() ?? 10;
-      final isOutOfStock = map['out_of_stock'] == true;
+      final isOutOfStock = map['out_of_stock_flag'] == true;
+      final isActive = map['is_active'] == true;
+      if (!isActive) continue;
+
       final expiry = map['nearest_expiry'] != null
           ? DateTime.tryParse(map['nearest_expiry'].toString())
           : null;
@@ -84,22 +73,20 @@ class StockAlertsService {
         'out_of_stock': isOutOfStock,
       };
 
-      // 1. Low stock: Available stock (stock - held) is from 1 up to threshold
       if (available >= 1 && available <= threshold && !isOutOfStock) {
         lowStock.add(StockAlertItem.fromJson(itemData, StockAlertType.lowStock));
       }
 
-      // 2. Out of stock: available <= 0 OR out_of_stock switch is on
       if (available <= 0 || isOutOfStock) {
         outOfStock.add(StockAlertItem.fromJson(itemData, StockAlertType.outOfStock));
       }
 
-      // 3. Expiring soon: nearest_expiry within 60 days
-      if (expiry != null && expiry.isBefore(sixtyDaysFromNow)) {
+      if (expiry != null &&
+          !expiry.isBefore(today) &&
+          expiry.isBefore(sixtyDaysFromNow)) {
         expiringSoon.add(StockAlertItem.fromJson(itemData, StockAlertType.expiringSoon));
       }
 
-      // 4. Not updated / Unconfirmed: stock_confirmed_at older than 7 days or null
       if (confirmedAt == null || confirmedAt.isBefore(sevenDaysAgo)) {
         notUpdated.add(StockAlertItem.fromJson(itemData, StockAlertType.notUpdated));
       }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../providers/registration_providers.dart';
+import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/dialogs/confirm_dialog.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -173,6 +175,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         applicationId: state.applicationId!,
         email: _draft.email.text,
         resubmitted: widget.editing,
+        onHome: () async {
+          await ref.read(sessionProvider.notifier).signOut();
+          if (context.mounted) context.go('/');
+        },
       );
     }
 
@@ -305,11 +311,13 @@ class _SubmittedView extends StatelessWidget {
     required this.applicationId,
     required this.email,
     this.resubmitted = false,
+    required this.onHome,
   });
 
   final String applicationId;
   final String email;
   final bool resubmitted;
+  final VoidCallback onHome;
 
   @override
   Widget build(BuildContext context) {
@@ -351,13 +359,17 @@ class _SubmittedView extends StatelessWidget {
                               'reviewed. Your Owner account stays locked until then.',
                     textAlign: TextAlign.center,
                   ),
-                  if (resubmitted) ...[
-                    const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (resubmitted)
                     OutlinedButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       child: const Text('Back to status'),
+                    )
+                  else
+                    FilledButton(
+                      onPressed: onHome,
+                      child: const Text('Back to homepage'),
                     ),
-                  ],
                 ],
               ),
             ),

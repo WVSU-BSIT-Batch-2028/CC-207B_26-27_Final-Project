@@ -1,9 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'friendly_error.dart';
+
 class AppFailure implements Exception {
   final String message;
 
   const AppFailure(this.message);
+
+  factory AppFailure.fromPostgrest(PostgrestException error) {
+    return AppFailure(friendlyErrorMessage(error));
+  }
+
+  factory AppFailure.fromUnknown(Object error) {
+    if (error is AppFailure) return error;
+    if (error is PostgrestException) return AppFailure.fromPostgrest(error);
+    return AppFailure(friendlyErrorMessage(error));
+  }
 
   
   factory AppFailure.signIn(FunctionException error) {

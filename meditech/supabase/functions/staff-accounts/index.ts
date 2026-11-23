@@ -341,5 +341,33 @@ Deno.serve(async (req) => {
     return reply(200, { ok: true });
   }
 
+  // ---- Name on file (not username or role) -----------------------
+  if (action === "update_profile") {
+    const d = body as Record<string, string | undefined>;
+    const errors: Record<string, string> = {};
+    if (!nameRule.test(d.first_name ?? "")) errors.first_name = "First name: 2 to 50 letters.";
+    if (!nameRule.test(d.last_name ?? "")) errors.last_name = "Last name: 2 to 50 letters.";
+    const middle = (d.middle_name ?? "").trim();
+    if (middle && !nameRule.test(middle)) {
+      errors.middle_name = "Middle name: 2 to 50 letters.";
+    }
+    if (Object.keys(errors).length) {
+      return reply(400, { error: "Check the highlighted fields.", fields: errors });
+    }
+
+    const { error } = await db
+      .from("staff_members")
+      .update({
+        first_name: d.first_name!.trim(),
+        middle_name: middle || null,
+        last_name: d.last_name!.trim(),
+      })
+      .eq("account_id", employee.account_id);
+    if (error) return reply(500, { error: "Could not save the profile." });
+
+    await logActivity("Updated an employee profile", employee.display_id);
+    return reply(200, { ok: true });
+  }
+
   return reply(400, { error: "Unknown action." });
 });

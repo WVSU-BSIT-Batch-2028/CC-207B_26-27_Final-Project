@@ -8,7 +8,11 @@ const _pharmacyShellPaths = {
   '/dashboard',
   '/reservations',
   '/inventory',
+  '/stock-alerts',
+  '/settings',
   '/employees',
+  '/profile',
+  '/profile/edit',
 };
 
 const _adminShellPaths = {

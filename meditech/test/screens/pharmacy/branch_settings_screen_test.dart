@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meditech/models/branch_settings.dart';
 import 'package:meditech/models/signed_in_account.dart';
 import 'package:meditech/providers/branch_settings_providers.dart';
+import 'package:meditech/providers/pharmacy_staff_providers.dart';
 import 'package:meditech/providers/session_providers.dart';
 import 'package:meditech/screens/pharmacy/branch_settings/branch_settings_screen.dart';
 import 'package:meditech/services/branch_settings_service.dart';
@@ -35,6 +36,7 @@ class _FakeBranchSettingsService implements BranchSettingsService {
     double? longitude,
     String? ownerPrcLicense,
     DateTime? ownerPrcExpiry,
+    bool updateBranchDetails = true,
   }) async {}
 }
 
@@ -62,6 +64,17 @@ class _StaffSession extends SessionNotifier {
   }
 }
 
+const _demoProfile = PharmacyStaffProfile(
+  firstName: 'Juan',
+  lastName: 'Dela Cruz',
+  employeeId: 'EMP-000001',
+  role: 'owner',
+  username: 'demo_pharma',
+  email: 'owner@example.com',
+  prcLicenseNo: '0123456',
+  licenseStatus: 'verified',
+);
+
 void main() {
   testWidgets('BranchSettingsScreen renders branch details and owner license for owner',
       (tester) async {
@@ -71,6 +84,7 @@ void main() {
           branchSettingsServiceProvider
               .overrideWithValue(_FakeBranchSettingsService()),
           sessionProvider.overrideWith(_OwnerSession.new),
+          pharmacyStaffProfileProvider.overrideWith((ref) async => _demoProfile),
         ],
         child: const MaterialApp(
           home: BranchSettingsScreen(),
@@ -80,7 +94,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Branch Settings'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Your profile'), findsOneWidget);
+    expect(find.text('Juan Dela Cruz'), findsOneWidget);
     expect(find.text('Supreme Pharmacy'), findsOneWidget);
     expect(find.text('La Paz Branch'), findsOneWidget);
     expect(find.text('Save changes'), findsOneWidget);
@@ -94,6 +110,15 @@ void main() {
           branchSettingsServiceProvider
               .overrideWithValue(_FakeBranchSettingsService()),
           sessionProvider.overrideWith(_StaffSession.new),
+          pharmacyStaffProfileProvider.overrideWith(
+            (ref) async => const PharmacyStaffProfile(
+              firstName: 'Ana',
+              lastName: 'Reyes',
+              employeeId: 'EMP-000042',
+              role: 'staff',
+              username: 'staff_demo',
+            ),
+          ),
         ],
         child: const MaterialApp(
           home: BranchSettingsScreen(),
@@ -103,7 +128,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Branch Settings'), findsOneWidget);
-    expect(find.text('Save changes'), findsNothing);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
   });
 }
