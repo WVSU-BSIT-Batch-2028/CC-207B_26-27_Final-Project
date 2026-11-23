@@ -5,7 +5,7 @@
 
 | File | Class | Description |
 |---|---|---|
-| `lib/models/prescription.dart` | `Prescription` | Represents a prescribed medicine, including its name, strength, form, instruction, duration, start date, prescriber, doctor phone, prescribed date, optional refill and last-refill dates, and the doctor's notes. Works out the last day of the course and whether the prescription is still active or a refill is available on a given date. |
+| `lib/models/prescription.dart` | `Prescription` | Represents a prescribed medicine, including its name, strength, form, instruction, duration, start date, prescriber, doctor phone, prescribed date, optional refill and last-refill dates, and the doctor's notes. The doctor's phone is optional. Works out the last day of the course and whether the prescription is still active or a refill is available on a given date. |
 | `lib/models/refill_request.dart` | `RefillRequest` | Represents a patient's request for a refill, including the prescription it belongs to, when it was sent, and its status. |
 | `lib/models/refill_request.dart` | `RefillStatus` / `RefillStatusX` | Defines the refill statuses Pending, Approved, and Declined, including their display labels. |
 | `lib/models/reminder_setting.dart` | `ReminderSetting` / `ReminderMode` | Represents a saved medicine reminder (every 8 hours or a custom daily time) with its start date and notification switch. Provides the summary text for the confirmation message and converts the reminder to and from JSON for saving. |
@@ -15,7 +15,8 @@
 
 | File | Class | Description |
 |---|---|---|
-| `lib/services/prescription_service.dart` | `PrescriptionService` | Provides mock prescription data, simulates loading, and supports normal, empty, and error scenarios. Records taken doses in the existing local store, saves and loads reminders, creates refill requests, and loads the taken-dose history. |
+| `lib/services/prescription_mapper.dart` | `prescriptionFromData` / `doctorPrescriptionFromData` / `doctorPrescriptionToData` / `refillRequestFromData` | Converts Firestore documents into the patient and doctor prescription models, and a doctor's new prescription into a document. Plain functions with no Firebase calls, so they can be unit tested. |
+| `lib/services/prescription_service.dart` | `PrescriptionService` | The single place all Prescriptions screens use, backed by Firestore. Loads the patient's prescriptions, records taken doses, creates refill requests, saves reminders, and loads the taken-dose history. For the doctor side it reads and adds prescriptions, loads the patient's refill requests and taken doses, and records the doctor's answer to a refill request. Also provides today's medicines for the Home checklist. |
 | `lib/services/prescription_service.dart` | `PrescriptionException` | Handles errors when prescription data cannot be loaded or when an action such as a refill request fails. |
 | `lib/services/prescription_service.dart` | `PrescriptionActivity` | Groups what has happened with one prescription: whether it was taken today and whether a refill request exists. |
 
@@ -27,6 +28,7 @@
 | `lib/widgets/prescription_info_card.dart` | `PrescriptionInfoCard` | Provides the shared card layout (icon box plus content) used on the prescription detail screens. |
 | `lib/widgets/refill_status_chip.dart` | `RefillStatusChip` | Displays consistent Pending, Approved, and Declined refill labels with an icon and text. |
 | `lib/widgets/taken_history_card.dart` | `TakenHistoryCard` | Displays how many days a medicine was taken and the most recent days. |
+| `lib/widgets/refill_request_card.dart` | `RefillRequestCard` | Shows a patient's refill request to the doctor, with Approve and Decline buttons while it is pending. |
 
 ## Patient screens
 
@@ -51,3 +53,4 @@
 | `test/prescription_test.dart` | Checks the prescription title, the active and finished rules, the last day of the course, and when a refill becomes available. |
 | `test/reminder_setting_test.dart` | Checks the reminder summary text and that a reminder survives being saved and loaded as JSON. |
 | `test/taken_history_test.dart` | Checks the taken-day count and the most-recent-days helper. |
+| `test/prescription_mapper_test.dart` | Checks that Firestore documents become the right patient and doctor models, that a prescription survives being written and read back, and how refill statuses are read. |

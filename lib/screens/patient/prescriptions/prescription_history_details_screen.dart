@@ -168,13 +168,15 @@ class _PrescriptionHistoryDetailsScreenState
                         fontSize: 14,
                       ),
                     ),
-                    Text(
-                      _rx.doctorPhone,
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 14,
+                    // The phone is optional: only show it when there is one.
+                    if (_rx.doctorPhone != null && _rx.doctorPhone!.isNotEmpty)
+                      Text(
+                        _rx.doctorPhone!,
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       formatLongDate(_rx.prescribedOn),
