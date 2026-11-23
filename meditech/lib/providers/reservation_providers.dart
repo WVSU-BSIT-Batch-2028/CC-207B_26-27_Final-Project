@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/reservation.dart';
 import '../services/reservation_service.dart';
 import 'cart_providers.dart';
+import 'session_providers.dart';
 
 // Provides the ReservationService instance (overridable in widget tests)
 final reservationServiceProvider = Provider<ReservationService>((ref) {
@@ -16,8 +17,15 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
 
   @override
   Future<List<CustomerReservation>> build() async {
-    final service = ref.watch(reservationServiceProvider);
     ref.onDispose(_unsubscribe);
+    ref.listen(sessionProvider, (previous, next) {
+      if (next == null) _unsubscribe();
+    });
+
+    if (ref.watch(sessionProvider) == null) {
+      return const [];
+    }
+    final service = ref.watch(reservationServiceProvider);
 
     final userId = _tryCurrentUserId();
     if (userId != null) {
@@ -70,6 +78,10 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
 
   // Reloads the customer's reservations from Supabase
   Future<void> refresh() async {
+    if (!ref.mounted || ref.read(sessionProvider) == null) {
+      state = const AsyncData([]);
+      return;
+    }
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(reservationServiceProvider).getMyReservations(),

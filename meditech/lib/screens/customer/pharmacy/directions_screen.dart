@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../services/route_service.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -91,12 +93,68 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
   bool _permissionDenied = false;
   RouteResult? _routeResult;
   _TravelMode _mode = _TravelMode.walk;
+  bool _navigating = false;
+  LatLng? _liveLocation;
+  int _currentStepIndex = 0;
+  int? _remainingMeters;
+  StreamSubscription<Position>? _positionSub;
+  bool _fitRouteOnNextLoad = true;
+
+  LatLng get _userOnMap => _liveLocation ?? _origin;
+
+  bool get _insecureWebGeolocation {
+    if (!kIsWeb) return false;
+    final uri = Uri.base;
+    if (uri.scheme == 'https') return false;
+    final host = uri.host.toLowerCase();
+    return host != 'localhost' && host != '127.0.0.1';
+  }
+
+  String get _locationDeniedMessage {
+    if (_insecureWebGeolocation) {
+      return 'GPS is blocked on plain HTTP (Not secure in the browser). '
+          'Tap the map to set where you are, use Change start, or open the app '
+          'over HTTPS / localhost for live GPS.';
+    }
+    return 'Location denied. Allow location for this site in browser settings, '
+        'tap the map to set where you are, or use Change start.';
+  }
+
+  void _setStartFromMap(LatLng point) {
+    if (_navigating) _stopNavigation();
+    setState(() {
+      _origin = point;
+      _liveLocation = point;
+      _originLabel = 'Dropped pin on map';
+      _permissionDenied = false;
+    });
+    _fitRouteOnNextLoad = true;
+    _fetchRoute();
+  }
+
+  void _fitRouteOverview(List<LatLng> points) {
+    if (points.length < 2) return;
+    _mapController.fitCamera(
+      CameraFit.coordinates(
+        coordinates: points,
+        padding: const EdgeInsets.all(72),
+        maxZoom: 14,
+        minZoom: 12,
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _routeService = widget.routeService ?? RouteService();
     _initStartingLocation();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
   }
 
   int get _straightLineMeters => const Distance()
@@ -139,9 +197,9 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+        locationSettings: LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 5),
+          timeLimit: Duration(seconds: kIsWeb ? 15 : 8),
         ),
       );
 
@@ -160,6 +218,52 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
     await _fetchRoute();
   }
 
+  Future<void> _retryLocationPermission() async {
+    if (_insecureWebGeolocation) {
+      _showChangeOriginDialog();
+      return;
+    }
+    setState(() => _loading = true);
+    final allowed = await _ensureLocationPermission();
+    if (!allowed) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _permissionDenied = true;
+      });
+      final opened = await Geolocator.openAppSettings();
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_locationDeniedMessage)),
+        );
+      }
+      return;
+    }
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _origin = LatLng(position.latitude, position.longitude);
+        _liveLocation = _origin;
+        _originLabel = 'Your location';
+        _permissionDenied = false;
+      });
+      _fitRouteOnNextLoad = true;
+      await _fetchRoute();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Still could not read GPS. Try Change.')),
+        );
+      }
+    }
+  }
+
   Future<void> _fetchRoute() async {
     setState(() => _loading = true);
     try {
@@ -175,13 +279,11 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
           _loading = false;
         });
 
-        final points = [_origin, widget.destination, ...result.points];
-        _mapController.fitCamera(
-          CameraFit.coordinates(
-            coordinates: points,
-            padding: const EdgeInsets.all(48),
-          ),
-        );
+        if (_fitRouteOnNextLoad) {
+          final points = [_origin, widget.destination, ...result.points];
+          _fitRouteOverview(points);
+          _fitRouteOnNextLoad = false;
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -190,8 +292,121 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
 
   void _onModeSelected(_TravelMode mode) {
     if (_mode == mode) return;
+    if (_navigating) _stopNavigation();
     setState(() => _mode = mode);
     _fetchRoute();
+  }
+
+  Future<bool> _ensureLocationPermission() async {
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+  }
+
+  void _onPositionUpdate(Position position) {
+    if (!mounted) return;
+    final live = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _liveLocation = live;
+      _origin = live;
+      _originLabel = 'Your location';
+      _permissionDenied = false;
+    });
+    _syncTurnByTurnProgress(live);
+    if (_navigating) {
+      final zoom = _mapController.camera.zoom.clamp(14.0, 17.0);
+      _mapController.move(live, zoom);
+    }
+  }
+
+  void _syncTurnByTurnProgress(LatLng live) {
+    final route = _routeResult;
+    final steps = route?.steps ?? const <RouteStep>[];
+    final remaining =
+        const Distance().as(LengthUnit.Meter, live, widget.destination).round();
+    setState(() => _remainingMeters = remaining);
+
+    if (steps.isEmpty || route == null || route.points.length < 2) return;
+
+    if (remaining <= 35) {
+      setState(() => _currentStepIndex = steps.length - 1);
+      return;
+    }
+
+    final points = route.points;
+    var closestIdx = 0;
+    var closestDist = double.infinity;
+    for (var i = 0; i < points.length; i++) {
+      final d = const Distance().as(LengthUnit.Meter, live, points[i]);
+      if (d < closestDist) {
+        closestDist = d;
+        closestIdx = i;
+      }
+    }
+    final progress = closestIdx / (points.length - 1);
+    final stepIdx =
+        (progress * steps.length).floor().clamp(0, steps.length - 1);
+    if (stepIdx != _currentStepIndex) {
+      setState(() => _currentStepIndex = stepIdx);
+    }
+  }
+
+  Future<void> _toggleTurnByTurn() async {
+    if (_navigating) {
+      _stopNavigation();
+      return;
+    }
+
+    final allowed = await _ensureLocationPermission();
+    if (!allowed) {
+      if (!mounted) return;
+      setState(() => _permissionDenied = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Turn on location access to use in-app navigation.'),
+        ),
+      );
+      return;
+    }
+
+    await _positionSub?.cancel();
+    setState(() {
+      _navigating = true;
+      _currentStepIndex = 0;
+    });
+
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+      ),
+    ).listen(_onPositionUpdate, onError: (_) {});
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+        ),
+      );
+      _onPositionUpdate(position);
+      await _fetchRoute();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read GPS. Try again outdoors.')),
+        );
+      }
+    }
+  }
+
+  void _stopNavigation() {
+    _positionSub?.cancel();
+    _positionSub = null;
+    setState(() => _navigating = false);
   }
 
   void _showChangeOriginDialog() {
@@ -205,79 +420,73 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
 
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Select Starting Location',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+        final bottom = MediaQuery.viewInsetsOf(context).bottom;
+        final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg + bottom,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Select Starting Location',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Choose where you are departing from:',
-                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ...presets.entries.map((entry) {
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.place_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: Text(
-                      entry.key,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      setState(() {
-                        _origin = entry.value;
-                        _originLabel = entry.key;
-                        _permissionDenied = false;
-                      });
-                      _fetchRoute();
-                    },
-                  );
-                }),
-              ],
+                  const SizedBox(height: AppSpacing.sm),
+                  const Text(
+                    'Choose where you are departing from:',
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ...presets.entries.map((entry) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(
+                        Icons.place_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _origin = entry.value;
+                          _originLabel = entry.key;
+                          _permissionDenied = false;
+                        });
+                        _fitRouteOnNextLoad = true;
+                        _fetchRoute();
+                      },
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         );
       },
     );
-  }
-
-  Future<void> _openOsmTurnByTurn() async {
-    final engine = switch (_mode) {
-      _TravelMode.walk => 'fossgis_osrm_foot',
-      _TravelMode.commute => 'fossgis_osrm_bike',
-      _TravelMode.vehicle => 'fossgis_osrm_car',
-    };
-    final route =
-        '${_origin.latitude},${_origin.longitude};'
-        '${widget.destination.latitude},${widget.destination.longitude}';
-    final uri = Uri.parse(
-      'https://www.openstreetmap.org/directions?engine=$engine&route=$route',
-    );
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open OpenStreetMap.')),
-      );
-    }
   }
 
   void _zoomBy(double delta) {
@@ -294,6 +503,10 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
     final displayName = widget.pharmacyName.isNotEmpty
         ? widget.pharmacyName
         : widget.branchName;
+    final steps = _routeResult?.steps ?? const <RouteStep>[];
+    final nextInstruction = steps.isEmpty
+        ? null
+        : steps[_currentStepIndex.clamp(0, steps.length - 1)].instruction;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -315,7 +528,10 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                       name: displayName,
                       address: widget.address,
                       fromOsmDirectory: widget.fromOsmDirectory,
-                      onClose: () => Navigator.of(context).maybePop(),
+                      onClose: () {
+                        _stopNavigation();
+                        Navigator.of(context).maybePop();
+                      },
                     ),
                     Expanded(
                       child: useSideBySide
@@ -326,10 +542,19 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                                   flex: 3,
                                   child: _DirectionsMap(
                                     mapController: _mapController,
-                                    origin: _origin,
+                                    origin: _userOnMap,
                                     destination: widget.destination,
                                     polylinePoints: polylinePoints,
                                     loading: _loading,
+                                    navigating: _navigating,
+                                    nextInstruction: _navigating
+                                        ? nextInstruction
+                                        : null,
+                                    remainingMeters: _navigating
+                                        ? _remainingMeters
+                                        : null,
+                                    allowPickStart: _permissionDenied,
+                                    onPickStart: _setStartFromMap,
                                     onZoomIn: () => _zoomBy(1),
                                     onZoomOut: () => _zoomBy(-1),
                                   ),
@@ -344,10 +569,16 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                                     straightLineLabel: _straightLineLabel,
                                     originLabel: _originLabel,
                                     permissionDenied: _permissionDenied,
+                                    locationDeniedMessage:
+                                        _locationDeniedMessage,
                                     destination: widget.destination,
+                                    navigating: _navigating,
+                                    currentStepIndex: _currentStepIndex,
+                                    remainingMeters: _remainingMeters,
                                     onModeSelected: _onModeSelected,
                                     onChangeOrigin: _showChangeOriginDialog,
-                                    onOpenOsm: _openOsmTurnByTurn,
+                                    onRetryLocation: _retryLocationPermission,
+                                    onToggleNavigation: _toggleTurnByTurn,
                                     onRefresh: _loading ? null : _fetchRoute,
                                   ),
                                 ),
@@ -359,10 +590,19 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                                   height: 320,
                                   child: _DirectionsMap(
                                     mapController: _mapController,
-                                    origin: _origin,
+                                    origin: _userOnMap,
                                     destination: widget.destination,
                                     polylinePoints: polylinePoints,
                                     loading: _loading,
+                                    navigating: _navigating,
+                                    nextInstruction: _navigating
+                                        ? nextInstruction
+                                        : null,
+                                    remainingMeters: _navigating
+                                        ? _remainingMeters
+                                        : null,
+                                    allowPickStart: _permissionDenied,
+                                    onPickStart: _setStartFromMap,
                                     onZoomIn: () => _zoomBy(1),
                                     onZoomOut: () => _zoomBy(-1),
                                   ),
@@ -376,10 +616,16 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                                     straightLineLabel: _straightLineLabel,
                                     originLabel: _originLabel,
                                     permissionDenied: _permissionDenied,
+                                    locationDeniedMessage:
+                                        _locationDeniedMessage,
                                     destination: widget.destination,
+                                    navigating: _navigating,
+                                    currentStepIndex: _currentStepIndex,
+                                    remainingMeters: _remainingMeters,
                                     onModeSelected: _onModeSelected,
                                     onChangeOrigin: _showChangeOriginDialog,
-                                    onOpenOsm: _openOsmTurnByTurn,
+                                    onRetryLocation: _retryLocationPermission,
+                                    onToggleNavigation: _toggleTurnByTurn,
                                     onRefresh: _loading ? null : _fetchRoute,
                                   ),
                                 ),
@@ -492,6 +738,11 @@ class _DirectionsMap extends StatelessWidget {
     required this.destination,
     required this.polylinePoints,
     required this.loading,
+    required this.navigating,
+    this.nextInstruction,
+    this.remainingMeters,
+    required this.allowPickStart,
+    required this.onPickStart,
     required this.onZoomIn,
     required this.onZoomOut,
   });
@@ -501,6 +752,11 @@ class _DirectionsMap extends StatelessWidget {
   final LatLng destination;
   final List<LatLng> polylinePoints;
   final bool loading;
+  final bool navigating;
+  final String? nextInstruction;
+  final int? remainingMeters;
+  final bool allowPickStart;
+  final void Function(LatLng point) onPickStart;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
 
@@ -515,6 +771,9 @@ class _DirectionsMap extends StatelessWidget {
           options: MapOptions(
             initialCenter: origin,
             initialZoom: 14,
+            onTap: allowPickStart
+                ? (_, point) => onPickStart(point)
+                : null,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
             ),
@@ -538,13 +797,16 @@ class _DirectionsMap extends StatelessWidget {
               markers: [
                 Marker(
                   point: origin,
-                  width: 28,
-                  height: 28,
+                  width: navigating ? 36 : 28,
+                  height: navigating ? 36 : 28,
                   child: Container(
                     decoration: BoxDecoration(
                       color: routeBlue,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
+                      border: Border.all(
+                        color: navigating ? Colors.white : Colors.white,
+                        width: navigating ? 4 : 3,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Colors.black26,
@@ -552,6 +814,13 @@ class _DirectionsMap extends StatelessWidget {
                         ),
                       ],
                     ),
+                    child: navigating
+                        ? const Icon(
+                            Icons.navigation,
+                            color: Colors.white,
+                            size: 18,
+                          )
+                        : null,
                   ),
                 ),
                 Marker(
@@ -594,6 +863,80 @@ class _DirectionsMap extends StatelessWidget {
             onZoomOut: onZoomOut,
           ),
         ),
+        if (allowPickStart)
+          Positioned(
+            top: 52,
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFEFF6FF),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Text(
+                  'Tap the map to set your location for road directions.',
+                  softWrap: true,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (nextInstruction != null)
+          Positioned(
+            top: AppSpacing.sm,
+            left: 52,
+            right: AppSpacing.sm,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'NEXT',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      nextInstruction!,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    if (remainingMeters != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '$remainingMeters m to pharmacy',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
         Positioned(
           left: AppSpacing.sm,
           bottom: AppSpacing.sm,
@@ -755,11 +1098,16 @@ class _DirectionsPanel extends StatelessWidget {
     required this.straightLineLabel,
     required this.originLabel,
     required this.permissionDenied,
+    required this.locationDeniedMessage,
     required this.destination,
     required this.onModeSelected,
     required this.onChangeOrigin,
-    required this.onOpenOsm,
+    required this.onRetryLocation,
+    required this.onToggleNavigation,
     required this.onRefresh,
+    required this.navigating,
+    required this.currentStepIndex,
+    this.remainingMeters,
   });
 
   final bool showLeftDivider;
@@ -769,16 +1117,25 @@ class _DirectionsPanel extends StatelessWidget {
   final String straightLineLabel;
   final String originLabel;
   final bool permissionDenied;
+  final String locationDeniedMessage;
   final LatLng destination;
+  final bool navigating;
+  final int currentStepIndex;
+  final int? remainingMeters;
   final ValueChanged<_TravelMode> onModeSelected;
   final VoidCallback onChangeOrigin;
-  final VoidCallback onOpenOsm;
+  final VoidCallback onRetryLocation;
+  final VoidCallback onToggleNavigation;
   final VoidCallback? onRefresh;
 
   String get _stepsSourceLabel {
     final provider = route?.provider;
-    if (provider == 'openrouteservice') return 'OpenRouteService';
-    return 'OSRM Roads';
+    return switch (provider) {
+      'openrouteservice' => 'OpenRouteService',
+      'osrm' => 'OSRM Roads',
+      'local_fallback' => 'Estimate only',
+      _ => 'OSRM Roads',
+    };
   }
 
   @override
@@ -800,26 +1157,65 @@ class _DirectionsPanel extends StatelessWidget {
               color: AppColors.warningLight,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.location_off,
+                          color: AppColors.warning,
+                          size: 18,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            locationDeniedMessage,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        TextButton(
+                          onPressed: onRetryLocation,
+                          child: const Text('Try GPS again'),
+                        ),
+                        TextButton(
+                          onPressed: onChangeOrigin,
+                          child: const Text('Change start'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (route?.provider == 'local_fallback')
+            Card(
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              color: const Color(0xFFFFF7ED),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.location_off,
-                      color: AppColors.warning,
-                      size: 18,
-                    ),
+                    const Icon(Icons.warning_amber, color: AppColors.warning),
                     const SizedBox(width: AppSpacing.sm),
                     const Expanded(
                       child: Text(
-                        'Location denied. Using manual starting point.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        'Road routing is unavailable. Pull to refresh or '
+                        'check your internet connection.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: onChangeOrigin,
-                      child: const Text('Change'),
                     ),
                   ],
                 ),
@@ -866,6 +1262,8 @@ class _DirectionsPanel extends StatelessWidget {
             onTap: onChangeOrigin,
             child: Text(
               'From: $originLabel',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textMuted,
@@ -947,32 +1345,53 @@ class _DirectionsPanel extends StatelessWidget {
             )
           else
             ...steps.asMap().entries.map((entry) {
-              final index = entry.key + 1;
+              final index = entry.key;
               final step = entry.value;
+              final active = navigating && index == currentStepIndex;
+              final passed = navigating && index < currentStepIndex;
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$index.',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '${step.instruction} (${step.distanceLabel})',
-                        style: const TextStyle(
+                child: Container(
+                  padding: active
+                      ? const EdgeInsets.all(AppSpacing.sm)
+                      : EdgeInsets.zero,
+                  decoration: active
+                      ? BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary),
+                        )
+                      : null,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${index + 1}.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: AppColors.text,
-                          height: 1.35,
+                          color: passed
+                              ? AppColors.textMuted
+                              : AppColors.text,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${step.instruction} (${step.distanceLabel})',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: passed
+                                ? AppColors.textMuted
+                                : AppColors.text,
+                            fontWeight:
+                                active ? FontWeight.w700 : FontWeight.w500,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -987,18 +1406,34 @@ class _DirectionsPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (navigating && remainingMeters != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                '$remainingMeters m remaining to the pharmacy',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: onOpenOsm,
+            child: FilledButton.icon(
+              onPressed: loading ? null : onToggleNavigation,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: AppColors.primary,
+                backgroundColor:
+                    navigating ? AppColors.textMuted : AppColors.primary,
               ),
-              child: const Text(
-                'Open Turn-by-Turn in OpenStreetMap',
+              icon: Icon(navigating ? Icons.stop_circle_outlined : Icons.navigation),
+              label: Text(
+                navigating
+                    ? 'Stop turn-by-turn'
+                    : 'Start turn-by-turn navigation',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
