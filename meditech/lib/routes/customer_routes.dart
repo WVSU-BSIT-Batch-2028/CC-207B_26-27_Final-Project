@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/customer_nav_provider.dart';
 import '../screens/customer/assistant/assistant_screen.dart';
 import '../screens/customer/cart/cart_screen.dart';
 import '../screens/customer/customer_frame.dart';
@@ -123,18 +122,12 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
           return ReservationSubmittedScreen(
             reservationId: extra.reservationId,
             referenceNo: extra.referenceNo,
+            branchId: extra.branchId,
             pharmacyName: extra.pharmacyName,
             branchName: extra.branchName,
+            branchAddress: extra.branchAddress,
             items: extra.items,
             totalAmount: extra.totalAmount,
-            onViewReservation: () {
-              ref.read(customerTabProvider.notifier).select(2);
-              context.pushReplacement('/reservations/${extra.reservationId}');
-            },
-            onBackToHome: () {
-              ref.read(customerTabProvider.notifier).select(0);
-              context.go('/home');
-            },
           );
         },
       ),
@@ -165,6 +158,7 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
             branchName: extra.branchName,
             address: extra.address,
             destination: extra.destination,
+            fromOsmDirectory: extra.fromOsmDirectory,
           );
         },
       ),

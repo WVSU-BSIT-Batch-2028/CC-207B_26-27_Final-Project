@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/signed_in_account.dart';
@@ -37,10 +38,17 @@ abstract class AuthService {
   });
 
   Future<void> signOut();
+
+  Future<void> resendSignUpConfirmation(String email);
 }
 
 class SupabaseAuthService implements AuthService {
   SupabaseClient get _client => Supabase.instance.client;
+
+  String? _customerEmailRedirectUrl() {
+    if (!kIsWeb) return null;
+    return Uri.base.origin;
+  }
 
   @override
   Future<SignedInAccount> signIn({
@@ -88,26 +96,39 @@ class SupabaseAuthService implements AuthService {
       final created = await _client.auth.signUp(
         email: email.trim(),
         password: password,
+        emailRedirectTo: _customerEmailRedirectUrl(),
       );
-      if (created.user == null) {
+      final user = created.user;
+      if (user == null) {
         throw const AppFailure('Sign-up did not create an account.');
       }
 
+      final session = created.session;
+      final identities = user.identities;
+      if (session == null) {
+        if (identities != null && identities.isEmpty) {
+          throw const AppFailure('User already registered');
+        }
+        throw const AppFailure(
+          'Confirm your email from Gmail (check spam), then sign in to finish your profile.',
+        );
+      }
+
+      final cleanMobile = mobile.replaceAll(RegExp(r'\D'), '');
       await _client.rpc('create_customer_profile', params: {
         'p_first_name': firstName.trim(),
         'p_middle_name': middleName.trim(),
         'p_last_name': lastName.trim(),
-        'p_mobile': mobile.trim(),
+        'p_mobile': cleanMobile,
         'p_birthdate':
             '${birthdate.year.toString().padLeft(4, '0')}-${birthdate.month.toString().padLeft(2, '0')}-${birthdate.day.toString().padLeft(2, '0')}',
       });
 
-      final refreshed = await _client.auth.refreshSession();
-      return _accountFrom(refreshed.session?.accessToken, 'customer');
+      return _accountFrom(session.accessToken, 'customer');
     } on AuthException catch (error) {
-      throw AppFailure(error.message);
+      throw AppFailure(_friendlyAuthSignUpMessage(error.message));
     } on PostgrestException catch (error) {
-      throw AppFailure(error.message);
+      throw AppFailure(_friendlyAuthSignUpMessage(error.message));
     }
   }
 
@@ -190,6 +211,61 @@ class SupabaseAuthService implements AuthService {
   Future<void> signOut() {
     return _client.auth.signOut();
   }
+
+  @override
+  Future<void> resendSignUpConfirmation(String email) async {
+    try {
+      await _client.auth.resend(
+        type: OtpType.signup,
+        email: email.trim(),
+        emailRedirectTo: _customerEmailRedirectUrl(),
+      );
+    } on AuthException catch (error) {
+      throw AppFailure(_friendlyAuthSignUpMessage(error.message));
+    }
+  }
+}
+
+String _friendlyAuthSignUpMessage(String message) {
+  final lower = message.toLowerCase();
+  if (lower.contains('mobile number is already used') ||
+      lower.contains('enter a mobile number like')) {
+    return message;
+  }
+  if (lower.contains('birthdate cannot be in the future')) {
+    return message;
+  }
+  if (lower.contains('duplicate key') ||
+      lower.contains('unique constraint') ||
+      lower.contains('already registered') ||
+      lower.contains('user already registered')) {
+    return 'User already registered';
+  }
+  if (lower.contains('confirm your email')) {
+    return message;
+  }
+  if (lower.contains('password') &&
+      (lower.contains('least') || lower.contains('weak') || lower.contains('short'))) {
+    return 'Password must be at least 6 characters.';
+  }
+  if (lower.contains('invalid') && lower.contains('email')) {
+    return 'Enter a valid email address.';
+  }
+  if (lower.contains('rate limit') ||
+      lower.contains('too many') ||
+      lower.contains('over_email_send_rate_limit') ||
+      lower.contains('over_request_rate_limit')) {
+    return 'Too many sign-up attempts from this device. Wait about 5 minutes, then try again—or sign in if you already created an account.';
+  }
+  if (lower.contains('you need to sign up before saving your profile')) {
+    return 'Sign-up session expired. Close this page, open sign-up again, and retry.';
+  }
+  if (lower.contains('create_customer_profile') ||
+      lower.contains('could not find the function') ||
+      lower.contains('schema cache')) {
+    return 'Sign-up is not fully set up on the server yet. Ask your administrator to apply the latest database migration.';
+  }
+  return message;
 }
 
 SignedInAccount _accountFrom(String? accessToken, Object? accountType) {

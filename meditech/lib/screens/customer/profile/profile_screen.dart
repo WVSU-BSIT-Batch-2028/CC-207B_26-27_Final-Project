@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../models/customer_profile.dart';
 import '../../../providers/profile_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 // Shows the signed-in customer's saved details
@@ -42,10 +43,28 @@ class ProfileScreen extends ConsumerWidget {
       },
     );
 
-    if (embedded) return body;
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: CustomerLocationAppBarTitle(heading: 'Profile'),
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const CustomerLocationAppBarTitle(heading: 'Profile'),
+      ),
       body: body,
     );
   }

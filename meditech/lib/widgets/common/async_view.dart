@@ -24,6 +24,7 @@ class AsyncView<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return value.when(
+      skipLoadingOnReload: true,
       // Still loading
       loading: () => const Center(child: CircularProgressIndicator()),
       // Something went wrong

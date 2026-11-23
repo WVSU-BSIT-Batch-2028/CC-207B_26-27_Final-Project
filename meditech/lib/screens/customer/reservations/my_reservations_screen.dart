@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../models/reservation.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -39,7 +40,6 @@ enum ReservationFilterTab {
   }
 }
 
-// Customer "My Reservations" list with status tabs (wireframes P-24 and P-25)
 class MyReservationsScreen extends ConsumerStatefulWidget {
   const MyReservationsScreen({
     super.key,
@@ -78,6 +78,15 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.isOffline) const OfflineBanner(),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: CustomerLocationAppBarTitle(heading: 'My reservations'),
+        ),
         // Status filter chips bar
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

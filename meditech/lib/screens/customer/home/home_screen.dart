@@ -12,6 +12,7 @@ import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/customer_location_title.dart';
 import '../../../widgets/common/browse_store_card.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -66,11 +67,11 @@ class HomeScreen extends ConsumerWidget {
     return ColoredBox(
       color: Colors.white,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           AppSpacing.lg,
           AppSpacing.sm,
           AppSpacing.lg,
-          120,
+          customerBottomChromeScrollPadding(context),
         ),
         children: [
           Row(
@@ -528,10 +529,38 @@ class _CircleAction extends StatelessWidget {
           child: SizedBox(
             width: 40,
             height: 40,
-            child: Badge(
-              isLabelVisible: badgeCount > 0,
-              label: Text('$badgeCount'),
-              child: Icon(icon, color: Colors.white, size: 20),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

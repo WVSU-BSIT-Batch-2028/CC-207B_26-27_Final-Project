@@ -41,6 +41,25 @@ class CartItem {
 
   String get formattedLineTotal => '₱${lineTotal.toStringAsFixed(2)}';
 
+  CartItem copyWith({int? quantity}) {
+    return CartItem(
+      branchId: branchId,
+      pharmacyName: pharmacyName,
+      branchName: branchName,
+      branchAddress: branchAddress,
+      medicineId: medicineId,
+      brandName: brandName,
+      genericName: genericName,
+      strength: strength,
+      dosageForm: dosageForm,
+      unitSold: unitSold,
+      isRx: isRx,
+      quantity: quantity ?? this.quantity,
+      pricePerUnit: pricePerUnit,
+      availability: availability,
+    );
+  }
+
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       branchId: json['branch_id'] as String,
@@ -140,5 +159,24 @@ class CustomerCart {
     if (isEmpty || hasUnavailableItems) return false;
     if (hasRxItems && prescriptions.isEmpty) return false;
     return true;
+  }
+
+  CustomerCart withItemQuantity(String medicineId, int quantity) {
+    if (quantity <= 0) {
+      return CustomerCart(
+        items: items.where((item) => item.medicineId != medicineId).toList(),
+        prescriptions: prescriptions,
+      );
+    }
+    return CustomerCart(
+      items: items
+          .map(
+            (item) => item.medicineId == medicineId
+                ? item.copyWith(quantity: quantity)
+                : item,
+          )
+          .toList(),
+      prescriptions: prescriptions,
+    );
   }
 }

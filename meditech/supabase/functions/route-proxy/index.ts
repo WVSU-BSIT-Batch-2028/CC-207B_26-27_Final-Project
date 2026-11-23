@@ -68,11 +68,27 @@ Deno.serve(async (req: Request) => {
                 const data = await orsResponse.json();
                 const feature = data.features?.[0];
                 if (feature) {
+                    const segments = feature.properties?.segments ?? [];
+                    const steps = segments.flatMap((segment: { steps?: unknown[] }) =>
+                        (segment.steps ?? []).map((raw) => {
+                            const step = raw as {
+                                instruction?: string;
+                                distance?: number;
+                                name?: string;
+                            };
+                            return {
+                                instruction: step.instruction ?? "Continue",
+                                distance_meters: Math.round(step.distance ?? 0),
+                                road_name: step.name ?? "",
+                            };
+                        })
+                    );
                     return new Response(
                         JSON.stringify({
                             coordinates: feature.geometry.coordinates,
-                            distance_meters: feature.properties.summary.distance,
-                            duration_seconds: feature.properties.summary.duration,
+                            distance_meters: Math.round(feature.properties.summary.distance),
+                            duration_seconds: Math.round(feature.properties.summary.duration),
+                            steps,
                             provider: "openrouteservice",
                         }),
                         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -82,10 +98,16 @@ Deno.serve(async (req: Request) => {
         }
 
         // Local fallback when key is not set or remote service is unreachable
-        const distanceMeters = Math.round(
-            haversineDistanceMeters(startLat, startLng, endLat, endLng) * 1.3,
+        const straightMeters = Math.round(
+            haversineDistanceMeters(startLat, startLng, endLat, endLng),
         );
-        const durationSeconds = Math.round((distanceMeters / 8.33)); // Average city speed ~30 km/h
+        const distanceMeters = Math.round(straightMeters * 1.3);
+        const speedMps = profile === "foot-walking"
+            ? 1.33
+            : profile === "cycling-regular"
+            ? 4.2
+            : 8.33;
+        const durationSeconds = Math.round(distanceMeters / speedMps);
 
         // Generates a simple multi-point polyline route
         const midLng = (startLng + endLng) / 2;
@@ -98,11 +120,18 @@ Deno.serve(async (req: Request) => {
             [endLng, endLat],
         ];
 
+        const fallbackSteps = [
+            { instruction: "Head toward destination", distance_meters: Math.round(distanceMeters * 0.25), road_name: "" },
+            { instruction: "Continue along city streets", distance_meters: Math.round(distanceMeters * 0.45), road_name: "" },
+            { instruction: "Approach the pharmacy", distance_meters: Math.round(distanceMeters * 0.3), road_name: "" },
+        ];
+
         return new Response(
             JSON.stringify({
                 coordinates: fallbackCoords,
                 distance_meters: distanceMeters,
                 duration_seconds: durationSeconds,
+                steps: fallbackSteps,
                 provider: "local_fallback",
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } },

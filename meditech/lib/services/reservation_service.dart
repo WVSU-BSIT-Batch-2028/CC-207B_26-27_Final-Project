@@ -96,6 +96,14 @@ class ReservationService {
         .toList();
   }
 
+  // Cancels the signed-in customer's own pending reservation
+  Future<void> cancelMyReservation(String reservationId) async {
+    await _client.rpc(
+      'customer_cancel_reservation',
+      params: {'p_reservation_id': reservationId},
+    );
+  }
+
   // Loads a single reservation with full details, pickup code, and timeline
   Future<CustomerReservation?> getReservationById(String reservationId) async {
     final row = await _client

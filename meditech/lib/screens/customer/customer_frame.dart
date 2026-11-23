@@ -102,12 +102,16 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     ];
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
         child: IndexedStack(index: currentIndex, children: screens),
       ),
-      bottomNavigationBar: const CustomerBottomChrome(),
+      bottomNavigationBar: CustomerBottomChrome(
+        showBasket: currentIndex == 1,
+        onViewCart: _openCart,
+      ),
     );
   }
 }
