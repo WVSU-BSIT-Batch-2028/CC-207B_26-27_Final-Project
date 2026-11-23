@@ -14,6 +14,7 @@ import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/common/basket_bar.dart';
+import '../../../utils/public_media_urls.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 import '../medicine/medicine_details_screen.dart';
@@ -370,7 +371,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               value: resultsAsync,
               onRetry: () => ref.invalidate(medicineSearchResultsProvider),
               builder: (items) {
-                return ListView(
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(medicineSearchResultsProvider);
+                    await ref.read(medicineSearchResultsProvider.future);
+                  },
+                  child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.sm,
@@ -475,6 +482,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ],
                   ],
+                ),
                 );
               },
             ),
@@ -514,7 +522,7 @@ class _StockMedicineCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   color: AppColors.primaryLight,
-                  child: const Icon(Icons.medication, color: AppColors.primary),
+                  child: _MedicineSearchThumb(imagePath: medicine.imagePath),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -589,6 +597,27 @@ class _StockMedicineCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MedicineSearchThumb extends StatelessWidget {
+  const _MedicineSearchThumb({this.imagePath});
+
+  final String? imagePath;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = medicineImagePublicUrl(imagePath);
+    if (url == null) {
+      return const Icon(Icons.medication, color: AppColors.primary);
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: 56,
+      height: 56,
+      errorBuilder: (_, _, _) => const Icon(Icons.medication, color: AppColors.primary),
     );
   }
 }

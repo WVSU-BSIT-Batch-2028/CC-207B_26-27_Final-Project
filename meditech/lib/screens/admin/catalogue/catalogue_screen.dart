@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/catalogue_medicine.dart';
 import '../../../providers/catalogue_providers.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
+import '../../../widgets/tablet/tablet_controls.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import 'medicine_drawer.dart';
@@ -32,16 +34,16 @@ String medicineClassification(bool isRx) =>
 
 // Admin medicine catalogue (wireframes A-12, A-14, A-15)
 class CatalogueScreen extends ConsumerStatefulWidget {
-  const CatalogueScreen({super.key});
+  const CatalogueScreen({super.key, this.drawerInShell = false});
+
+  /// When true, [AdminShellScreen] renders the medicine drawer in the right panel.
+  final bool drawerInShell;
 
   @override
   ConsumerState<CatalogueScreen> createState() => _CatalogueScreenState();
 }
 
 class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
-  // Below this width the drawer replaces the page instead of sitting beside it
-  static const _sideBySideMinWidth = 1500.0;
-
   final _search = TextEditingController();
   Timer? _debounce;
 
@@ -67,234 +69,151 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
     ref.read(catalogueFilterProvider.notifier).setSearch('');
   }
 
+  void _openMedicine(String id) {
+    final useShell = widget.drawerInShell && MediaQuery.sizeOf(context).width >= 900;
+    if (useShell) {
+      ref.read(selectedMedicineProvider.notifier).select(id);
+      return;
+    }
+    _openMedicineSheet(id);
+  }
+
+  Future<void> _openMedicineSheet(String id) async {
+    final rows = ref.read(catalogueListProvider).asData?.value;
+    final medicine = id == 'new' ? null : rows?.where((m) => m.id == id).firstOrNull;
+
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      pageBuilder: (context, _, _) => Align(
+        alignment: Alignment.centerRight,
+        child: SizedBox(
+          width: 460,
+          height: MediaQuery.sizeOf(context).height,
+          child: MedicineDrawer(
+            key: ValueKey(id),
+            medicine: medicine,
+            onClose: () => Navigator.pop(context),
+          ),
+        ),
+      ),
+    );
+    ref.read(selectedMedicineProvider.notifier).select(null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(catalogueFilterProvider);
     final selected = ref.watch(selectedMedicineProvider);
     final rows = ref.watch(catalogueListProvider);
-    final select = ref.read(selectedMedicineProvider.notifier).select;
     final view = rows.whenData((all) => CatalogueView.of(all, filter));
 
-    final drawer = selected == null
-        ? null
-        : MedicineDrawer(
-            key: ValueKey(selected),
-            medicine: selected == 'new'
-                ? null
-                : rows.value?.where((m) => m.id == selected).firstOrNull,
-            onClose: () => select(null),
-          );
+    final total = rows.value?.length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Medicine catalogue'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.lg),
-            child: FilledButton.icon(
-              onPressed: () => select('new'),
-              icon: const Icon(Icons.add),
-              label: const Text('Add medicine'),
-            ),
-          ),
-        ],
-      ),
-      body: LayoutBuilder(builder: (context, constraints) {
-        // Too narrow for the table and a 460px drawer side by side
-        if (drawer != null && constraints.maxWidth < _sideBySideMinWidth) {
-          return Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: drawer);
-        }
-
-        final page = SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            _StatCards(all: rows.value, status: filter.status),
-            const SizedBox(height: AppSpacing.lg),
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: _Toolbar(
-                    search: _search,
-                    onSearchChanged: _onSearchChanged,
-                    onClearSearch: _clearSearch,
-                    filter: filter,
-                    counts: view.value?.statusCounts,
+    final content = Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Medicine catalogue',
+                        style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        total == null ? 'Loading…' : '$total medicines in the catalogue',
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ],
                   ),
                 ),
-                const Divider(),
-                AsyncView<CatalogueView>(
-                  value: view,
-                  onRetry: () => ref.invalidate(catalogueListProvider),
-                  isEmpty: (v) => v.matching == 0,
-                  emptyMessage: 'No medicines match these filters.',
-                  builder: (v) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-                      child: _ListBar(view: v, filter: filter),
-                    ),
-                    _Table(
-                      rows: v.rows,
-                      selectedId: selected,
-                      filter: filter,
-                      onOpen: select,
-                    ),
-                  ]),
+                FilledButton.icon(
+                  onPressed: () => _openMedicine('new'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add medicine'),
+                  style: TabletControls.actionFilled(),
                 ),
-              ]),
+              ],
             ),
-          ]),
-        );
-
-        return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Expanded(child: page),
-          if (drawer != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
-              child: SizedBox(width: 460, child: drawer),
+            const SizedBox(height: AppSpacing.lg),
+            _StatusChips(
+              all: rows.value,
+              status: filter.status,
+              counts: view.value?.statusCounts,
             ),
-        ]);
-      }),
-    );
-  }
-}
-
-// Totals across the whole catalogue; tapping one filters the table
-class _StatCards extends ConsumerWidget {
-  const _StatCards({required this.all, required this.status});
-
-  final List<CatalogueMedicine>? all; // null while loading
-  final String? status;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    int? count(String? s) => all?.where((m) => s == null || m.status == s).length;
-    final setStatus = ref.read(catalogueFilterProvider.notifier).setStatus;
-
-    final cards = [
-      _StatCard(
-        icon: Icons.medication_outlined,
-        label: 'Total medicines',
-        value: count(null),
-        color: AppColors.primary,
-        background: AppColors.primaryLight,
-        selected: status == null,
-        onTap: () => setStatus(null),
-      ),
-      _StatCard(
-        icon: Icons.check_circle_outline,
-        label: 'Active',
-        value: count('active'),
-        color: AppColors.primary,
-        background: AppColors.primaryLight,
-        selected: status == 'active',
-        onTap: () => setStatus('active'),
-      ),
-      _StatCard(
-        icon: Icons.pending_actions_outlined,
-        label: 'Pending review',
-        value: count('draft'),
-        color: AppColors.warning,
-        background: AppColors.warningLight,
-        selected: status == 'draft',
-        onTap: () => setStatus('draft'),
-      ),
-      _StatCard(
-        icon: Icons.block,
-        label: 'Inactive',
-        value: count('inactive'),
-        color: AppColors.danger,
-        background: AppColors.dangerLight,
-        selected: status == 'inactive',
-        onTap: () => setStatus('inactive'),
-      ),
-    ];
-
-    // Four across on wide screens, two by two otherwise
-    return LayoutBuilder(builder: (context, constraints) {
-      final perRow = constraints.maxWidth >= 860 ? 4 : 2;
-      final width = (constraints.maxWidth - AppSpacing.md * (perRow - 1)) / perRow;
-      return Wrap(
-        spacing: AppSpacing.md,
-        runSpacing: AppSpacing.md,
-        children: [for (final c in cards) SizedBox(width: width, child: c)],
-      );
-    });
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.background,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final int? value;
-  final Color color;
-  final Color background;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.5 : 1),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(AppRadius.md)),
-              child: Icon(icon, color: color),
+            const SizedBox(height: AppSpacing.md),
+            _Toolbar(
+              search: _search,
+              onSearchChanged: _onSearchChanged,
+              onClearSearch: _clearSearch,
+              filter: filter,
             ),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w500)),
-                Text(value?.toString() ?? '–',
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.text)),
-              ]),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                margin: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AsyncView<CatalogueView>(
+                      value: view,
+                      onRetry: () => ref.invalidate(catalogueListProvider),
+                      isEmpty: (v) => v.matching == 0,
+                      emptyMessage: 'No medicines match these filters.',
+                      builder: (v) => Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical: AppSpacing.md,
+                              ),
+                              child: _ListBar(view: v, filter: filter),
+                            ),
+                            const Divider(height: 1),
+                            Expanded(
+                              child: _Table(
+                                rows: v.rows,
+                                selectedId: selected,
+                                filter: filter,
+                                onOpen: _openMedicine,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ]),
+          ],
         ),
-      ),
-    );
+      );
+
+    if (widget.drawerInShell) return content;
+
+    return Scaffold(body: content);
   }
 }
 
-// Search, status tabs with counts, and the "More filters" menu
-class _Toolbar extends ConsumerWidget {
-  const _Toolbar({
-    required this.search,
-    required this.onSearchChanged,
-    required this.onClearSearch,
-    required this.filter,
-    required this.counts,
-  });
+// Status filter chips (counts when available)
+class _StatusChips extends ConsumerWidget {
+  const _StatusChips({required this.all, required this.status, required this.counts});
 
-  final TextEditingController search;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onClearSearch;
-  final CatalogueFilter filter;
-  final Map<String?, int>? counts; // null while loading
+  final List<CatalogueMedicine>? all;
+  final String? status;
+  final Map<String?, int>? counts;
 
   static const _tabs = <(String, String?)>[
     ('All', null),
@@ -305,53 +224,68 @@ class _Toolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(catalogueFilterProvider.notifier);
+    final setStatus = ref.read(catalogueFilterProvider.notifier).setStatus;
+    int countFor(String? value) {
+      if (counts != null) return counts![value] ?? 0;
+      if (all == null) return 0;
+      return all!.where((m) => value == null || m.status == value).length;
+    }
 
     return Wrap(
-      spacing: AppSpacing.xl,
-      runSpacing: AppSpacing.lg,
-      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
-        // Search
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            const _FieldLabel('Search medicines'),
-            TextField(
+        for (final (label, value) in _tabs)
+          AppChip(
+            label: all == null && counts == null ? label : '$label (${countFor(value)})',
+            selected: status == value,
+            onSelected: (_) => setStatus(value),
+          ),
+      ],
+    );
+  }
+}
+
+// Search and extra filters
+class _Toolbar extends ConsumerWidget {
+  const _Toolbar({
+    required this.search,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.filter,
+  });
+
+  final TextEditingController search;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final CatalogueFilter filter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: TabletControls.toolbarHeight,
+            child: TextField(
               controller: search,
               onChanged: onSearchChanged,
               textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: 'Brand, generic name, or registration number',
-                prefixIcon: const Icon(Icons.search),
+              decoration: TabletControls.searchDecoration(
+                hint: 'Brand, generic name, or registration number',
                 suffixIcon: search.text.isEmpty
                     ? null
-                    : IconButton(tooltip: 'Clear search', icon: const Icon(Icons.close), onPressed: onClearSearch),
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: onClearSearch,
+                      ),
               ),
             ),
-          ]),
+          ),
         ),
-
-        // Status tabs
-        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          const _FieldLabel('Filter by status'),
-          Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
-            for (final (label, value) in _tabs)
-              ChoiceChip(
-                showCheckmark: false,
-                selectedColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: filter.status == value ? Colors.white : AppColors.text,
-                  fontWeight: FontWeight.w600,
-                ),
-                label: Text(counts == null ? label : '$label (${counts![value] ?? 0})'),
-                selected: filter.status == value,
-                onSelected: (_) => notifier.setStatus(value),
-              ),
-          ]),
-        ]),
-
+        const SizedBox(width: AppSpacing.sm),
         _MoreFilters(filter: filter),
       ],
     );
@@ -377,6 +311,12 @@ class _MoreFilters extends ConsumerWidget {
         );
     PopupMenuEntry<String> option(String value, String label, bool checked) =>
         CheckedPopupMenuItem<String>(value: value, checked: checked, child: Text(label));
+
+    final buttonStyle = TabletControls.toolbarOutlined(
+      border: active > 0 ? AppColors.primary : AppColors.border,
+      foreground: active > 0 ? AppColors.primary : AppColors.text,
+      background: active > 0 ? AppColors.primaryLight : Colors.white,
+    );
 
     return PopupMenuButton<String>(
       tooltip: 'More filters',
@@ -405,21 +345,11 @@ class _MoreFilters extends ConsumerWidget {
           const PopupMenuItem(value: 'clear', child: Text('Clear filters')),
         ],
       ],
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: active > 0 ? AppColors.primaryLight : AppColors.surface,
-          border: Border.all(color: active > 0 ? AppColors.primary : AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.filter_alt_outlined, size: 18, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.xs),
-          Text(active > 0 ? 'More filters ($active)' : 'More filters',
-              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text)),
-          const Icon(Icons.arrow_drop_down, color: AppColors.textMuted),
-        ]),
+      child: OutlinedButton.icon(
+        onPressed: () {},
+        style: buttonStyle,
+        icon: const Icon(Icons.filter_list, size: 18),
+        label: Text(active > 0 ? 'More filters ($active)' : 'More filters'),
       ),
     );
   }
@@ -669,13 +599,8 @@ class _Table extends ConsumerWidget {
                     DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                       OutlinedButton(
                         onPressed: () => onOpen(m.id),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 34),
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                          shape: const StadiumBorder(),
-                          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                        child: const Text('View details'),
+                        style: TabletControls.toolbarOutlined(),
+                        child: const Text('View'),
                       ),
                       PopupMenuButton<String>(
                         tooltip: 'More actions',
@@ -698,15 +623,3 @@ class _Table extends ConsumerWidget {
   }
 }
 
-// A small bold label above a control
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
-      );
-}

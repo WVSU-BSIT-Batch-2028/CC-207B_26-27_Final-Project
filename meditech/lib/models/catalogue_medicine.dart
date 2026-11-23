@@ -15,6 +15,7 @@ class CatalogueMedicine {
     this.registrationNumber,
     required this.fdaMatched,
     required this.pharmaciesStocking,
+    this.imagePath,
   });
 
   final String id;
@@ -31,6 +32,7 @@ class CatalogueMedicine {
   final String? registrationNumber;
   final bool fdaMatched;
   final int pharmaciesStocking;
+  final String? imagePath;
 
   factory CatalogueMedicine.fromJson(Map<String, dynamic> json) => CatalogueMedicine(
         id: json['id'] as String,
@@ -47,5 +49,6 @@ class CatalogueMedicine {
         registrationNumber: json['registration_number'] as String?,
         fdaMatched: json['fda_matched'] as bool? ?? false,
         pharmaciesStocking: (json['pharmacies_stocking'] as num).toInt(),
+        imagePath: json['image_path'] as String?,
       );
 }

@@ -11,7 +11,9 @@ import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/customer_app_bar.dart';
+import '../../../utils/public_media_urls.dart';
 import '../../../widgets/common/medicine_card.dart';
+import '../../../widgets/common/pharmacy_storefront_hero.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import 'directions_screen.dart';
@@ -143,11 +145,21 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                 final pharmacy = branch!;
                 final hours = hoursAsync.value ?? const <PharmacyHours>[];
 
-                return ListView(
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(pharmacyDetailProvider(widget.branchId));
+                    ref.invalidate(pharmacyInventoryProvider(widget.branchId));
+                    await Future.wait([
+                      ref.read(pharmacyDetailProvider(widget.branchId).future),
+                      ref.read(pharmacyInventoryProvider(widget.branchId).future),
+                    ]);
+                  },
+                  child: ListView(
                   controller: _scrollController,
                   key: const PageStorageKey<String>(
                     'customer-pharmacy-details',
                   ),
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -158,19 +170,7 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                     ),
                   ),
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      child: Container(
-                        height: 140,
-                        width: double.infinity,
-                        color: AppColors.primaryLight,
-                        child: const Icon(
-                          Icons.storefront,
-                          size: 48,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
+                    PharmacyStorefrontHero(storefrontPath: pharmacy.storefrontPath),
                     const SizedBox(height: AppSpacing.md),
                     // Branch header card
                     Card(
@@ -345,6 +345,7 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                       availabilityCode: _availabilityCode,
                     ),
                   ],
+                  ),
                 );
               },
             ),
@@ -393,6 +394,7 @@ class _PharmacyInventoryList extends ConsumerWidget {
                 availability: availabilityCode(items[i]),
                 priceText: items[i].formattedPrice,
                 stockConfirmedAt: items[i].stockConfirmedAt,
+                imageUrl: medicineImagePublicUrl(items[i].imagePath),
                 onTap: items[i].availability.canReserve
                     ? () {
                         if (onAddInventoryItem != null) {

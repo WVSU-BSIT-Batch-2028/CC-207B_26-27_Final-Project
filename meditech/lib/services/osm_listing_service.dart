@@ -102,12 +102,18 @@ class OsmListingService {
       }
       throw Exception('OpenStreetMap sync returned an invalid response.');
     } on FunctionException catch (error) {
-      final details = error.details;
-      if (details is Map) {
-        final message = details['error'];
+      final data = error.details ?? error.toString();
+      if (data is Map) {
+        final message = data['error'];
         if (message is String && message.isNotEmpty) {
           throw Exception(message);
         }
+      }
+      if (error.status == 502 || error.status == 504) {
+        throw Exception(
+          'OpenStreetMap is slow or busy (HTTP ${error.status}). '
+          'Wait a minute and tap Sync OSM again.',
+        );
       }
       throw Exception('Could not sync OpenStreetMap listings.');
     }

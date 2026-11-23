@@ -7,14 +7,22 @@ import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/dialogs/reason_dialog.dart';
+import '../../../widgets/tablet/tablet_controls.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 // Admin screen for managing OpenStreetMap "Not on MediTech" pharmacy listings
 class OsmListingsScreen extends ConsumerStatefulWidget {
-  const OsmListingsScreen({super.key, this.showHeader = true});
+  const OsmListingsScreen({
+    super.key,
+    this.showHeader = true,
+    this.embedded = false,
+  });
 
   final bool showHeader;
+
+  /// Inside [PharmaciesScreen] — no [Scaffold], no extra padding.
+  final bool embedded;
 
   @override
   ConsumerState<OsmListingsScreen> createState() => _OsmListingsScreenState();
@@ -78,8 +86,13 @@ class _OsmListingsScreenState extends ConsumerState<OsmListingsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+      final message = e is Exception ? e.toString().replaceFirst('Exception: ', '') : '$e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
@@ -137,20 +150,18 @@ class _OsmListingsScreenState extends ConsumerState<OsmListingsScreen> {
   Widget build(BuildContext context) {
     final asyncListings = ref.watch(adminOsmListingsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: AsyncView<List<OsmListing>>(
-        value: asyncListings,
-        onRetry: () => ref.invalidate(adminOsmListingsProvider),
-        builder: (listings) {
-          final filtered = _filtered(listings);
+    final body = AsyncView<List<OsmListing>>(
+      value: asyncListings,
+      onRetry: () => ref.invalidate(adminOsmListingsProvider),
+      builder: (listings) {
+        final filtered = _filtered(listings);
 
-          return Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.showHeader) ...[
+        return Padding(
+          padding: widget.embedded ? EdgeInsets.zero : const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.showHeader) ...[
                   Row(
                     children: [
                       Expanded(
@@ -177,50 +188,66 @@ class _OsmListingsScreenState extends ConsumerState<OsmListingsScreen> {
                       const SizedBox(width: AppSpacing.md),
                       OutlinedButton.icon(
                         onPressed: _syncing ? null : _onSync,
+                        style: TabletControls.toolbarOutlined(),
                         icon: _syncing
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.sync, size: 18),
-                        label: Text(
-                          _syncing ? 'Syncing...' : 'Sync from OpenStreetMap',
-                        ),
+                        label: Text(_syncing ? 'Syncing…' : 'Sync OSM'),
                       ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                // Search bar + status filter chips
-                Wrap(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: TabletControls.toolbarHeight,
+                      child: TextField(
+                        controller: _search,
+                        onChanged: (_) => setState(() {}),
+                        decoration: TabletControls.searchDecoration(
+                          hint: 'Name, address, or OSM ID',
+                          suffixIcon: _search.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear search',
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () => setState(() => _search.clear()),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (widget.embedded) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: _syncing ? null : _onSync,
+                      style: TabletControls.toolbarOutlined(),
+                      icon: _syncing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.sync, size: 18),
+                      label: Text(_syncing ? 'Syncing…' : 'Sync OSM'),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    SizedBox(
-                      width: 280,
-                      child: TextField(
-                        controller: _search,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Search name, barangay, or OSM ID',
-                          prefixIcon: const Icon(Icons.search, size: 20),
-                          filled: true,
-                          fillColor: AppColors.surface,
-                          isDense: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                              color: AppColors.border,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     AppChip(
                       label: 'All (${listings.length})',
                       selected: _statusFilter == 'all',
@@ -248,137 +275,167 @@ class _OsmListingsScreenState extends ConsumerState<OsmListingsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // Listings table card
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: filtered.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No OpenStreetMap listings match the current filter.',
-                              style: TextStyle(color: AppColors.textMuted),
-                            ),
-                          )
-                        : SingleChildScrollView(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                dataRowMinHeight: 60,
-                                dataRowMaxHeight: 76,
-                                columnSpacing: 12,
-                                headingRowColor: WidgetStateProperty.all(
-                                  AppColors.background,
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        const _OsmTableHeader(),
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No OpenStreetMap listings match the current filter.',
+                                    style: TextStyle(color: AppColors.textMuted),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  itemCount: filtered.length,
+                                  separatorBuilder: (_, _) => const Divider(height: 1),
+                                  itemBuilder: (context, index) => _OsmListingRow(
+                                    listing: filtered[index],
+                                    statusBadge: _statusBadge(filtered[index]),
+                                    busy: _busyId == filtered[index].id,
+                                    onHide: () => _onHide(filtered[index]),
+                                    onShowAgain: () => _onShowAgain(filtered[index]),
+                                  ),
                                 ),
-                                columns: const [
-                                  DataColumn(label: Text('Pharmacy name')),
-                                  DataColumn(label: Text('Address')),
-                                  DataColumn(label: Text('Last edited there')),
-                                  DataColumn(label: Text('Status')),
-                                  DataColumn(label: Text('Action')),
-                                ],
-                                rows: filtered.map((listing) {
-                                  final isBusy = _busyId == listing.id;
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              listing.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Text(
-                                              listing.osmId,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.textMuted,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      DataCell(Text(listing.address)),
-                                      DataCell(
-                                        Text(listing.lastEditedThere ?? '—'),
-                                      ),
-                                      DataCell(
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _statusBadge(listing),
-                                            if (listing.status ==
-                                                    OsmListingStatus.replaced &&
-                                                listing.replacedByPharmacyName !=
-                                                    null)
-                                              Text(
-                                                'Replaced by ${listing.replacedByPharmacyName}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ),
-                                            if (listing.status ==
-                                                    OsmListingStatus.hidden &&
-                                                listing.hiddenReason != null)
-                                              Text(
-                                                listing.hiddenReason!,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      DataCell(switch (listing.status) {
-                                        OsmListingStatus.shown =>
-                                          OutlinedButton(
-                                            onPressed: isBusy
-                                                ? null
-                                                : () => _onHide(listing),
-                                            child: const Text('Hide'),
-                                          ),
-                                        OsmListingStatus.hidden =>
-                                          OutlinedButton(
-                                            onPressed: isBusy
-                                                ? null
-                                                : () => _onShowAgain(listing),
-                                            child: const Text('Show again'),
-                                          ),
-                                        OsmListingStatus.replaced => const Text(
-                                          '—',
-                                          style: TextStyle(
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      }),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           );
         },
+    );
+
+    if (widget.embedded) return body;
+
+    return Scaffold(backgroundColor: AppColors.background, body: body);
+  }
+}
+
+class _OsmTableHeader extends StatelessWidget {
+  const _OsmTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.primaryLight,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      child: const Row(
+        children: [
+          Expanded(flex: 4, child: Text('PHARMACY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+          Expanded(flex: 4, child: Text('ADDRESS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+          Expanded(flex: 2, child: Text('LAST EDITED', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+          Expanded(flex: 3, child: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+          Expanded(flex: 2, child: Text('ACTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+}
+
+class _OsmListingRow extends StatelessWidget {
+  const _OsmListingRow({
+    required this.listing,
+    required this.statusBadge,
+    required this.busy,
+    required this.onHide,
+    required this.onShowAgain,
+  });
+
+  final OsmListing listing;
+  final StatusBadge statusBadge;
+  final bool busy;
+  final VoidCallback onHide;
+  final VoidCallback onShowAgain;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  listing.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  listing.osmId,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(
+              listing.address,
+              style: const TextStyle(fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(listing.lastEditedThere ?? '—', style: const TextStyle(fontSize: 13)),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                statusBadge,
+                if (listing.status == OsmListingStatus.replaced &&
+                    listing.replacedByPharmacyName != null)
+                  Text(
+                    'Replaced by ${listing.replacedByPharmacyName}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (listing.status == OsmListingStatus.hidden && listing.hiddenReason != null)
+                  Text(
+                    listing.hiddenReason!,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: switch (listing.status) {
+                OsmListingStatus.shown => OutlinedButton(
+                    onPressed: busy ? null : onHide,
+                    style: TabletControls.toolbarOutlined(),
+                    child: const Text('Hide'),
+                  ),
+                OsmListingStatus.hidden => OutlinedButton(
+                    onPressed: busy ? null : onShowAgain,
+                    style: TabletControls.toolbarOutlined(),
+                    child: const Text('Show again'),
+                  ),
+                OsmListingStatus.replaced => const Text('—', style: TextStyle(color: AppColors.textMuted)),
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

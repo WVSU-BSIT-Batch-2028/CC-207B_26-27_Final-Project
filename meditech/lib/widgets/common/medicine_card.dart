@@ -41,6 +41,7 @@ class MedicineCard extends StatelessWidget {
     this.availability,
     this.requiresPrescription = false,
     this.stockConfirmedAt,
+    this.imageUrl,
     this.onTap,
   });
 
@@ -52,6 +53,7 @@ class MedicineCard extends StatelessWidget {
   final String? availability;
   final bool requiresPrescription;
   final DateTime? stockConfirmedAt;
+  final String? imageUrl;
   final VoidCallback? onTap;
 
   @override
@@ -73,7 +75,7 @@ class MedicineCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const _MedicineThumb(),
+                  _MedicineThumb(imageUrl: imageUrl),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -179,17 +181,28 @@ class _LabeledValue extends StatelessWidget {
 }
 
 class _MedicineThumb extends StatelessWidget {
-  const _MedicineThumb();
+  const _MedicineThumb({this.imageUrl});
+
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
+    final url = imageUrl;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         width: 48,
         height: 48,
         color: AppColors.primaryLight,
-        child: const Icon(Icons.medication, color: AppColors.primary),
+        child: url == null
+            ? const Icon(Icons.medication, color: AppColors.primary)
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                width: 48,
+                height: 48,
+                errorBuilder: (_, _, _) => const Icon(Icons.medication, color: AppColors.primary),
+              ),
       ),
     );
   }

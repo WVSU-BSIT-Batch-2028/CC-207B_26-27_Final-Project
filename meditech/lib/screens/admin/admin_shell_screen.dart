@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/admin_pharmacy_providers.dart';
 import '../../providers/notification_providers.dart';
 import '../../providers/session_providers.dart';
 import '../../widgets/tablet/admin_frame.dart';
+import '../../providers/audit_providers.dart';
+import 'audit/audit_drawer.dart';
 import 'audit/audit_list_screen.dart';
+import '../../providers/catalogue_providers.dart';
+import 'catalogue/catalogue_medicine_shell_drawer.dart';
 import 'catalogue/catalogue_screen.dart';
-import 'listings/osm_listings_screen.dart';
 import 'overview/admin_overview_screen.dart';
+import 'pharmacies/application_drawer.dart';
 import 'pharmacies/pharmacies_screen.dart';
 import 'requests/medicine_requests_screen.dart';
 
@@ -50,19 +55,32 @@ class AdminShellScreen extends ConsumerWidget {
       _ => 'overview',
     };
 
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final selectedPharmacy =
+        (selected == 'pharmacies' || selected == 'listings') && wide
+            ? ref.watch(selectedPharmacyProvider)
+            : null;
+    final selectedAudit = selected == 'audit' && wide ? ref.watch(selectedAuditProvider) : null;
+    final selectedMedicine =
+        selected == 'catalogue' && wide ? ref.watch(selectedMedicineProvider) : null;
+
     final body = switch (selected) {
-      'pharmacies' => const PharmaciesScreen(),
-      'listings' => const OsmListingsScreen(),
-      'catalogue' => const CatalogueScreen(),
+      'pharmacies' => const PharmaciesScreen(drawerInShell: true),
+      'listings' => const PharmaciesScreen(drawerInShell: true, initialRegistry: 'listings'),
+      'catalogue' => const CatalogueScreen(drawerInShell: true),
       'requests' => const MedicineRequestsScreen(),
-      'audit' => const AuditListScreen(),
+      'audit' => const AuditListScreen(drawerInShell: true),
       _ => const AdminOverviewScreen(showHeader: false),
     };
 
     return AdminFrame(
       adminName: 'Administrator',
       unreadNotifications: unread,
-      selectedNavigationId: selected == 'requests' ? 'catalogue' : selected,
+      selectedNavigationId: switch (selected) {
+        'requests' => 'catalogue',
+        'listings' => 'listings',
+        _ => selected,
+      },
       onNavigationSelected: (id) => _go(context, id),
       onNotificationsTap: () => context.push('/notifications'),
       onLogoutTap: () async {
@@ -70,6 +88,31 @@ class AdminShellScreen extends ConsumerWidget {
         if (context.mounted) context.go('/');
       },
       body: body,
+      rightDrawer: selectedPharmacy != null
+          ? SizedBox(
+              width: 420,
+              child: ApplicationDrawer(
+                branchId: selectedPharmacy,
+                onClose: () => ref.read(selectedPharmacyProvider.notifier).select(null),
+              ),
+            )
+          : selectedMedicine != null
+              ? SizedBox(
+                  width: 460,
+                  child: CatalogueMedicineShellDrawer(
+                    selection: selectedMedicine,
+                    onClose: () => ref.read(selectedMedicineProvider.notifier).select(null),
+                  ),
+                )
+              : selectedAudit != null
+                  ? SizedBox(
+                      width: 420,
+                      child: AuditDrawer(
+                        recordId: selectedAudit,
+                        onClose: () => ref.read(selectedAuditProvider.notifier).select(null),
+                      ),
+                    )
+                  : null,
     );
   }
 }

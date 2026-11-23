@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../utils/public_media_urls.dart';
 
 import '../models/catalogue_medicine.dart';
 import '../models/drug_registration.dart';
@@ -42,9 +46,41 @@ class CatalogueService {
     return await _client.rpc('admin_save_registration', params: {'p': details}) as String;
   }
 
+  /// Existing CPR row id, for linking seed/demo medicines or another pack size.
+  Future<String?> registrationIdByNumber(String registrationNumber) async {
+    final num = registrationNumber.trim();
+    if (num.isEmpty) return null;
+    final row = await _client
+        .from('drug_registrations')
+        .select('id')
+        .eq('registration_number', num)
+        .maybeSingle();
+    return row?['id'] as String?;
+  }
+
   // Save a catalogue entry; returns its id
   Future<String> saveMedicine(Map<String, dynamic> details) async {
     return await _client.rpc('admin_save_medicine', params: {'p': details}) as String;
+  }
+
+  /// Upload pack image to public `medicine-images`; returns storage path for `image_path`.
+  Future<String> uploadMedicineImage({
+    required String medicineId,
+    required Uint8List bytes,
+    required String mimeType,
+  }) async {
+    final ext = switch (mimeType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
+    };
+    final path = 'catalogue/$medicineId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _client.storage.from(medicineImagesBucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeType, upsert: true),
+        );
+    return path;
   }
 
   // A registration's FDA checks, newest first
@@ -82,23 +118,14 @@ class CatalogueService {
     });
   }
 
-  // The official FDA portal address
-  Future<String> fdaPortalUrl() async {
-    final row = await _client
-        .from('official_links')
-        .select('url')
-        .eq('key', 'fda_verification_portal')
-        .single();
-    return row['url'] as String;
-  }
-
   // Turn server errors into messages for the admin
   static String friendlyError(Object error) {
     if (error is PostgrestException) {
       final msg = error.message;
       if (error.code == '23505') {
         return msg.contains('registration_number')
-            ? 'This registration number already exists.'
+            ? 'That registration number is already on file. If you are adding another pack size, '
+                'choose a different unit or pack description.'
             : 'This medicine is already in the catalogue with that unit and pack.';
       }
       if (msg.contains('NEEDS_FDA_CHECK')) {
