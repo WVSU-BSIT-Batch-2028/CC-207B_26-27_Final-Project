@@ -176,6 +176,8 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
       final updatedAppointment =
           await AppointmentService.instance.requestAppointmentChange(
         appointmentId: widget.appointment.id,
+
+        // Firebase UID of the selected doctor.
         doctorId: doctor.id,
         doctorName: doctor.name,
         specialty: doctor.specialty,
@@ -572,7 +574,6 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
                                 child: ListView(
                                   padding: const EdgeInsets.all(AppSpacing.md),
                                   children: [
-                                    // Shows the editing rules and request count.
                                     _buildEditPolicyCard(),
                                     const SizedBox(height: AppSpacing.lg),
 

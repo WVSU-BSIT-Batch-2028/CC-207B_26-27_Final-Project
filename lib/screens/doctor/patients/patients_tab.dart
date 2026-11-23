@@ -1,9 +1,4 @@
-// The "Patients" tab of the doctor app.
-//
-// This widget is only a HOST: it decides which Patients screen is visible
-// (the list, the details of the tapped patient, or one of that patient's
-// record screens). The bottom navigation bar belongs to DoctorShell, so it
-// stays visible on every screen, as in the prototype.
+
 import 'package:flutter/material.dart';
 
 import '../../../models/patient.dart';
@@ -18,9 +13,18 @@ import 'patient_records_screen.dart';
 import 'patients_screen.dart';
 import 'widgets/patient_record_tab_bar.dart';
 
-/// The screens that live inside the Patients tab. The enum order is the same
-/// as the IndexedStack children below.
-enum _PatientsPage { list, details, records, labResults, prescriptions, addPrescription, addConsultationNote }
+/// The screens that live inside the Patients tab.
+///
+/// The enum order must match the IndexedStack children below.
+enum _PatientsPage {
+  list,
+  details,
+  records,
+  labResults,
+  prescriptions,
+  addPrescription,
+  addConsultationNote,
+}
 
 /// Doctor Patients tab. [onBack] switches the app to the Home tab.
 class DoctorPatientsTab extends StatefulWidget {
@@ -55,16 +59,22 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
     });
   }
 
-  /// "View Full Record" was tapped: show the Records pill of Patient Records.
-  void _openFullRecord() => setState(() => _page = _PatientsPage.records);
+  /// "View Full Record" was tapped.
+  void _openFullRecord() {
+    setState(() => _page = _PatientsPage.records);
+  }
 
-  /// "Add Consultation Notes" was tapped: show the form.
-  void _addConsultationNote() => setState(() => _page = _PatientsPage.addConsultationNote);
+  /// "Add Consultation Notes" was tapped.
+  void _addConsultationNote() {
+    setState(() => _page = _PatientsPage.addConsultationNote);
+  }
 
   /// Back from a record screen: show the details again.
-  void _backToDetails() => setState(() => _page = _PatientsPage.details);
+  void _backToDetails() {
+    setState(() => _page = _PatientsPage.details);
+  }
 
-  /// A pill on a Patient Records screen was tapped: switch to that screen.
+  /// A pill on a Patient Records screen was tapped.
   void _onRecordTab(PatientRecordTab tab) {
     switch (tab) {
       case PatientRecordTab.records:
@@ -76,15 +86,17 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
     }
   }
 
-  /// "Add Prescription" was tapped: show the form.
-  void _addPrescription() => setState(() => _page = _PatientsPage.addPrescription);
+  /// "Add Prescription" was tapped.
+  void _addPrescription() {
+    setState(() => _page = _PatientsPage.addPrescription);
+  }
 
-  /// Back from the form, or after a prescription was saved: show the
-  /// prescriptions list again (it loads fresh, so the new one is in it).
-  void _backToPrescriptions() => setState(() => _page = _PatientsPage.prescriptions);
+  /// Back from the form, or after a prescription was saved.
+  void _backToPrescriptions() {
+    setState(() => _page = _PatientsPage.prescriptions);
+  }
 
-  /// A lab result card was tapped: open the "Lab Results" popup (View Lab
-  /// Results). It is the same popup the patient sees, so it is reused.
+  /// Opens the lab result details popup.
   void _openLabResult(PatientLabResult result) {
     showDialog<void>(
       context: context,
@@ -96,24 +108,24 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
   Widget build(BuildContext context) {
     final selected = _selected;
 
-    // IndexedStack keeps the list alive while the other screens are open, so
-    // going back keeps the search text, pills and chips as they were.
+    // IndexedStack keeps the list alive while other screens are open.
     return IndexedStack(
       index: _page.index,
       children: [
-        PatientsScreen(onBack: widget.onBack, onOpenPatient: _openPatient),
+        PatientsScreen(
+          onBack: widget.onBack,
+          onOpenPatient: _openPatient,
+        ),
         if (selected == null)
           const SizedBox.shrink()
         else
           PatientDetailsScreen(
-            // The key makes Flutter load fresh data for each different patient.
             key: ValueKey(selected.id),
             patient: selected,
             onBack: _backToList,
             onViewFullRecord: _openFullRecord,
             onAddConsultationNote: _addConsultationNote,
           ),
-        // The record screens are built only while open, so they load fresh each time.
         if (selected != null && _page == _PatientsPage.records)
           PatientRecordsScreen(
             key: ValueKey(selected.id),
@@ -152,7 +164,8 @@ class _DoctorPatientsTabState extends State<DoctorPatientsTab> {
           )
         else
           const SizedBox.shrink(),
-        if (selected != null && _page == _PatientsPage.addConsultationNote)
+        if (selected != null &&
+            _page == _PatientsPage.addConsultationNote)
           AddConsultationNoteScreen(
             key: ValueKey(selected.id),
             patient: selected,

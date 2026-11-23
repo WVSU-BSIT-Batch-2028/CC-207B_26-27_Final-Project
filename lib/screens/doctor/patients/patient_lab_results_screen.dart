@@ -48,7 +48,8 @@ class PatientLabResultsScreen extends StatefulWidget {
   final ValueChanged<PatientLabResult> onOpenLabResult;
 
   @override
-  State<PatientLabResultsScreen> createState() => _PatientLabResultsScreenState();
+  State<PatientLabResultsScreen> createState() =>
+      _PatientLabResultsScreenState();
 }
 
 class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
@@ -67,7 +68,8 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final results = await PatientsService.instance.fetchPatientLabResults(widget.patient.id);
+      final results = await PatientsService.instance
+          .fetchPatientLabResults(widget.patient.id);
       // The doctor may have left the screen while we waited.
       if (!mounted) return;
       setState(() {
@@ -145,7 +147,10 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
               Expanded(
                 child: Text(
                   'Laboratory Results',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navy),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -168,7 +173,8 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
             const EmptyState(
               icon: Icons.assignment_outlined,
               title: 'No lab results yet',
-              message: "This patient's lab results will appear here once their tests are done.",
+              message:
+                  "This patient's lab results will appear here once their tests are done.",
             ),
 
           // List of lab result cards (each fades in a little after the one above)

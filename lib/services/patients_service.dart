@@ -11,55 +11,51 @@ import '../models/patient_record.dart';
 import '../models/vital_sign.dart';
 import 'dashboard_service.dart';
 
-/// Thrown when the patients could not be loaded. The screen shows [message]
-/// in its error state.
+/// Thrown when patient information cannot be loaded or saved.
 class PatientsException implements Exception {
   const PatientsException(this.message);
+
   final String message;
+
+  @override
+  String toString() => message;
 }
 
-/// Loads the doctor's patients and their records from Firestore.
-///
-/// Collections (see FIRESTORE_PLAN.md):
-/// - `users/{uid}`: fullName and role. Patients are the users whose role is "patient".
-/// - `patientProfiles/{uid}`: age, sex, phone, condition, isActive, allergies,
-///   immunizations, medicalHistory.
-/// - `consultations/{id}`: the latest one gives a patient's last visit.
-/// - `labResults/{id}`, `prescriptions/{id}`, `vitalReadings/{id}`: read with
-///   `where('patientId', isEqualTo: patientId)`.
-///
-/// Search and filtering happen in the app on the loaded list (Firestore has no
-/// text search), and lists are sorted here, so no Firestore index is needed.
-/// The screens do not change: they only call these methods.
 class PatientsService {
   PatientsService._();
+
   static final PatientsService instance = PatientsService._();
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
-  /// Returns the signed-in doctor's own patients (active and history), most
-  /// recent visit first.
+  // ---------------------------------------------------------------------------
+  // PATIENT LIST
+  // ---------------------------------------------------------------------------
+
+  /// Returns the signed-in doctor's patients, including active and historical
+  /// patients, sorted by most recent visit.
   ///
-  /// A patient belongs to a doctor when either:
-  /// - the patient has a (not cancelled) appointment whose `doctorId` is this
-  ///   doctor's uid, or
-  /// - this doctor already wrote a consultation, lab result or prescription
-  ///   for the patient (those documents carry the doctor's `doctorId`).
+  /// Patients are associated with the doctor through their appointments,
+  /// consultations, lab results, or prescriptions.
   ///
-  /// Every query filters by `doctorId == uid`, so one doctor never loads
-  /// another doctor's patients. Then one read per patient gets the account
-  /// and the profile. The last visit comes from this doctor's consultations.
-  ///
-  /// Reuses the demo switch from Home (long-press the avatar) so the empty
-  /// and error states can still be shown during the presentation.
+  /// Every initial query is filtered by doctorId so that a doctor cannot
+  /// retrieve another doctor's patient list.
   Future<List<Patient>> fetchPatients() async {
-    _demoThrowsIfError("We couldn't load your patients. Check your connection and try again.");
+    _demoThrowsIfError(
+      "We couldn't load your patients. Check your connection and try again.",
+    );
+
     if (_demoIsEmpty()) return const <Patient>[];
+
     final doctorId = _doctorUid();
 
     return _guard(() async {
-      Future<QuerySnapshot<Map<String, dynamic>>> mine(String collection) =>
-          _db.collection(collection).where('doctorId', isEqualTo: doctorId).get();
+      Future<QuerySnapshot<Map<String, dynamic>>> mine(String collection) {
+        return _db
+            .collection(collection)
+            .where('doctorId', isEqualTo: doctorId)
+            .get();
+      }
 
       final results = await Future.wait([
         mine('appointments'),
@@ -67,29 +63,37 @@ class PatientsService {
         mine('labResults'),
         mine('prescriptions'),
       ]);
+
       final appointments = results[0];
       final consultations = results[1];
 
-      // The uids of this doctor's patients.
+      // Collect unique patient IDs associated with this doctor.
       final patientIds = <String>{
         for (final doc in appointments.docs)
-          if (doc.data()['status'] != 'cancelled') ..._idList(doc.data()['patientId']),
+          if (doc.data()['status'] != 'cancelled')
+            ..._idList(doc.data()['patientId']),
         for (final result in results.skip(1))
           for (final doc in result.docs) ..._idList(doc.data()['patientId']),
       };
 
-      // Each patient's most recent consultation date (with this doctor).
+      // Find the most recent consultation date for each patient.
       final lastVisitById = <String, DateTime>{};
+
       for (final doc in consultations.docs) {
         final data = doc.data();
         final patientId = data['patientId'];
         final date = _toDate(data['date']);
+
         if (patientId is! String || date == null) continue;
+
         final current = lastVisitById[patientId];
-        if (current == null || date.isAfter(current)) lastVisitById[patientId] = date;
+
+        if (current == null || date.isAfter(current)) {
+          lastVisitById[patientId] = date;
+        }
       }
 
-      // One account + one profile read per patient.
+      // Retrieve each patient's account and profile.
       final loaded = await Future.wait([
         for (final id in patientIds)
           Future.wait([
@@ -99,41 +103,73 @@ class PatientsService {
       ]);
 
       final patients = <Patient>[];
+
       for (final pair in loaded) {
         final user = pair[0];
         final userData = user.data();
-        // Skip an id with no account, or an account that is not a patient.
-        if (userData == null || userData['role'] != 'patient') continue;
-        patients.add(toPatient(user.id, userData, pair[1].data(), lastVisitById[user.id]));
+
+        // Ignore missing accounts and accounts that are not patients.
+        if (userData == null || userData['role'] != 'patient') {
+          continue;
+        }
+
+        patients.add(
+          toPatient(
+            user.id,
+            userData,
+            pair[1].data(),
+            lastVisitById[user.id],
+          ),
+        );
       }
 
-      // Most recent visit first; patients with no visit yet go last, by name.
+      // Patients with a recorded visit appear first.
+      // Patients without a visit are sorted alphabetically afterward.
       patients.sort((a, b) {
         final aVisit = a.lastVisit;
         final bVisit = b.lastVisit;
-        if (aVisit == null && bVisit == null) return a.name.compareTo(b.name);
+
+        if (aVisit == null && bVisit == null) {
+          return a.name.compareTo(b.name);
+        }
+
         if (aVisit == null) return 1;
         if (bVisit == null) return -1;
+
         return bVisit.compareTo(aVisit);
       });
-      return patients;
+
+      return List.unmodifiable(patients);
     });
   }
 
-  /// Returns the medical conditions and allergies of one patient (from the
-  /// patient's profile). A patient with no profile has empty lists.
+  // ---------------------------------------------------------------------------
+  // PATIENT DETAILS
+  // ---------------------------------------------------------------------------
+
+  /// Returns the medical conditions and allergies of one patient.
   Future<PatientDetail> fetchPatientDetail(String patientId) async {
-    _demoThrowsIfError("We couldn't load this patient. Check your connection and try again.");
+    _demoThrowsIfError(
+      "We couldn't load this patient. Check your connection and try again.",
+    );
 
     return _guard(() async {
       final profile = await _profile(patientId);
 
-      // The main condition first, then the history, without repeats.
+      // Add the main condition first, followed by medical history.
+      // Avoid duplicate condition names.
       final conditions = <String>[];
-      final main = _text(profile?['condition'], '');
-      if (main.isNotEmpty) conditions.add(main);
+
+      final mainCondition = _text(profile?['condition'], '');
+
+      if (mainCondition.isNotEmpty) {
+        conditions.add(mainCondition);
+      }
+
       for (final entry in historyOf(profile)) {
-        if (!conditions.contains(entry.condition)) conditions.add(entry.condition);
+        if (!conditions.contains(entry.condition)) {
+          conditions.add(entry.condition);
+        }
       }
 
       return PatientDetail(
@@ -144,10 +180,12 @@ class PatientsService {
     });
   }
 
-  /// Returns the medical history, allergies, immunizations and latest vitals
-  /// of one patient (the "Records" pill of Patient Records).
+  /// Returns the medical history, allergies, immunizations, and latest
+  /// available vital readings of one patient.
   Future<PatientRecord> fetchPatientRecord(String patientId) async {
-    _demoThrowsIfError("We couldn't load this record. Check your connection and try again.");
+    _demoThrowsIfError(
+      "We couldn't load this record. Check your connection and try again.",
+    );
 
     return _guard(() async {
       final profile = await _profile(patientId);
@@ -163,60 +201,101 @@ class PatientsService {
     });
   }
 
-  /// Returns the lab results of one patient, newest first (the "Lab Results"
-  /// pill of Patient Records). The full result opens from its id.
-  Future<List<PatientLabResult>> fetchPatientLabResults(String patientId) async {
-    _demoThrowsIfError("We couldn't load these lab results. Check your connection and try again.");
+  // ---------------------------------------------------------------------------
+  // LAB RESULTS
+  // ---------------------------------------------------------------------------
+
+  /// Returns the patient's lab results, newest first.
+  Future<List<PatientLabResult>> fetchPatientLabResults(
+    String patientId,
+  ) async {
+    _demoThrowsIfError(
+      "We couldn't load these lab results. Check your connection and try again.",
+    );
 
     return _guard(() async {
-      final snap = await _db.collection('labResults').where('patientId', isEqualTo: patientId).get();
+      final snapshot = await _db
+          .collection('labResults')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+
       final results = <PatientLabResult>[];
-      for (final doc in snap.docs) {
+
+      for (final doc in snapshot.docs) {
         final data = doc.data();
         final date = _toDate(data['date']);
-        if (date == null) continue; // skip a document that has no date
-        results.add(PatientLabResult(
-          id: doc.id,
-          testName: _text(data['name'], 'Lab Result'),
-          date: date,
-        ));
+
+        // Skip documents without a valid date.
+        if (date == null) continue;
+
+        results.add(
+          PatientLabResult(
+            id: doc.id,
+            testName: _text(data['name'], 'Lab Result'),
+            date: date,
+          ),
+        );
       }
+
       results.sort((a, b) => b.date.compareTo(a.date));
+
       return results;
     });
   }
 
-  /// Returns the prescriptions of one patient, newest first (the
-  /// "Prescriptions" pill of Patient Records).
-  Future<List<DoctorPrescription>> fetchPatientPrescriptions(String patientId) async {
-    _demoThrowsIfError("We couldn't load these prescriptions. Check your connection and try again.");
+  // ---------------------------------------------------------------------------
+  // PRESCRIPTIONS
+  // ---------------------------------------------------------------------------
+
+  /// Returns the patient's prescriptions, newest first.
+  Future<List<DoctorPrescription>> fetchPatientPrescriptions(
+    String patientId,
+  ) async {
+    _demoThrowsIfError(
+      "We couldn't load these prescriptions. Check your connection and try again.",
+    );
 
     return _guard(() async {
-      final snap = await _db.collection('prescriptions').where('patientId', isEqualTo: patientId).get();
+      final snapshot = await _db
+          .collection('prescriptions')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+
       final prescriptions = <DoctorPrescription>[];
-      for (final doc in snap.docs) {
+
+      for (final doc in snapshot.docs) {
         final prescription = toPrescription(doc.id, doc.data());
-        if (prescription != null) prescriptions.add(prescription);
+
+        if (prescription != null) {
+          prescriptions.add(prescription);
+        }
       }
-      prescriptions.sort((a, b) => b.startDate.compareTo(a.startDate));
+
+      prescriptions.sort(
+        (a, b) => b.startDate.compareTo(a.startDate),
+      );
+
       return prescriptions;
     });
   }
 
-  /// Saves a new prescription for a patient (Add Prescription > Save) in the
-  /// `prescriptions` collection.
-  ///
-  /// It writes the fields of FIRESTORE_PLAN.md (patientId, medicine, dosage,
-  /// frequency, notes, startDate, endDate, status, doctorName) plus a few
-  /// extras (form, timesPerDay, durationDays, refillDate) that the doctor's
-  /// list needs. Throws [PatientsException] if it could not be saved.
-  Future<void> addPrescription(String patientId, DoctorPrescription prescription) async {
-    _demoThrowsIfError("We couldn't save this prescription. Check your connection and try again.");
+  /// Saves a new prescription to the Firestore prescriptions collection.
+  Future<void> addPrescription(
+    String patientId,
+    DoctorPrescription prescription,
+  ) async {
+    _demoThrowsIfError(
+      "We couldn't save this prescription. Check your connection and try again.",
+    );
 
     await _guard<void>(() async {
       final doctorName = await _currentDoctorName();
+
+      final endDate = prescription.startDate.add(
+        Duration(days: prescription.durationDays),
+      );
+
       await _db.collection('prescriptions').doc(prescription.id).set({
-        // Fields from FIRESTORE_PLAN.md
         'patientId': patientId,
         'doctorId': _doctorUid(),
         'medicine': prescription.medicineName,
@@ -224,10 +303,11 @@ class PatientsService {
         'frequency': '${prescription.timesPerDay}x a day',
         'notes': prescription.notes ?? '',
         'startDate': Timestamp.fromDate(prescription.startDate),
-        'endDate': Timestamp.fromDate(prescription.endDate),
+        'endDate': Timestamp.fromDate(endDate),
         'status': 'active',
         'doctorName': doctorName,
-        // Extras used by the doctor's list
+
+        // Additional fields used by the doctor's prescription list.
         'form': prescription.form,
         'timesPerDay': prescription.timesPerDay,
         'durationDays': prescription.durationDays,
@@ -239,15 +319,14 @@ class PatientsService {
     });
   }
 
-  /// Saves new consultation notes for a patient (Add Consultation Notes >
-  /// Save) in the `consultations` collection.
+  // ---------------------------------------------------------------------------
+  // CONSULTATION NOTES
+  // ---------------------------------------------------------------------------
+
+  /// Saves consultation notes to the Firestore consultations collection.
   ///
-  /// It writes the fields of FIRESTORE_PLAN.md (patientId, appointmentId,
-  /// doctorName, date, notes) plus the ones the patient's Consultation Details
-  /// popup shows (department, type, diagnosis, treatment). [appointmentId] is
-  /// empty until the notes are linked to an appointment. The patient sees the
-  /// notes in Records > Consultations, and the patient's last visit in the
-  /// Patients list is updated. Throws [PatientsException] if it could not be saved.
+  /// The saved information can be used by the patient's consultation records
+  /// and to determine the patient's latest visit.
   Future<void> addConsultationNote(
     String patientId, {
     required String department,
@@ -256,19 +335,22 @@ class PatientsService {
     required String treatment,
     String appointmentId = '',
   }) async {
-    _demoThrowsIfError("We couldn't save these notes. Check your connection and try again.");
+    _demoThrowsIfError(
+      "We couldn't save these notes. Check your connection and try again.",
+    );
 
     await _guard<void>(() async {
       final doctorName = await _currentDoctorName();
+
       await _db.collection('consultations').doc().set({
-        // Fields from FIRESTORE_PLAN.md
         'patientId': patientId,
         'doctorId': _doctorUid(),
         'appointmentId': appointmentId,
         'doctorName': doctorName,
         'date': Timestamp.fromDate(date),
         'notes': 'Assessment: $diagnosis\nTreatment: $treatment',
-        // Fields the patient's Consultation Details popup shows
+
+        // Additional fields used by the consultation details view.
         'department': department,
         'type': 'Consultation',
         'diagnosis': diagnosis,
@@ -278,15 +360,19 @@ class PatientsService {
     });
   }
 
-  // ---------------------------------------------------------------- helpers
+  // ---------------------------------------------------------------------------
+  // FIRESTORE MAPPING HELPERS
+  // ---------------------------------------------------------------------------
 
-  /// One patient's profile document, or null if the patient has none yet.
+  /// Retrieves a patient's profile document, or null if no profile exists.
   Future<Map<String, dynamic>?> _profile(String patientId) async {
-    final snap = await _db.collection('patientProfiles').doc(patientId).get();
-    return snap.data();
+    final snapshot =
+        await _db.collection('patientProfiles').doc(patientId).get();
+
+    return snapshot.data();
   }
 
-  /// Builds a [Patient] from the account, the optional profile and the last visit.
+  /// Converts a Firestore user and patient profile into a Patient model.
   @visibleForTesting
   Patient toPatient(
     String uid,
@@ -297,11 +383,11 @@ class PatientsService {
     final age = profile?['age'];
     final sex = _text(profile?['sex'], '');
     final phone = _text(profile?['phone'], '');
+
     return Patient(
       id: uid,
       name: _text(user['fullName'], 'Unnamed patient'),
       condition: _text(profile?['condition'], 'No condition recorded'),
-      // A patient with no profile yet counts as active.
       isActive: profile?['isActive'] != false,
       age: age is num ? age.toInt() : null,
       sex: sex.isEmpty ? null : sex,
@@ -310,42 +396,66 @@ class PatientsService {
     );
   }
 
-  /// The profile's `medicalHistory` list (maps of condition and diagnosedYear).
+  /// Converts the profile's medicalHistory list into medical history entries.
   @visibleForTesting
-  List<MedicalHistoryEntry> historyOf(Map<String, dynamic>? profile) {
+  List<MedicalHistoryEntry> historyOf(
+    Map<String, dynamic>? profile,
+  ) {
     final raw = profile?['medicalHistory'];
-    if (raw is! List) return const <MedicalHistoryEntry>[];
+
+    if (raw is! List) {
+      return const <MedicalHistoryEntry>[];
+    }
+
     return [
       for (final item in raw)
         if (item is Map && _text(item['condition'], '').isNotEmpty)
           MedicalHistoryEntry(
             condition: _text(item['condition'], ''),
-            diagnosedYear: item['diagnosedYear'] is num ? (item['diagnosedYear'] as num).toInt() : 0,
+            diagnosedYear: item['diagnosedYear'] is num
+                ? (item['diagnosedYear'] as num).toInt()
+                : 0,
           ),
     ];
   }
 
-  /// The latest vitals of a patient, one [VitalSign] per type, from the
-  /// `vitalReadings` collection. If that collection cannot be read (for
-  /// example the rules do not allow it yet), the vitals are simply empty, so
-  /// the rest of the record still loads.
+  // ---------------------------------------------------------------------------
+  // VITAL SIGNS
+  // ---------------------------------------------------------------------------
+
+  /// Retrieves the latest available vital readings for a patient.
+  ///
+  /// If vital readings cannot be accessed, an empty list is returned so the
+  /// remaining patient record can still be displayed.
   Future<List<VitalSign>> _loadVitals(String patientId) async {
     try {
-      final snap = await _db.collection('vitalReadings').where('patientId', isEqualTo: patientId).get();
+      final snapshot = await _db
+          .collection('vitalReadings')
+          .where('patientId', isEqualTo: patientId)
+          .get();
 
       final byType = <VitalType, List<VitalReading>>{};
-      for (final doc in snap.docs) {
+
+      for (final doc in snapshot.docs) {
         final data = doc.data();
+
         final type = vitalTypeFrom(data['type']);
         final date = _toDate(data['date']);
         final value = data['value'];
-        if (type == null || date == null || value is! num) continue;
+
+        if (type == null || date == null || value is! num) {
+          continue;
+        }
+
         final secondary = data['secondary'];
-        byType.putIfAbsent(type, () => []).add(VitalReading(
-          date: date,
-          value: value.toDouble(),
-          secondary: secondary is num ? secondary.toDouble() : null,
-        ));
+
+        byType.putIfAbsent(type, () => []).add(
+              VitalReading(
+                date: date,
+                value: value.toDouble(),
+                secondary: secondary is num ? secondary.toDouble() : null,
+              ),
+            );
       }
 
       const order = [
@@ -354,6 +464,7 @@ class PatientsService {
         VitalType.weight,
         VitalType.sleep,
       ];
+
       return [
         for (final type in order)
           if (byType[type] != null)
@@ -361,8 +472,7 @@ class PatientsService {
               type: type,
               label: _vitalLabel(type),
               unit: _vitalUnit(type),
-              // Oldest first, as VitalSign expects.
-              readings: (byType[type]!..sort((a, b) => a.date.compareTo(b.date))),
+              readings: byType[type]!..sort((a, b) => a.date.compareTo(b.date)),
             ),
       ];
     } on FirebaseException {
@@ -370,13 +480,21 @@ class PatientsService {
     }
   }
 
-  /// "bloodPressure", "blood_pressure" and "Blood Pressure" all mean the same type.
+  /// Converts different vital type formats into a VitalType.
+  ///
+  /// For example, "bloodPressure", "blood_pressure", and "Blood Pressure"
+  /// are treated as the same type.
   @visibleForTesting
   VitalType? vitalTypeFrom(Object? raw) {
-    final text = raw?.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    final text =
+        raw?.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+
     for (final type in VitalType.values) {
-      if (type.name.toLowerCase() == text) return type;
+      if (type.name.toLowerCase() == text) {
+        return type;
+      }
     }
+
     return null;
   }
 
@@ -406,27 +524,43 @@ class PatientsService {
     }
   }
 
-  /// Builds a [DoctorPrescription] from a `prescriptions` document, or null if
-  /// it has no start date. It accepts both the plan's fields (`medicine`,
-  /// `frequency`, `endDate`) and the extras (`timesPerDay`, `durationDays`),
-  /// so prescriptions written by a teammate also show up.
+  // ---------------------------------------------------------------------------
+  // PRESCRIPTION MAPPING HELPERS
+  // ---------------------------------------------------------------------------
+
+  /// Converts a Firestore prescription document into a DoctorPrescription.
+  ///
+  /// Supports both the main Firestore field names and the additional fields
+  /// used by the doctor's prescription list.
   @visibleForTesting
-  DoctorPrescription? toPrescription(String id, Map<String, dynamic> data) {
+  DoctorPrescription? toPrescription(
+    String id,
+    Map<String, dynamic> data,
+  ) {
     final start = _toDate(data['startDate']);
+
     if (start == null) return null;
+
     final end = _toDate(data['endDate']);
 
     final timesPerDay = data['timesPerDay'] is num
         ? (data['timesPerDay'] as num).toInt()
         : timesFromText(data['frequency']);
+
     final durationDays = data['durationDays'] is num
         ? (data['durationDays'] as num).toInt()
-        : (end != null ? end.difference(start).inDays.clamp(1, 3650).toInt() : 1);
+        : end != null
+            ? end.difference(start).inDays.clamp(1, 3650).toInt()
+            : 1;
+
     final notes = _text(data['notes'], '');
 
     return DoctorPrescription(
       id: id,
-      medicineName: _text(data['medicine'], _text(data['medicineName'], 'Medicine')),
+      medicineName: _text(
+        data['medicine'],
+        _text(data['medicineName'], 'Medicine'),
+      ),
       dosage: _text(data['dosage'], ''),
       form: _text(data['form'], 'dose'),
       timesPerDay: timesPerDay,
@@ -437,89 +571,130 @@ class PatientsService {
     );
   }
 
-  /// "2x a day" -> 2, "Twice a day" -> 2, "Once a day" -> 1; 1 if unclear.
+  /// Converts frequency descriptions into a number of times per day.
+  ///
+  /// Examples:
+  /// - "2x a day" returns 2.
+  /// - "Twice a day" returns 2.
+  /// - "Once a day" returns 1.
   @visibleForTesting
   int timesFromText(Object? raw) {
     final text = raw?.toString().toLowerCase() ?? '';
+
     final number = RegExp(r'\d+').firstMatch(text);
-    if (number != null) return int.parse(number.group(0)!);
-    if (text.contains('twice')) return 2;
+
+    if (number != null) {
+      return int.parse(number.group(0)!);
+    }
+
+    if (text.contains('twice')) {
+      return 2;
+    }
+
     return 1;
   }
 
-  /// A uid (text) as a one-item list, or an empty list when it is missing.
-  /// Used with `...` so documents without a patientId are skipped.
-  List<String> _idList(Object? value) =>
-      value is String && value.isNotEmpty ? [value] : const <String>[];
+  // ---------------------------------------------------------------------------
+  // GENERAL HELPERS
+  // ---------------------------------------------------------------------------
 
-  /// The signed-in doctor's uid. Throws if nobody is signed in.
+  /// Converts a patient ID into a one-item list.
+  /// Missing or invalid IDs return an empty list.
+  List<String> _idList(Object? value) {
+    return value is String && value.isNotEmpty ? [value] : const <String>[];
+  }
+
+  /// Returns the currently signed-in doctor's Firebase UID.
   String _doctorUid() {
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) {
-      throw const PatientsException('Please sign in again to see your patients.');
+      throw const PatientsException(
+        'Please sign in again to see your patients.',
+      );
     }
+
     return user.uid;
   }
 
-  /// The signed-in doctor's name from `users/{uid}`, or "Doctor".
+  /// Retrieves the signed-in doctor's name from the users collection.
   Future<String> _currentDoctorName() async {
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) return 'Doctor';
-    final snap = await _db.collection('users').doc(user.uid).get();
-    return _text(snap.data()?['fullName'], 'Doctor');
+
+    final snapshot = await _db.collection('users').doc(user.uid).get();
+
+    return _text(snapshot.data()?['fullName'], 'Doctor');
   }
 
-  /// Runs a Firestore call and turns Firebase errors into a [PatientsException]
-  /// with a friendly message, so the screens show their normal error state.
+  /// Runs a Firestore operation and converts Firebase errors into
+  /// user-friendly PatientsException messages.
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
       return await action();
+    } on PatientsException {
+      rethrow;
     } on FirebaseException catch (e) {
       throw PatientsException(_messageFor(e));
     }
   }
 
-  /// A friendly message for a Firebase error code.
-  String _messageFor(FirebaseException e) {
-    switch (e.code) {
+  String _messageFor(FirebaseException error) {
+    switch (error.code) {
       case 'permission-denied':
         return "You don't have permission to do this. Ask the team to check the Firestore rules.";
+
       case 'unavailable':
         return 'No connection right now. Check your internet and try again.';
+
       case 'failed-precondition':
         return 'This list needs a Firestore index. Open the browser console (F12) and click the link in the error.';
+
       default:
-        return "Something went wrong. Please try again.";
+        return 'Something went wrong. Please try again.';
     }
   }
 
-  /// A Firestore Timestamp (or DateTime or ISO text) as a DateTime, or null.
+  /// Converts a Firestore Timestamp, DateTime, or ISO date string into
+  /// a DateTime value.
   DateTime? _toDate(Object? value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     if (value is String) return DateTime.tryParse(value);
+
     return null;
   }
 
-  /// [value] as trimmed text, or [fallback] if it is missing or empty.
+  /// Converts a value into trimmed text, using a fallback when empty.
   String _text(Object? value, String fallback) {
     final text = value?.toString().trim() ?? '';
+
     return text.isEmpty ? fallback : text;
   }
 
-  /// A Firestore list as a list of non-empty strings.
+  /// Converts a Firestore list into a list of non-empty strings.
   List<String> _stringList(Object? value) {
-    if (value is! List) return const <String>[];
+    if (value is! List) {
+      return const <String>[];
+    }
+
     return [
       for (final item in value)
         if (item.toString().trim().isNotEmpty) item.toString().trim(),
     ];
   }
 
-  /// True in the "Empty" demo scenario (long-press the avatar on Home).
-  bool _demoIsEmpty() => DashboardService.instance.scenario == DemoScenario.empty;
+  // ---------------------------------------------------------------------------
+  // DEMO SCENARIO HELPERS
+  // ---------------------------------------------------------------------------
 
-  /// Throws in the "Error" demo scenario, so the error state can be demoed.
+  /// Returns true when the Empty demo scenario is selected.
+  bool _demoIsEmpty() {
+    return DashboardService.instance.scenario == DemoScenario.empty;
+  }
+
+  /// Throws a PatientsException when the Error demo scenario is selected.
   void _demoThrowsIfError(String message) {
     if (DashboardService.instance.scenario == DemoScenario.error) {
       throw PatientsException(message);

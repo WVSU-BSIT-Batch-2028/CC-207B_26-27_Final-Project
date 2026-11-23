@@ -46,7 +46,10 @@ class PatientInfoCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(

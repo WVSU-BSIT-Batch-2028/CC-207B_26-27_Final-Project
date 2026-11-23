@@ -116,7 +116,8 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         refillDate: _startDate.add(Duration(days: days)),
         notes: notes.isEmpty ? null : notes,
       );
-      await PatientsService.instance.addPrescription(widget.patient.id, prescription);
+      await PatientsService.instance
+          .addPrescription(widget.patient.id, prescription);
       // The doctor may have left the screen while we waited.
       if (!mounted) return;
       setState(() => _saving = false);
@@ -132,7 +133,8 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     } on PatientsException catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -181,7 +183,10 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     return [
       Text(
         'Prescription for ${widget.patient.name}',
-        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+        style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMuted),
       ),
       gap,
 
@@ -194,13 +199,15 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           decoration: AppTheme.inputDecoration(hint: 'Choose a medicine'),
           items: [
             for (final option in kMedicineCatalog)
-              DropdownMenuItem(value: option, child: Text(option.name, style: _itemStyle)),
+              DropdownMenuItem(
+                  value: option, child: Text(option.name, style: _itemStyle)),
           ],
           onChanged: (value) => setState(() {
             _medicine = value;
             _dosage = null;
           }),
-          validator: (value) => value == null ? 'Please choose a medicine' : null,
+          validator: (value) =>
+              value == null ? 'Please choose a medicine' : null,
         ),
       ),
       gap,
@@ -214,14 +221,19 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           value: _dosage,
           isExpanded: true,
           decoration: AppTheme.inputDecoration(
-            hint: _medicine == null ? 'Choose a medicine first' : 'Choose a dosage',
+            hint: _medicine == null
+                ? 'Choose a medicine first'
+                : 'Choose a dosage',
           ),
           items: [
             for (final dose in _medicine?.dosages ?? const <String>[])
-              DropdownMenuItem(value: dose, child: Text(dose, style: _itemStyle)),
+              DropdownMenuItem(
+                  value: dose, child: Text(dose, style: _itemStyle)),
           ],
           // Disabled until a medicine is chosen.
-          onChanged: _medicine == null ? null : (value) => setState(() => _dosage = value),
+          onChanged: _medicine == null
+              ? null
+              : (value) => setState(() => _dosage = value),
           validator: (value) => value == null ? 'Please choose a dosage' : null,
         ),
       ),
@@ -236,10 +248,13 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           decoration: AppTheme.inputDecoration(hint: 'Choose how often'),
           items: [
             for (final entry in _frequencies.entries)
-              DropdownMenuItem(value: entry.key, child: Text(entry.value, style: _itemStyle)),
+              DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value, style: _itemStyle)),
           ],
           onChanged: (value) => setState(() => _timesPerDay = value),
-          validator: (value) => value == null ? 'Please choose how often' : null,
+          validator: (value) =>
+              value == null ? 'Please choose how often' : null,
         ),
       ),
       gap,
@@ -253,10 +268,12 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           decoration: AppTheme.inputDecoration(hint: 'Choose how many days'),
           items: [
             for (final days in _durations)
-              DropdownMenuItem(value: days, child: Text('$days days', style: _itemStyle)),
+              DropdownMenuItem(
+                  value: days, child: Text('$days days', style: _itemStyle)),
           ],
           onChanged: (value) => setState(() => _durationDays = value),
-          validator: (value) => value == null ? 'Please choose how many days' : null,
+          validator: (value) =>
+              value == null ? 'Please choose how many days' : null,
         ),
       ),
       gap,
@@ -295,12 +312,14 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       const SizedBox(height: AppSpacing.lg),
 
       // Save
-      H360Button(label: 'Save', isLoading: _saving, onPressed: _saving ? null : _save),
+      H360Button(
+          label: 'Save', isLoading: _saving, onPressed: _saving ? null : _save),
     ];
   }
 
   /// Text style of the choices in the dropdowns and the date (above the minimum of 14).
-  TextStyle get _itemStyle => TextStyle(fontSize: 15, color: AppColors.textPrimary);
+  TextStyle get _itemStyle =>
+      TextStyle(fontSize: 15, color: AppColors.textPrimary);
 
   /// A card with a bold label on top and the field underneath, as in the prototype.
   Widget _fieldCard({required String label, required Widget child}) {
@@ -310,7 +329,10 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.navy),
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navy),
           ),
           const SizedBox(height: AppSpacing.sm),
           child,

@@ -19,7 +19,7 @@ class AppRoutes {
   static const String assistant = '/assistant';
 
   /// Where the app starts. Skip auth while developing if needed:
-  ///   flutter run -d chrome --dart-define=START_ROUTE=/doctor
+  /// flutter run -d chrome --dart-define=START_ROUTE=/doctor
   static const String initialRoute =
       String.fromEnvironment('START_ROUTE', defaultValue: authGate);
 
@@ -27,14 +27,25 @@ class AppRoutes {
     switch (settings.name) {
       case login:
         return _fade(const LoginScreen(), settings);
+
       case register:
         return _fade(const RegisterScreen(), settings);
+
       case patientShell:
-        return _fade(const PatientShell(), settings);
+        final initialIndex =
+            settings.arguments is int ? settings.arguments as int : 0;
+
+        return _fade(
+          PatientShell(initialIndex: initialIndex),
+          settings,
+        );
+
       case doctorShell:
         return _fade(const DoctorShell(), settings);
+
       case assistant:
         return _slideUp(const AiAssistantScreen(), settings);
+
       case authGate:
       default:
         return _fade(const AuthGate(), settings);
@@ -47,7 +58,10 @@ class AppRoutes {
         transitionDuration: const Duration(milliseconds: 300),
         pageBuilder: (context, animation, secondary) => page,
         transitionsBuilder: (context, animation, secondary, child) =>
-            FadeTransition(opacity: animation, child: child),
+            FadeTransition(
+          opacity: animation,
+          child: child,
+        ),
       );
 
   static Route<dynamic> _slideUp(Widget page, RouteSettings settings) =>
@@ -57,10 +71,20 @@ class AppRoutes {
         reverseTransitionDuration: const Duration(milliseconds: 280),
         pageBuilder: (context, animation, secondary) => page,
         transitionsBuilder: (context, animation, secondary, child) {
-          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
           return SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(curved),
-            child: FadeTransition(opacity: curved, child: child),
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(
+              opacity: curved,
+              child: child,
+            ),
           );
         },
       );
