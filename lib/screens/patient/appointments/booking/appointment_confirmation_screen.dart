@@ -16,7 +16,6 @@ enum _ConfirmationState { loading, success, error }
 /// Submits the booking through AppointmentService and displays
 /// the saved appointment details after successful submission.
 class AppointmentConfirmationScreen extends StatefulWidget {
-  /// Creates the appointment confirmation screen.
   const AppointmentConfirmationScreen({
     super.key,
     required this.doctor,
@@ -25,16 +24,9 @@ class AppointmentConfirmationScreen extends StatefulWidget {
     required this.onDone,
   });
 
-  /// Doctor selected by the patient.
   final Doctor doctor;
-
-  /// Date and time selected by the patient.
   final DateTime appointmentDateTime;
-
-  /// Consultation and reminder choices from Stage 4.
   final AppointmentBookingDetails bookingDetails;
-
-  /// Called when the patient finishes viewing the confirmation.
   final VoidCallback onDone;
 
   @override
@@ -42,7 +34,6 @@ class AppointmentConfirmationScreen extends StatefulWidget {
       _AppointmentConfirmationScreenState();
 }
 
-/// Manages appointment submission and its result.
 class _AppointmentConfirmationScreenState
     extends State<AppointmentConfirmationScreen> {
   _ConfirmationState _state = _ConfirmationState.loading;
@@ -57,12 +48,9 @@ class _AppointmentConfirmationScreenState
   }
 
   /// Saves the appointment using the appointment service.
-  ///
-  /// The consultation type determines whether the appointment
-  /// is in-person or a video consultation.
   Future<void> _submitBooking() async {
     if (_state == _ConfirmationState.success ||
-        _state == _ConfirmationState.loading && _appointment != null) {
+        (_state == _ConfirmationState.loading && _appointment != null)) {
       return;
     }
 
@@ -72,15 +60,12 @@ class _AppointmentConfirmationScreenState
     });
 
     try {
-      // Determine the consultation type selected by the patient.
       final isVideo = widget.bookingDetails.consultationType
           .toLowerCase()
           .contains('video');
 
-      // Set the appointment location based on consultation type.
       final location = isVideo ? 'Google Meet' : 'Health360 Medical Clinic';
 
-      // Submit the appointment using the selected doctor's information.
       final appointment = await AppointmentService.instance.createAppointment(
         title: 'Consultation with ${widget.doctor.name}',
         doctorName: widget.doctor.name,
@@ -115,31 +100,30 @@ class _AppointmentConfirmationScreenState
     }
   }
 
-  /// Formats the appointment date for display.
   String _formatDate(DateTime date) {
     return MaterialLocalizations.of(context).formatMediumDate(date);
   }
 
-  /// Formats the appointment time for display.
   String _formatTime(DateTime date) {
     return MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(date),
     );
   }
 
-  /// Builds the confirmation screen.
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _state == _ConfirmationState.error,
+      // Prevent leaving while the booking is being submitted.
+      // Allow navigation after success or failure.
+      canPop: _state != _ConfirmationState.loading,
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             tooltip: 'Go back',
             icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: _state == _ConfirmationState.error
-                ? () => Navigator.of(context).pop()
-                : null,
+            onPressed: _state == _ConfirmationState.loading
+                ? null
+                : () => Navigator.of(context).pop(),
           ),
           title: const Text('Appointment Confirmation'),
         ),
@@ -154,7 +138,6 @@ class _AppointmentConfirmationScreenState
     );
   }
 
-  /// Displays a loading indicator while the booking is submitted.
   Widget _buildLoading() {
     return const Center(
       child: Padding(
@@ -179,7 +162,6 @@ class _AppointmentConfirmationScreenState
     );
   }
 
-  /// Displays an error message and allows the patient to retry.
   Widget _buildError() {
     return Center(
       child: SingleChildScrollView(
@@ -218,7 +200,6 @@ class _AppointmentConfirmationScreenState
     );
   }
 
-  /// Displays the saved appointment and its booking status.
   Widget _buildSuccess() {
     final appointment = _appointment!;
 
@@ -228,7 +209,6 @@ class _AppointmentConfirmationScreenState
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              // Success message.
               const SizedBox(height: AppSpacing.md),
               Icon(
                 Icons.check_circle_rounded,
@@ -404,7 +384,6 @@ class _AppointmentConfirmationScreenState
     );
   }
 
-  /// Builds one appointment detail row.
   Widget _detailTile({
     required IconData icon,
     required String label,
