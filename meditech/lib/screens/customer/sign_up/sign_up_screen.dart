@@ -171,15 +171,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 await ref
                     .read(authServiceProvider)
                     .resendSignUpConfirmation(email);
-                if (!context.mounted) return;
-                Navigator.of(dialogContext).pop();
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Confirmation email sent again.'),
                   ),
                 );
               } on AppFailure catch (e) {
-                if (!context.mounted) return;
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(e.message)),
                 );

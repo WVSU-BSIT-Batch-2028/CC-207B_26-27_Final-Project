@@ -13,7 +13,10 @@ void main() {
   testWidgets('mark as read updates the row', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [notificationListProvider.overrideWith(_FixedList.new)],
+        overrides: [
+          sessionProvider.overrideWith(_SignedInSession.new),
+          notificationListProvider.overrideWith(_FixedList.new),
+        ],
         child: const MaterialApp(home: NotificationListScreen()),
       ),
     );
@@ -49,8 +52,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          notificationListProvider.overrideWith(_FixedList.new),
           sessionProvider.overrideWith(_SignedInSession.new),
+          notificationListProvider.overrideWith(_FixedList.new),
         ],
         child: const MaterialApp(home: Scaffold(body: NotificationBell())),
       ),
@@ -63,9 +66,10 @@ void main() {
 
 class _SignedInSession extends SessionNotifier {
   @override
-  SignedInAccount? build() {
-    return const SignedInAccount(accountType: 'customer', state: 'active');
-  }
+  SignedInAccount? build() => const SignedInAccount(
+        accountType: 'customer',
+        state: 'active',
+      );
 }
 
 class _FixedList extends NotificationListNotifier {

@@ -95,16 +95,20 @@ void main() {
     expect(redirectForPharmacySession(active, '/application-status'), '/dashboard');
   });
 
-  // Approved admins open pharmacies; guests cannot
-  test('active admins open pharmacies shell', () {
+  // Approved admins open overview; guests cannot open admin shell routes
+  test('active admins open overview shell', () {
     const admin = SignedInAccount(
       accountType: 'admin',
       state: 'active',
     );
-    expect(redirectForAdminSession(admin, '/'), '/pharmacies');
+    expect(redirectForAdminSession(admin, '/'), '/overview');
+    expect(redirectForAdminSession(admin, '/overview'), null);
     expect(redirectForAdminSession(admin, '/pharmacies'), null);
-    expect(redirectForAdminSession(null, '/pharmacies'), '/');
+    expect(redirectForAdminSession(admin, '/notifications'), null);
+    expect(redirectForAdminSession(null, '/overview'), '/');
     expect(redirectForAdminSession(null, '/listings'), '/');
+    expect(redirectForAdminSession(null, '/pharmacies'), '/');
+    expect(redirectForAdminSession(null, '/notifications'), '/');
     expect(redirectForAdminSession(null, '/'), null);
   });
 }
