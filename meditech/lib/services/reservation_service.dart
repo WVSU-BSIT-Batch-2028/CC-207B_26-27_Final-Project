@@ -144,7 +144,7 @@ class ReservationService {
     final branchNames = await _branchLabelsForRows(rows as List<dynamic>);
 
     return rows.map((row) {
-      final map = Map<String, dynamic>.from(row as Map<String, dynamic>);
+      final map = Map<String, dynamic>.from(row);
       final branchId = map['branch_id'] as String?;
       map['branches'] = branchId != null ? branchNames[branchId] : null;
       return CustomerReservation.fromJson(map);

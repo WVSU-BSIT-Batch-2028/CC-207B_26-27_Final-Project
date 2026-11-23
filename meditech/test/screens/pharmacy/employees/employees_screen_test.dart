@@ -154,7 +154,7 @@ Future<void> _pumpEmployees(WidgetTester tester, EmployeeService service) async 
     ProviderScope(
       overrides: [employeeServiceProvider.overrideWithValue(service)],
       child: const MaterialApp(
-        home: const EmployeesScreen(),
+        home: EmployeesScreen(),
       ),
     ),
   );

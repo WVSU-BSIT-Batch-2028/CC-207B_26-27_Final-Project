@@ -298,9 +298,9 @@ class PharmacyDashboardService {
       loadPendingRequests(),
     ]);
 
-    final reservations = results[0] as List<Map<String, dynamic>>;
-    final inventory = results[1] as List<Map<String, dynamic>>;
-    final pendingRequests = results[2] as List<Map<String, dynamic>>;
+    final reservations = results[0];
+    final inventory = results[1];
+    final pendingRequests = results[2];
     final snapshot = inventorySnapshot(inventory);
 
     return {

@@ -38,8 +38,7 @@ class BranchReservationsNotifier
       }
     });
 
-    if (ref.read(sessionProvider) == null &&
-        Supabase.instance.client.auth.currentSession == null) {
+    if (ref.read(sessionProvider) == null && !_hasSupabaseSession()) {
       return const [];
     }
 
@@ -85,9 +84,16 @@ class BranchReservationsNotifier
     }
   }
 
+  bool _hasSupabaseSession() {
+    try {
+      return Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?> _resolveBranchId() async {
-    if (ref.read(sessionProvider) == null &&
-        Supabase.instance.client.auth.currentSession == null) {
+    if (ref.read(sessionProvider) == null && !_hasSupabaseSession()) {
       return null;
     }
     try {

@@ -158,7 +158,7 @@ void main() {
     await tester.pumpWidget(_wrap(service));
     await tester.pumpAndSettle();
 
-    expect(find.text('Something went wrong. Please try again.'), findsOneWidget);
+    expect(find.text('Failed to load inventory'), findsOneWidget);
 
     // Turn off failure and tap Retry
     service.failLoad = false;
