@@ -1,3 +1,4 @@
+
 /// One patient in the doctor's Patients list.
 ///
 /// This is only the SUMMARY the list (and the Patient Details header) needs.
@@ -24,10 +25,11 @@ class Patient {
   /// The patient's uid (same id as `users/{uid}`).
   final String id;
 
-  /// Full name, e.g. "Jahna Erika Lagne".
+  /// Patient's registered display name.
   final String name;
 
-  /// Main condition, e.g. "Common Cold". "No condition recorded" if unknown.
+  /// Main condition, e.g. "Common Cold".
+  /// Uses "No condition recorded" if unknown.
   final String condition;
 
   /// True for patients currently under the doctor's care (the "Active" pill),

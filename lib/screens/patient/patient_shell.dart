@@ -21,7 +21,12 @@ import 'prescriptions/prescriptions_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
 class PatientShell extends StatefulWidget {
-  const PatientShell({super.key});
+  const PatientShell({
+    super.key,
+    this.initialIndex = 0,
+  });
+
+  final int initialIndex;
 
   @override
   State<PatientShell> createState() => _PatientShellState();
@@ -46,31 +51,8 @@ class _PatientShellState extends State<PatientShell> {
     });
   }
 
-  /// Returns to the Patient Shell after booking confirmation.
-  /// Refreshes the Appointments screen to retrieve the latest records.
-  void _finishBooking(
-    NavigatorState navigator,
-    Route<dynamic>? patientRoute,
-  ) {
-    if (!mounted || !navigator.mounted || patientRoute == null) return;
-
-    navigator.popUntil(
-      (route) => identical(route, patientRoute),
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _index = 1;
-      _appointmentsRefreshToken++;
-    });
-  }
-
   /// Opens the appointment booking flow.
   void _openDoctorSelection() {
-    // Capture the actual Patient Shell route.
-    final patientRoute = ModalRoute.of(context);
-
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (doctorContext) {
@@ -107,11 +89,16 @@ class _PatientShellState extends State<PatientShell> {
                                               return;
                                             }
 
-                                            _finishBooking(
-                                              Navigator.of(
-                                                confirmationContext,
-                                              ),
-                                              patientRoute,
+                                            debugPrint(
+                                              'BOOKING DEBUG: Done button tapped.',
+                                            );
+
+                                            Navigator.of(
+                                              confirmationContext,
+                                            ).pushNamedAndRemoveUntil(
+                                              AppRoutes.patientShell,
+                                              (route) => false,
+                                              arguments: 1,
                                             );
                                           },
                                         );
@@ -149,6 +136,9 @@ class _PatientShellState extends State<PatientShell> {
   @override
   void initState() {
     super.initState();
+
+    // Allows the shell to open directly on a requested tab.
+    _index = widget.initialIndex.clamp(0, 4);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {

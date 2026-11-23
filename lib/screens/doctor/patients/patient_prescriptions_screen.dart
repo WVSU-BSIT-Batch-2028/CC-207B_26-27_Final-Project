@@ -56,10 +56,12 @@ class PatientPrescriptionsScreen extends StatefulWidget {
   final VoidCallback onAddPrescription;
 
   @override
-  State<PatientPrescriptionsScreen> createState() => _PatientPrescriptionsScreenState();
+  State<PatientPrescriptionsScreen> createState() =>
+      _PatientPrescriptionsScreenState();
 }
 
-class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen> {
+class _PatientPrescriptionsScreenState
+    extends State<PatientPrescriptionsScreen> {
   _LoadStatus _status = _LoadStatus.loading;
   List<DoctorPrescription> _prescriptions = const [];
 
@@ -81,12 +83,13 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final service = PatientsService.instance;
+            final service = PatientsService.instance;
       final items = await service.fetchPatientPrescriptions(widget.patient.id);
       final refills = await service.fetchPatientRefillRequests(widget.patient.id);
       final taken = await service.fetchPatientTakenHistory(widget.patient.id);
       // The doctor may have left the screen while we waited.
       if (!mounted) return;
+
       setState(() {
         _prescriptions = items;
         _refills = refills;
@@ -137,7 +140,8 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
           child: H360Button(
             label: 'Add Prescription',
             icon: Icons.add_circle_outline_rounded,
@@ -215,7 +219,8 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
             const EmptyState(
               icon: Icons.medication_outlined,
               title: 'No prescriptions yet',
-              message: 'Tap "Add Prescription" to write the first one for this patient.',
+              message:
+                  'Tap "Add Prescription" to write the first one for this patient.',
             ),
 
           // List of prescription cards (each fades in a little after the one above)

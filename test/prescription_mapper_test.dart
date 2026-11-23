@@ -36,7 +36,7 @@ void main() {
       expect(p.prescribedBy, 'Dr. Maria Santos');
       expect(p.prescribedOn, DateTime(2026, 9, 12));
       expect(p.notes, 'Take after meals.');
-      expect(p.doctorPhone, isNull);
+      expect(p.doctorPhone, '');
     });
 
     test('falls back to safe defaults for optional fields', () {

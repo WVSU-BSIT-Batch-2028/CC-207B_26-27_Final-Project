@@ -1,3 +1,4 @@
+
 import 'appointment_status.dart';
 
 /// Represents the outcome of an appointment after its scheduled date.
@@ -19,7 +20,6 @@ enum ChangeRequestStatus {
 /// These changes do not replace the original appointment until approved
 /// by the doctor.
 class AppointmentChangeRequest {
-  /// Creates a request containing the proposed booking details.
   const AppointmentChangeRequest({
     required this.doctorName,
     required this.specialty,
@@ -33,8 +33,9 @@ class AppointmentChangeRequest {
     this.status = ChangeRequestStatus.pending,
   });
 
-  /// uid of the doctor the patient wants to move to (`users/{uid}`).
+  /// Firebase UID of the doctor the patient wants to move to (`users/{uid}`).
   final String? doctorId;
+
   final String doctorName;
   final String specialty;
   final DateTime dateTime;
@@ -50,7 +51,6 @@ class AppointmentChangeRequest {
 ///
 /// Shared by the patient and doctor appointment modules.
 class Appointment {
-  /// Creates an appointment with its basic information and optional details.
   const Appointment({
     required this.id,
     required this.title,
@@ -58,6 +58,7 @@ class Appointment {
     required this.specialty,
     required this.dateTime,
     required this.location,
+    this.doctorId,
     this.isVideo = false,
     this.status = AppointmentStatus.confirmed,
     this.consultationFee,
@@ -65,7 +66,6 @@ class Appointment {
     this.meetingUrl,
     this.patientName,
     this.patientId,
-    this.doctorId,
     this.bookedAt,
     this.outcome = AppointmentOutcome.none,
     this.changeRequest,
@@ -74,6 +74,13 @@ class Appointment {
 
   final String id;
   final String title;
+
+  /// Firebase UID of the doctor assigned to this appointment.
+  ///
+  /// Nullable to support existing appointment records created before
+  /// doctor-specific assignment was implemented.
+  final String? doctorId;
+
   final String doctorName;
   final String specialty;
   final DateTime dateTime;
@@ -91,10 +98,6 @@ class Appointment {
 
   /// Patient's unique identifier for future backend integration.
   final String? patientId;
-
-  /// uid of the doctor who owns this appointment (`users/{uid}`).
-  /// Only that doctor can see it; the Firestore rules depend on it.
-  final String? doctorId;
 
   /// Original date and time when the appointment was booked.
   ///

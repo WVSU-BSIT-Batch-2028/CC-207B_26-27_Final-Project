@@ -49,7 +49,10 @@ class PatientLabCard extends StatelessWidget {
               children: [
                 Text(
                   result.testName,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(

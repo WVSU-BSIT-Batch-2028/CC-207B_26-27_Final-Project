@@ -68,6 +68,8 @@ class _AppointmentConfirmationScreenState
 
       final appointment = await AppointmentService.instance.createAppointment(
         title: 'Consultation with ${widget.doctor.name}',
+
+        // Firebase UID of the selected doctor.
         doctorId: widget.doctor.id,
         doctorName: widget.doctor.name,
         specialty: widget.doctor.specialty,

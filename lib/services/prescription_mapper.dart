@@ -49,7 +49,7 @@ Prescription prescriptionFromData(String id, Map<String, dynamic> data) {
     durationDays: (data['durationDays'] as num?)?.toInt() ?? 1,
     startDate: start,
     prescribedBy: (data['doctorName'] as String?) ?? 'Your doctor',
-    doctorPhone: data['doctorPhone'] as String?,
+    doctorPhone: (data['doctorPhone'] as String?) ?? '',
     prescribedOn: _dateOf(data['createdAt']) ?? start,
     refillDate: _dateOf(data['refillDate']),
     lastRefill: _dateOf(data['lastRefill']),
