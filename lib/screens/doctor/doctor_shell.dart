@@ -14,7 +14,6 @@ import 'doctor_drawer.dart';
 import 'doctor_home_screen.dart';
 import 'patients/patients_tab.dart';
 import 'appointments/doctor_appointments_screen.dart';
-import 'doctor_prescriptions_screen.dart';
 
 /// Doctor frame: Home / Appointments / Patients / Profile / Menu.
 /// The "Menu" tab opens the slide-out drawer instead of changing page.
@@ -71,7 +70,7 @@ class _DoctorShellState extends State<DoctorShell> {
       case DoctorMenuItem.profile:
         _goTo(3);
       case DoctorMenuItem.prescriptions:
-        _push(const DoctorPrescriptionsScreen());
+        showComingSoonSheet(context, title: 'Prescriptions');
       case DoctorMenuItem.medicalRecords:
         showComingSoonSheet(context, title: 'Medical Records');
       case DoctorMenuItem.labResults:

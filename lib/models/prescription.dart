@@ -14,7 +14,7 @@ class Prescription {
     required this.durationDays,
     required this.startDate,
     required this.prescribedBy,
-    this.doctorPhone,
+    required this.doctorPhone,
     required this.prescribedOn,
     this.refillDate,
     this.lastRefill,
@@ -45,9 +45,8 @@ class Prescription {
   /// Doctor who wrote the prescription.
   final String prescribedBy;
 
-  /// Doctor's contact number (shown on the details screen). Optional: the
-  /// Firestore prescription has no phone yet, so screens hide it when null.
-  final String? doctorPhone;
+  /// Doctor's contact number (shown on the details screen).
+  final String doctorPhone;
 
   /// Date the prescription was written.
   final DateTime prescribedOn;
