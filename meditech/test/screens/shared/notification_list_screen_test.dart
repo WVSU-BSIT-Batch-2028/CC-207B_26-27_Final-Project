@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meditech/models/app_notification.dart';
+import 'package:meditech/models/signed_in_account.dart';
 import 'package:meditech/providers/notification_providers.dart';
+import 'package:meditech/providers/session_providers.dart';
 import 'package:meditech/screens/shared/notification_bell.dart';
 import 'package:meditech/screens/shared/notification_list_screen.dart';
 
@@ -11,7 +13,10 @@ void main() {
   testWidgets('mark as read updates the row', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [notificationListProvider.overrideWith(_FixedList.new)],
+        overrides: [
+          sessionProvider.overrideWith(_SignedInSession.new),
+          notificationListProvider.overrideWith(_FixedList.new),
+        ],
         child: const MaterialApp(home: NotificationListScreen()),
       ),
     );
@@ -30,7 +35,10 @@ void main() {
   testWidgets('bell shows the unread count', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [notificationListProvider.overrideWith(_FixedList.new)],
+        overrides: [
+          sessionProvider.overrideWith(_SignedInSession.new),
+          notificationListProvider.overrideWith(_FixedList.new),
+        ],
         child: const MaterialApp(home: Scaffold(body: NotificationBell())),
       ),
     );
@@ -38,6 +46,14 @@ void main() {
 
     expect(find.text('1'), findsOneWidget);
   });
+}
+
+class _SignedInSession extends SessionNotifier {
+  @override
+  SignedInAccount? build() => const SignedInAccount(
+        accountType: 'customer',
+        state: 'active',
+      );
 }
 
 class _FixedList extends NotificationListNotifier {

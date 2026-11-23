@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meditech/models/cart.dart';
 import 'package:meditech/models/medicine.dart';
 import 'package:meditech/models/reservation.dart';
+import 'package:meditech/models/signed_in_account.dart';
 import 'package:meditech/providers/cart_providers.dart';
 import 'package:meditech/providers/reservation_providers.dart';
+import 'package:meditech/providers/session_providers.dart';
 import 'package:meditech/screens/customer/cart/cart_screen.dart';
 import 'package:meditech/services/cart_service.dart';
 import 'package:meditech/services/reservation_service.dart';
@@ -15,6 +17,14 @@ import 'package:mocktail/mocktail.dart';
 class MockCartService extends Mock implements CartService {}
 
 class MockReservationService extends Mock implements ReservationService {}
+
+class _SignedInCustomer extends SessionNotifier {
+  @override
+  SignedInAccount? build() => const SignedInAccount(
+        accountType: 'customer',
+        state: 'active',
+      );
+}
 
 void main() {
   late MockCartService mockCartService;
@@ -66,6 +76,7 @@ void main() {
 
     return ProviderScope(
       overrides: [
+        sessionProvider.overrideWith(_SignedInCustomer.new),
         cartServiceProvider.overrideWithValue(mockCartService),
         reservationServiceProvider.overrideWithValue(mockReservationService),
       ],

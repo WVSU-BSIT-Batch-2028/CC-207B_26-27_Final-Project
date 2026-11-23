@@ -25,14 +25,15 @@ void main() {
     longitude: 122.545,
   );
 
-  const sampleHours = [
-    PharmacyHours(weekday: 0, isClosed: true),
-    PharmacyHours(
-      weekday: 1,
-      opensAt: '08:00:00',
-      closesAt: '20:00:00',
-      isClosed: false,
-    ),
+  final sampleHours = <PharmacyHours>[
+    const PharmacyHours(weekday: 0, isClosed: true),
+    for (var weekday = 1; weekday <= 6; weekday++)
+      PharmacyHours(
+        weekday: weekday,
+        opensAt: '08:00:00',
+        closesAt: '20:00:00',
+        isClosed: false,
+      ),
   ];
 
   final sampleInventory = [
@@ -97,10 +98,10 @@ void main() {
     expect(find.text('Molo Plaza'), findsOneWidget);
     expect(find.text('Molo Plaza, Iloilo City'), findsOneWidget);
     expect(find.text('09171110001'), findsOneWidget);
-    expect(find.text('Sunday'), findsOneWidget);
-    expect(find.text('Closed'), findsOneWidget);
-    expect(find.text('Monday'), findsOneWidget);
-    expect(find.text('8:00 AM – 8:00 PM'), findsOneWidget);
+    final today = pharmacyHoursForToday(sampleHours)!;
+    expect(find.text('Opening Hours'), findsOneWidget);
+    expect(find.text(today.dayLabel), findsOneWidget);
+    expect(find.text(today.scheduleLabel), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Biogesic'),
