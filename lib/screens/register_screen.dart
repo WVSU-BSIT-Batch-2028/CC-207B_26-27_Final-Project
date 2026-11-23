@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../foodwise_theme.dart';
 import '../services/auth_service.dart';
+import 'welcome_screen.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -98,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onPressed: () {
                   Navigator.pop(dialogContext);
                 },
-                child: const Text('Continue to Login'),
+                child: const Text('Continue'),
               ),
             ],
           );
@@ -109,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -131,12 +132,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _brandHeader() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           height: 50,
           width: 50,
           decoration: BoxDecoration(
-            color: FoodWiseColors.deepSage,
+            color: FoodWiseColors.deepOrange,
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Icon(
@@ -145,32 +147,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             size: 26,
           ),
         ),
-
         const SizedBox(width: 12),
-
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'foodwise.',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                letterSpacing: -1,
-                color: FoodWiseColors.charcoal,
-              ),
-            ),
-
-            const Text(
-              'DISCOVER  ·  EAT  ·  ENJOY',
-              style: TextStyle(
-                fontSize: 9,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w700,
-                color: FoodWiseColors.sage,
-              ),
-            ),
-          ],
+        const Text(
+          'FoodWise',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -1,
+            color: FoodWiseColors.charcoal,
+          ),
         ),
       ],
     );

@@ -2,20 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'foodwise_theme.dart';
-import 'screens/login_screen.dart';
-import 'screens/student_home_screen.dart';
+import 'screens/splash_screen.dart';
 
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-
-const supabasePublishableKey = String.fromEnvironment(
-  'SUPABASE_PUBLISHABLE_KEY',
-);
+const supabasePublishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (supabaseUrl.isEmpty || supabasePublishableKey.isEmpty) {
-    throw Exception('Missing Supabase configuration.');
+    throw Exception('Missing Supabase configuration. Provide SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.');
   }
 
   await Supabase.initialize(
@@ -31,16 +27,11 @@ class FoodWiseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasSession = Supabase.instance.client.auth.currentSession != null;
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
       title: 'FoodWise',
-
       theme: FoodWiseTheme.light,
-
-      home: hasSession ? const StudentHomeScreen() : const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
