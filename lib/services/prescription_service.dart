@@ -5,6 +5,7 @@ import '../core/utils/date_format.dart';
 import '../models/doctor_prescription.dart';
 import '../models/medication_dose.dart';
 import '../models/prescription.dart';
+import '../models/refill_notice.dart';
 import '../models/refill_request.dart';
 import '../models/reminder_setting.dart';
 import '../models/taken_history.dart';
@@ -277,6 +278,9 @@ class PrescriptionService {
           'prescriptionId': prescriptionId,
           'patientId': key,
           'doctorId': data['doctorId'],
+          'patientUid': _requireUid(),
+          'patientName': _patientName(),
+          'medicineTitle': prescription.title,
           'status': RefillStatus.pending.name,
           'requestedAt': FieldValue.serverTimestamp(),
           'answeredAt': null,
@@ -404,6 +408,13 @@ class PrescriptionService {
   // Doctor: used by the Patients tab (PatientsService calls these)
   // ---------------------------------------------------------------------------
 
+  /// The signed-in patient's name, saved on a refill request so the doctor's
+  /// notification can say who asked.
+  String _patientName() {
+    final name = _auth.currentUser?.displayName?.trim() ?? '';
+    return name.isEmpty ? 'A patient' : name;
+  }
+
   /// The name written on prescriptions, e.g. "Dr. Maria Santos".
   String _doctorName() {
     final name = _auth.currentUser?.displayName?.trim() ?? '';
@@ -476,6 +487,26 @@ class PrescriptionService {
             (doc.data()['prescriptionId'] as String? ?? ''):
                 refillRequestFromData(doc.data()),
         };
+      },
+    );
+  }
+
+  /// Refill requests still waiting for this doctor's answer, newest first.
+  /// The doctor's Notifications screen shows one entry per request.
+  Future<List<RefillNotice>> fetchPendingRefillNotices() async {
+    return _guard(
+      "We couldn't load the refill requests. Check your connection and try again.",
+      () async {
+        final doctorId = await _requireDoctor();
+        final snap = await _refillRequests
+            .where('doctorId', isEqualTo: doctorId)
+            .where('status', isEqualTo: RefillStatus.pending.name)
+            .get();
+
+        final notices = [
+          for (final doc in snap.docs) refillNoticeFromData(doc.id, doc.data()),
+        ]..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+        return notices;
       },
     );
   }

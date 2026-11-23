@@ -1,10 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/utils/date_format.dart';
 import '../models/appointment.dart';
 import '../models/dashboard_data.dart';
 import '../models/medication_dose.dart';
 import '../models/vital_sign.dart';
+import 'prescription_service.dart';
 
 /// Scenarios you can trigger from the Home screen (long-press the avatar)
 /// to demo the loading / empty / error states during the presentation.
@@ -27,7 +27,6 @@ class DashboardService {
 
   DemoScenario scenario = DemoScenario.normal;
 
-  static const String _takenKeyPrefix = 'taken_doses_';
   static const String _vitalKeyPrefix = 'vital_entries_';
 
   /// Asynchronous call with simulated latency (shows the loading state).
@@ -51,18 +50,13 @@ class DashboardService {
     }
   }
 
-  /// Saves whether a dose was taken today (local data persistence).
-  Future<void> setDoseTaken(String doseId, bool taken) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '$_takenKeyPrefix${dateKey(DateTime.now())}';
-    final ids = (prefs.getStringList(key) ?? <String>[]).toSet();
-    if (taken) {
-      ids.add(doseId);
-    } else {
-      ids.remove(doseId);
-    }
-    await prefs.setStringList(key, ids.toList());
-  }
+  /// Saves whether a dose was taken today.
+  ///
+  /// A dose is one of the patient's prescriptions, so this is saved by
+  /// PrescriptionService (Firestore). The Prescription screens save to the
+  /// same record, so "Mark as Taken" in either place updates both.
+  Future<void> setDoseTaken(String doseId, bool taken) =>
+      PrescriptionService.instance.setTakenToday(doseId, taken);
 
   /// Saves a reading the patient entered themselves (local persistence).
   /// Stored as "milliseconds|value|secondary" text, one entry per reading.
@@ -73,12 +67,6 @@ class DashboardService {
     final entries = List<String>.from(prefs.getStringList(key) ?? const <String>[]);
     entries.add('${reading.date.millisecondsSinceEpoch}|${reading.value}|${reading.secondary ?? ''}');
     await prefs.setStringList(key, entries);
-  }
-
-  Future<Set<String>> _takenToday() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '$_takenKeyPrefix${dateKey(DateTime.now())}';
-    return (prefs.getStringList(key) ?? <String>[]).toSet();
   }
 
   /// Reads back the patient's own entries for one vital type.
@@ -123,30 +111,19 @@ class DashboardService {
     return VitalSign(type: type, label: label, unit: unit, readings: [...sample, ...mine]);
   }
 
+  /// Today's medicines come from the patient's active prescriptions.
+  /// If they cannot be loaded, Home still opens, with an empty checklist.
+  Future<List<MedicationDose>> _loadDoses() async {
+    try {
+      return await PrescriptionService.instance.fetchTodayDoses();
+    } on PrescriptionException {
+      return const <MedicationDose>[];
+    }
+  }
+
   Future<DashboardData> _sample() async {
     final now = DateTime.now();
-    final taken = await _takenToday();
-
-    final doses = <MedicationDose>[
-      const MedicationDose(
-        id: 'dose-1',
-        name: 'Vitamin D3',
-        dosage: '1000 IU',
-        time: '8:00 AM',
-      ),
-      const MedicationDose(
-        id: 'dose-2',
-        name: 'Amoxicillin',
-        dosage: '500 mg',
-        time: '1:00 PM',
-      ),
-      const MedicationDose(
-        id: 'dose-3',
-        name: 'Vitamin C',
-        dosage: '500 mg',
-        time: '7:00 PM',
-      ),
-    ];
+    final doses = await _loadDoses();
 
     return DashboardData(
       patientFirstName: 'Jahna',
@@ -170,7 +147,7 @@ class DashboardService {
         await _vital(VitalType.weight, 'Weight', 'kg', [58.9, 58.8, 58.7, 58.6, 58.5, 58.4, 58.4]),
         await _vital(VitalType.sleep, 'Sleep', 'last night', [7.1, 6.4, 6.8, 5.9, 6.6, 7.0, 6.5]),
       ],
-      doses: [for (final d in doses) d.copyWith(taken: taken.contains(d.id))],
+      doses: doses,
     );
   }
 }

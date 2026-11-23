@@ -9,6 +9,7 @@ import '../models/notification_item.dart';
 import '../models/user_profile.dart';
 import '../models/user_role.dart';
 import 'auth_service.dart';
+import 'prescription_service.dart';
 
 /// Saves personal information and notification toggles.
 /// Reads the signed-in user's name/email from Firebase Auth & Firestore `users/{uid}`.
@@ -128,8 +129,35 @@ class ProfileService {
             NotificationItem(id: 'n5', categoryKey: 'health', title: 'Daily check-in', message: 'How did you sleep last night? Add a reading in Health at a Glance.', time: at(3, 7, 30)),
           ];
 
+    // Doctor: one entry for every refill request still waiting for an answer.
+    if (role == UserRole.doctor) {
+      items.addAll(await _refillNotifications());
+    }
+
     items.sort((a, b) => b.time.compareTo(a.time));
     return [for (final i in items) i.copyWith(read: readIds.contains(i.id))];
+  }
+
+  /// Notification entries built from the refill requests that patients sent
+  /// to this doctor and that nobody has answered yet. They disappear once the
+  /// doctor approves or declines. If they cannot be loaded, the sample
+  /// notifications still show.
+  async.Future<List<NotificationItem>> _refillNotifications() async {
+    try {
+      final notices = await PrescriptionService.instance.fetchPendingRefillNotices();
+      return [
+        for (final n in notices)
+          NotificationItem(
+            id: 'refill_${n.id}',
+            categoryKey: 'prescription',
+            title: 'Refill requested',
+            message: '${n.patientName} asked to refill ${n.medicineTitle}.',
+            time: n.requestedAt,
+          ),
+      ];
+    } catch (_) {
+      return const <NotificationItem>[];
+    }
   }
 
   async.Future<void> markNotificationsRead(UserRole role, Iterable<String> ids) async {

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/doctor_prescription.dart';
 import '../models/prescription.dart';
+import '../models/refill_notice.dart';
 import '../models/refill_request.dart';
 
 /// Converts what is stored in Firestore into the app's models, and back.
@@ -120,5 +121,19 @@ RefillRequest refillRequestFromData(Map<String, dynamic> data) {
     // A pending server timestamp is null for a moment after it is written.
     requestedAt: requested is Timestamp ? requested.toDate() : DateTime.now(),
     status: status,
+  );
+}
+
+/// Builds the doctor's notification entry from one pending refill request.
+/// Requests saved before the patient name was stored show "A patient".
+RefillNotice refillNoticeFromData(String id, Map<String, dynamic> data) {
+  final requested = data['requestedAt'];
+  return RefillNotice(
+    id: id,
+    prescriptionId: (data['prescriptionId'] as String?) ?? '',
+    patientName: (data['patientName'] as String?) ?? 'A patient',
+    medicineTitle: (data['medicineTitle'] as String?) ?? 'a medicine',
+    requestedAt: requested is Timestamp ? requested.toDate() : DateTime.now(),
+    patientUid: data['patientUid'] as String?,
   );
 }

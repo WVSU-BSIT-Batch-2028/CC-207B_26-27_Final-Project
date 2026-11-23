@@ -11,17 +11,24 @@
 // other pills to switch, pull down to refresh, tap the back arrow to return
 // to Patient Details.
 //
-// WHERE THE DATA COMES FROM: PatientsService.fetchPatientPrescriptions (mock).
+// WHERE THE DATA COMES FROM: PatientsService, which reads the same Firestore
+// records the patient sees (prescriptions, refill requests, doses taken).
+//
+// UNDER EACH PRESCRIPTION: the days the patient marked it as taken, and the
+// patient's refill request with Approve / Decline while it is pending.
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../models/patient.dart';
 import '../../../models/doctor_prescription.dart';
+import '../../../models/refill_request.dart';
+import '../../../models/taken_history.dart';
 import '../../../services/patients_service.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/h360_button.dart';
+import '../../../widgets/refill_request_card.dart';
 import '../../../widgets/state_views.dart';
+import '../../../widgets/taken_history_card.dart';
 import '../../records/widgets/records_header.dart';
 import '../../records/widgets/records_scroll_body.dart';
 import 'widgets/patient_record_tab_bar.dart';
@@ -55,6 +62,12 @@ class PatientPrescriptionsScreen extends StatefulWidget {
 class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen> {
   _LoadStatus _status = _LoadStatus.loading;
   List<DoctorPrescription> _prescriptions = const [];
+
+  /// Refill requests the patient sent, by prescription id.
+  Map<String, RefillRequest> _refills = const {};
+
+  /// Days the patient marked each prescription as taken, by prescription id.
+  Map<String, TakenHistory> _taken = const {};
   String _error = '';
 
   @override
@@ -68,11 +81,16 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final items = await PatientsService.instance.fetchPatientPrescriptions(widget.patient.id);
+      final service = PatientsService.instance;
+      final items = await service.fetchPatientPrescriptions(widget.patient.id);
+      final refills = await service.fetchPatientRefillRequests(widget.patient.id);
+      final taken = await service.fetchPatientTakenHistory(widget.patient.id);
       // The doctor may have left the screen while we waited.
       if (!mounted) return;
       setState(() {
         _prescriptions = items;
+        _refills = refills;
+        _taken = taken;
         _status = _LoadStatus.ready;
       });
     } on PatientsException catch (e) {
@@ -130,6 +148,37 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
     );
   }
 
+  /// One prescription card, with the patient's doses-taken history and any
+  /// refill request underneath it.
+  Widget _buildPrescription(DoctorPrescription p) {
+    final taken = _taken[p.id];
+    final refill = _refills[p.id];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PrescriptionCard(prescription: p),
+        if (taken != null && taken.takenCount > 0) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TakenHistoryCard(history: taken, courseDays: p.durationDays),
+        ],
+        if (refill != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          RefillRequestCard(
+            medicineTitle: p.title,
+            request: refill,
+            onRespond: (answer) => PatientsService.instance.answerPatientRefill(
+              patientId: widget.patient.id,
+              prescriptionId: p.id,
+              answer: answer,
+            ),
+            onAnswered: () => _load(showSkeleton: false),
+          ),
+        ],
+      ],
+    );
+  }
+
   /// Builds the list content for the current state: loading, error, empty or ready.
   List<Widget> _buildChildren() {
     const gap = SizedBox(height: AppSpacing.md);
@@ -173,7 +222,7 @@ class _PatientPrescriptionsScreenState extends State<PatientPrescriptionsScreen>
           for (var i = 0; i < _prescriptions.length; i++) ...[
             FadeSlideIn(
               delay: Duration(milliseconds: 60 * i),
-              child: PrescriptionCard(prescription: _prescriptions[i]),
+              child: _buildPrescription(_prescriptions[i]),
             ),
             gap,
           ],

@@ -18,6 +18,7 @@
 | `lib/services/prescription_mapper.dart` | `prescriptionFromData` / `doctorPrescriptionFromData` / `doctorPrescriptionToData` / `refillRequestFromData` | Converts Firestore documents into the patient and doctor prescription models, and a doctor's new prescription into a document. Plain functions with no Firebase calls, so they can be unit tested. |
 | `lib/services/prescription_service.dart` | `PrescriptionService` | The single place all Prescriptions screens use, backed by Firestore. Loads the patient's prescriptions, records taken doses, creates refill requests, saves reminders, and loads the taken-dose history. For the doctor side it reads and adds prescriptions, loads the patient's refill requests and taken doses, and records the doctor's answer to a refill request. Also provides today's medicines for the Home checklist. |
 | `lib/services/prescription_service.dart` | `PrescriptionException` | Handles errors when prescription data cannot be loaded or when an action such as a refill request fails. |
+| `lib/services/drug_info_service.dart` | `DrugInfoService` / `DrugInfo` / `DrugInfoException` / `drugInfoFromLabel` | Looks up a medicine's uses and warnings from the openFDA drug label service (using the `http` package), keeps results for a short time so the same medicine is not requested twice, and reports a friendly error when the service cannot be reached. The label-reading function has no network calls, so it can be unit tested. |
 | `lib/services/prescription_service.dart` | `PrescriptionActivity` | Groups what has happened with one prescription: whether it was taken today and whether a refill request exists. |
 
 ## Shared widgets
@@ -29,6 +30,7 @@
 | `lib/widgets/refill_status_chip.dart` | `RefillStatusChip` | Displays consistent Pending, Approved, and Declined refill labels with an icon and text. |
 | `lib/widgets/taken_history_card.dart` | `TakenHistoryCard` | Displays how many days a medicine was taken and the most recent days. |
 | `lib/widgets/refill_request_card.dart` | `RefillRequestCard` | Shows a patient's refill request to the doctor, with Approve and Decline buttons while it is pending. |
+| `lib/widgets/drug_info_card.dart` | `DrugInfoCard` | Shows the FDA reference text (uses and warnings) for a medicine, with loading, not-found, and error states. |
 
 ## Patient screens
 
@@ -54,3 +56,4 @@
 | `test/reminder_setting_test.dart` | Checks the reminder summary text and that a reminder survives being saved and loaded as JSON. |
 | `test/taken_history_test.dart` | Checks the taken-day count and the most-recent-days helper. |
 | `test/prescription_mapper_test.dart` | Checks that Firestore documents become the right patient and doctor models, that a prescription survives being written and read back, and how refill statuses are read. |
+| `test/drug_info_test.dart` | Checks that a drug label becomes the right uses and warnings text, and that labels with no useful text are ignored. |

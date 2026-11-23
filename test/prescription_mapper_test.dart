@@ -133,4 +133,31 @@ void main() {
       );
     });
   });
+
+  group('refillNoticeFromData', () {
+    test('reads who asked and for what', () {
+      final n = refillNoticeFromData('PAT-101_rx-1', {
+        'prescriptionId': 'rx-1',
+        'patientName': 'Ana Dela Cruz',
+        'medicineTitle': 'Amoxicillin 500mg',
+        'patientUid': 'uid-1',
+        'requestedAt': Timestamp.fromDate(DateTime(2026, 9, 13, 9, 30)),
+      });
+
+      expect(n.id, 'PAT-101_rx-1');
+      expect(n.prescriptionId, 'rx-1');
+      expect(n.patientName, 'Ana Dela Cruz');
+      expect(n.medicineTitle, 'Amoxicillin 500mg');
+      expect(n.patientUid, 'uid-1');
+      expect(n.requestedAt, DateTime(2026, 9, 13, 9, 30));
+    });
+
+    test('falls back for requests saved before the name was stored', () {
+      final n = refillNoticeFromData('PAT-101_rx-1', {'prescriptionId': 'rx-1'});
+
+      expect(n.patientName, 'A patient');
+      expect(n.medicineTitle, 'a medicine');
+      expect(n.patientUid, isNull);
+    });
+  });
 }

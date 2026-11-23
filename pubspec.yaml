@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   # DM Sans is the typeface used in the Health360 prototype.
   google_fonts: ^6.2.1
+  # Calls the openFDA drug label service for the medicine reference card.
+  http: ^1.2.0
   # Small key-value storage: remembers which medication doses were taken today.
   shared_preferences: ^2.2.3
   url_launcher: ^6.3.3
