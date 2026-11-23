@@ -15,6 +15,7 @@ import 'data/location_service.dart';
 import 'data/places_repository.dart';
 import 'data/processes_repository.dart';
 import 'data/schedule.dart';
+import 'data/schedule_documents.dart';
 import 'screens/directory_screen.dart';
 import 'screens/guide_screen.dart';
 import 'screens/home_screen.dart';
@@ -33,7 +34,7 @@ GoRouter buildRouter(String initial) => GoRouter(initialLocation: initial, route
           GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/search', builder: (_, s) => SearchScreen(query: s.uri.queryParameters['q'] ?? '')),
           GoRoute(path: '/schedule', builder: (_, __) => const ScheduleScreen()),
-          GoRoute(path: '/schedule/import', builder: (_, __) => const ImportScheduleScreen()),
+          GoRoute(path: '/schedule/import', builder: (_, s) => ImportScheduleScreen(uploadId: s.uri.queryParameters['upload'])),
           GoRoute(path: '/schedule/new', builder: (_, __) => const ClassFormScreen()),
           GoRoute(path: '/schedule/:id', builder: (_, s) => ClassFormScreen(classId: s.pathParameters['id'])),
           GoRoute(path: '/place/:id', builder: (_, s) => PlaceScreen(placeId: s.pathParameters['id']!)),
@@ -67,6 +68,7 @@ class WayFinderApp extends StatefulWidget {
     this.initialLocation = '/',
     this.now,
     this.notifications,
+    this.documents,
   })  : config = config ?? AppConfig.fromEnvironment(),
         schedule = schedule ?? ScheduleStore(),
         location = location ?? GeolocatorLocationService();
@@ -82,12 +84,14 @@ class WayFinderApp extends StatefulWidget {
   final String initialLocation;
   final DateTime Function()? now;
   final ClassNotifications? notifications;
+  final ScheduleDocumentStore? documents;
 
   @override
   State<WayFinderApp> createState() => _WayFinderAppState();
 }
 
 class _WayFinderAppState extends State<WayFinderApp> with WidgetsBindingObserver {
+  late final _documents = widget.documents ?? ScheduleDocumentStore();
   late final _notifications = widget.notifications ?? ClassNotifications(now: widget.now);
   late final _router = buildRouter(widget.initialLocation);
   late final _places = widget.places ?? createPlacesRepository(widget.config);
@@ -111,6 +115,7 @@ class _WayFinderAppState extends State<WayFinderApp> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     widget.schedule.addListener(_syncReminders);
     _notifications.initialize();
+    _documents.loadForDisplay();
     if (!widget.schedule.loaded) {
       widget.schedule.load();
     } else {
@@ -133,6 +138,7 @@ class _WayFinderAppState extends State<WayFinderApp> with WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
     widget.schedule.removeListener(_syncReminders);
     if (widget.notifications == null) _notifications.dispose();
+    if (widget.documents == null) _documents.dispose();
     _reminders.cancelAll();
     super.dispose();
   }
@@ -147,6 +153,7 @@ class _WayFinderAppState extends State<WayFinderApp> with WidgetsBindingObserver
         guide: _guide,
         schedule: widget.schedule,
         notifications: _notifications,
+        documents: _documents,
         progress: ProgressStore(),
         location: widget.location,
         child: MaterialApp.router(

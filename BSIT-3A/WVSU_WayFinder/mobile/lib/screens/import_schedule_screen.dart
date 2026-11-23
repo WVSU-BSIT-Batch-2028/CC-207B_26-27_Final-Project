@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -10,10 +8,13 @@ import '../core/theme.dart';
 import '../core/time.dart';
 import '../data/schedule.dart';
 import '../data/schedule_import.dart';
+import '../data/schedule_documents.dart';
+import '../widgets/schedule_document_preview.dart';
 import '../widgets/common.dart';
 
 class ImportScheduleScreen extends StatefulWidget {
-  const ImportScheduleScreen({super.key});
+  const ImportScheduleScreen({super.key, this.uploadId});
+  final String? uploadId;
 
   /// Supplies extracted rows without opening a native picker in widget tests.
   static Future<ScheduleImportResult?> Function()? debugImport;
@@ -24,6 +25,98 @@ class ImportScheduleScreen extends StatefulWidget {
 
 class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
   ScheduleImportResult? _result;
+  ScheduleDocument? _document;
+  final _recognized = TextEditingController();
+  bool _opening = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_opening && widget.uploadId != null) {
+      _opening = true;
+      _openSaved(widget.uploadId!);
+    }
+  }
+
+  Future<void> _openSaved(String id) async {
+    final documents = AppScope.of(context).documents;
+    setState(() => _busy = true);
+    try {
+      await documents.load();
+      final document = documents.byId(id);
+      if (document == null) {
+        throw const FormatException(
+          'Saved document not found. Choose the file again.',
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _document = document;
+        _filename = document.name;
+      });
+      final result = document.text.trim().isEmpty
+          ? await ScheduleImportService().importFile(document.path)
+          : parseScheduleText(document.text);
+      if (mounted) _showResult(result);
+      try {
+        await documents.updateText(id, result.rawText);
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () => _error =
+                'Classes were read, but the recognized text could not be cached. You can still review and save the classes.',
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'The saved file could not be read. You can still enter its class details below or choose it again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showResult(ScheduleImportResult result) {
+    setState(() {
+      _result = result;
+      _recognized.text = result.rawText;
+      _rows
+        ..clear()
+        ..addAll(result.sessions);
+      _selected
+        ..clear()
+        ..addAll(List.generate(_rows.length, (i) => i));
+    });
+  }
+
+  Future<void> _readText() async {
+    setState(() => _error = null);
+    final documents = AppScope.of(context).documents;
+    final result = parseScheduleText(_recognized.text);
+    _showResult(result);
+    if (_document != null) {
+      try {
+        await documents.updateText(_document!.id, result.rawText);
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () => _error = 'The corrected text could not be saved. Try again.',
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _recognized.dispose();
+    super.dispose();
+  }
+
   final _rows = <ClassSession>[];
   final _selected = <int>{};
   bool _busy = false;
@@ -32,6 +125,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
   String? _filename;
 
   Future<void> _pick() async {
+    final documents = AppScope.of(context).documents;
     setState(() {
       _busy = true;
       _error = null;
@@ -45,7 +139,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
       } else {
         final picked = await FilePicker.platform.pickFiles(
           type: FileType.custom,
-          allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+          allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
           allowMultiple: false,
           withData: false,
         );
@@ -60,19 +154,32 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
           );
         }
         name = file.name;
-        result = await ScheduleImportService().importFile(file.path!);
+        final document = await documents.addFile(file.path!, name: file.name);
+        if (!mounted) return;
+        setState(() {
+          _document = document;
+          _filename = name;
+          _result = null;
+          _rows.clear();
+          _selected.clear();
+          _recognized.clear();
+        });
+        result = await ScheduleImportService().importFile(document.path);
+        if (mounted) _showResult(result);
+        try {
+          await documents.updateText(document.id, result.rawText);
+        } catch (_) {
+          if (mounted) {
+            setState(
+              () => _error =
+                  'Classes were read, but the recognized text could not be cached. You can still review and save the classes.',
+            );
+          }
+        }
       }
       if (!mounted || result == null) return;
-      setState(() {
-        _filename = name;
-        _result = result;
-        _rows
-          ..clear()
-          ..addAll(result!.sessions);
-        _selected
-          ..clear()
-          ..addAll(List.generate(_rows.length, (i) => i));
-      });
+      setState(() => _filename = name);
+      _showResult(result);
     } on FormatException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -87,14 +194,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     }
   }
 
-  bool _valid(ClassSession c) =>
-      c.subject.trim().isNotEmpty &&
-      c.roomCodeRaw.trim().isNotEmpty &&
-      c.weekday >= 1 &&
-      c.weekday <= 7 &&
-      RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(c.start) &&
-      RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(c.end) &&
-      toMinutes(c.end) > toMinutes(c.start);
+  bool _valid(ClassSession c) {
+    try {
+      c.validate();
+      return true;
+    } on FormatException {
+      return false;
+    }
+  }
 
   Future<void> _save() async {
     final chosen = _selected.toList()..sort();
@@ -102,7 +209,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
     if (chosen.any((i) => !_valid(_rows[i]))) {
       setState(
         () => _error =
-            'Complete the subject, room and valid times for each selected class. Tap Edit to correct a row.',
+            'Complete the subject, day and valid times for each selected class. Tap Edit to correct a row.',
       );
       return;
     }
@@ -135,7 +242,8 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         }
         classes.add(
           ClassSession(
-            id: '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}',
+            id: newScheduleId(),
+            uploadId: _document?.id,
             subject: c.subject.trim(),
             weekday: c.weekday,
             start: c.start,
@@ -232,6 +340,14 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
               ),
               if (_filename != null)
                 Text(_filename!, overflow: TextOverflow.ellipsis),
+              if (_document != null) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Saved on this phone',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                ScheduleDocumentPreview(document: _document!),
+              ],
             ],
           ),
         ),
@@ -252,6 +368,44 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
         style: TextStyle(fontSize: 12, color: muted),
       ),
       if (_error != null) Notice(_error!),
+      if (_result != null || _document != null)
+        Card(
+          child: ExpansionTile(
+            key: const Key('recognized-text-panel'),
+            title: const Text('Review recognized text'),
+            initiallyExpanded: _rows.isEmpty,
+            childrenPadding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                _recognized.text.trim().isEmpty
+                    ? 'No readable text was found. You can type or paste the class details from your schedule here.'
+                    : 'If classes are missing, correct the text below and read it again. Each class needs a subject, day and time.',
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('recognized-text'),
+                controller: _recognized,
+                minLines: 5,
+                maxLines: 12,
+                enabled: !_busy,
+                decoration: const InputDecoration(
+                  labelText: 'Schedule text',
+                  alignLabelWithHint: true,
+                  hintText:
+                      'Subject | Day | Time | Room | Professor\nCC 207 | MWF | 08:00-09:00 | CB203 | Prof. Cruz',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('read-schedule-text'),
+                onPressed: _busy ? null : _readText,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Read these details'),
+              ),
+            ],
+          ),
+        ),
       if (_result != null) ...[
         const SizedBox(height: 16),
         Text(
@@ -262,10 +416,7 @@ class _ImportScheduleScreenState extends State<ImportScheduleScreen> {
           'Check the days, times, rooms and professors before saving. Uncheck rows you don’t need. Each meeting gets a 15-minute reminder.',
         ),
         for (final warning in _result!.warnings) Notice(warning, info: true),
-        if (_rows.isEmpty)
-          const Notice(
-            'No complete class meetings were found. Try a clearer export or add classes manually.',
-          ),
+
         for (var i = 0; i < _rows.length; i++)
           Card(
             child: Padding(
@@ -409,7 +560,7 @@ class _ReviewClassDialogState extends State<_ReviewClassDialog> {
               ),
               _field('Starts (24h)', _start, time: true),
               _field('Ends (24h)', _end, time: true),
-              _field('Room', _room, required: true),
+              _field('Room (optional)', _room),
               _field('Professor', _prof),
             ],
           ),

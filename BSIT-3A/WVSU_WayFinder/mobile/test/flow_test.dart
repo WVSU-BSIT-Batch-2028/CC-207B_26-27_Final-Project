@@ -128,18 +128,41 @@ void main() {
     expect(find.byKey(const Key('save-import')), findsNothing);
   });
 
-  testWidgets('incomplete extracted room needs correction before saving', (t) async {
+  testWidgets('missing room can be edited before saving', (t) async {
+    ImportScheduleScreen.debugImport = () async => parseScheduleText('CC 207 Programming | M | 08:00-09:00');
+    final store = await pumpApp(t, initial: '/schedule/import', size: tall);
+    await tapText(t, 'Choose schedule file');
+    expect(store.classes, isEmpty);
+    await tapText(t, 'Edit');
+    await t.enterText(find.widgetWithText(TextFormField, 'Room (optional)'), 'CB 203');
+    await tapText(t, 'Apply');
+    await tapText(t, 'Save 1 class meetings');
+    expect(store.classes.single.roomCodeRaw, 'CB 203');
+  });
+
+  testWidgets('zero detected classes can be recovered from corrected recognized text', (t) async {
+    ImportScheduleScreen.debugImport = () async => const ScheduleImportResult(
+      sessions: [], warnings: ['No complete meetings detected.'], rawText: 'WEB SYSTEMS\nMONDAY\nUnreadable time');
+    final store = await pumpApp(t, initial: '/schedule/import', size: tall);
+    await tapText(t, 'Choose schedule file');
+    expect(find.text('Review 0 detected class meetings'), findsOneWidget);
+    await t.enterText(find.byKey(const Key('recognized-text')),
+      'Subject | Day | Time | Room | Professor\nWeb Systems | Monday | 08:00-09:00 | CB203 | Maria Cruz');
+    await tapText(t, 'Read these details');
+    expect(find.text('Review 1 detected class meetings'), findsOneWidget);
+    await tapText(t, 'Save 1 class meetings');
+    expect(store.classes.single.subject, 'Web Systems');
+    expect(store.classes.single.roomCodeRaw, 'CB203');
+    expect(store.classes.single.professor, 'Maria Cruz');
+  });
+
+  testWidgets('missing room can be saved as unconfirmed according to SQL', (t) async {
     ImportScheduleScreen.debugImport = () async => parseScheduleText('CC 207 Programming | M | 08:00-09:00');
     final store = await pumpApp(t, initial: '/schedule/import', size: tall);
     await tapText(t, 'Choose schedule file');
     await tapText(t, 'Save 1 class meetings');
-    expect(store.classes, isEmpty);
-    expect(find.textContaining('Complete the subject, room'), findsOneWidget);
-    await tapText(t, 'Edit');
-    await t.enterText(find.widgetWithText(TextFormField, 'Room'), 'CB 203');
-    await tapText(t, 'Apply');
-    await tapText(t, 'Save 1 class meetings');
-    expect(store.classes.single.roomCodeRaw, 'CB 203');
+    expect(store.classes.single.roomCodeRaw, '');
+    expect(find.text('Room not specified'), findsOneWidget);
   });
 
   testWidgets('search: unknown code keeps what was typed', (t) async {

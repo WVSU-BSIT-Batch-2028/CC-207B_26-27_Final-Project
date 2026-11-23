@@ -1,7 +1,7 @@
 name: wvsu_wayfinder
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.1+2
 
 environment:
   sdk: ^3.10.0
@@ -18,6 +18,7 @@ dependencies:
   google_mlkit_text_recognition: 0.15.1
   http: ^1.6.0
   latlong2: ^0.10.1
+  path_provider: 2.1.5
   pdfrx: 2.4.8
   shared_preferences: ^2.5.5
   timezone: 0.10.1

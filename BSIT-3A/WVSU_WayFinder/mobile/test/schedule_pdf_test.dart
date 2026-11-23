@@ -7,18 +7,29 @@ import 'package:wvsu_wayfinder/data/schedule_import.dart';
 
 // A small, synthetic PDF with column-major content streams, like table exports.
 // No student document or personal data is needed for this native extraction test.
-List<int> tablePdf() {
+List<int> tablePdf({bool grid = false}) {
   final stream = StringBuffer('BT /F1 12 Tf\n');
   void text(int x, int y, String value) =>
       stream.writeln('1 0 0 1 $x $y Tm ($value) Tj');
-  text(40, 700, 'CC 207 Web Systems');
-  text(40, 660, 'CIT 210 Databases');
-  text(220, 700, 'MWF');
-  text(220, 660, 'TTh');
-  text(290, 700, '08:00-09:00');
-  text(290, 660, '13:00-14:30');
-  text(420, 700, 'CB203');
-  text(420, 660, 'CB204');
+  if (grid) {
+    text(80, 740, 'Monday');
+    text(330, 740, 'Wednesday');
+    text(60, 700, 'CC 207 Web Systems');
+    text(310, 700, 'CIT 210 Databases');
+    text(60, 680, '08:00-09:00');
+    text(310, 680, '13:00-14:30');
+    text(60, 660, 'CB203');
+    text(310, 660, 'CB204');
+  } else {
+    text(40, 700, 'CC 207 Web Systems');
+    text(40, 660, 'CIT 210 Databases');
+    text(220, 700, 'MWF');
+    text(220, 660, 'TTh');
+    text(290, 700, '08:00-09:00');
+    text(290, 660, '13:00-14:30');
+    text(420, 700, 'CB203');
+    text(420, 660, 'CB204');
+  }
   stream.writeln('ET');
   final objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -84,6 +95,14 @@ void main() {
         final result = await const ScheduleImportService().importFile(
           file.path,
         );
+        final gridFile = File('${temporary.path}/synthetic-weekly-grid.pdf');
+        await gridFile.writeAsBytes(tablePdf(grid: true));
+        final grid = await const ScheduleImportService().importFile(
+          gridFile.path,
+        );
+        expect(grid.sessions, hasLength(2), reason: grid.rawText);
+        expect(grid.sessions.map((c) => c.weekday), [1, 3]);
+        expect(grid.sessions.map((c) => c.roomCodeRaw), ['CB203', 'CB204']);
         expect(result.sessions, hasLength(5), reason: result.rawText);
         final web = result.sessions.where(
           (c) => c.subject.startsWith('CC 207'),

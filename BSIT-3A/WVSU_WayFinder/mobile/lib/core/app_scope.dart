@@ -8,6 +8,7 @@ import '../data/location_service.dart';
 import '../data/places_repository.dart';
 import '../data/processes_repository.dart';
 import '../data/schedule.dart';
+import '../data/schedule_documents.dart';
 import 'config.dart';
 
 /// Hands the config and services to screens (and lets tests swap in fakes).
@@ -22,6 +23,7 @@ class AppScope extends InheritedWidget {
     required this.guide,
     required this.schedule,
     required this.notifications,
+    required this.documents,
     required this.progress,
     required this.location,
     required super.child,
@@ -35,6 +37,7 @@ class AppScope extends InheritedWidget {
   final GuideClient guide;
   final ScheduleStore schedule;
   final ClassNotifications notifications;
+  final ScheduleDocumentStore documents;
   final ProgressStore progress;
   final LocationService location;
 

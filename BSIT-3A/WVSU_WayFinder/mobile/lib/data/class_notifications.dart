@@ -36,7 +36,7 @@ class ClassReminder {
   String get title => 'Class in ${session.remindMinutes} minutes';
   String get body =>
       '${session.subject} at ${formatClock(session.start)}'
-      ' · Room ${session.roomCodeRaw}'
+      ' · ${session.roomCodeRaw.isEmpty ? 'Room not specified' : 'Room ${session.roomCodeRaw}'}'
       '${session.professor?.trim().isNotEmpty == true ? ' · ${session.professor}' : ''}';
 }
 

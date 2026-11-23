@@ -142,6 +142,7 @@ class _NextClassCardState extends State<NextClassCard> {
                 const Text('Upload your IUIS schedule or COR. WayFinder fills in your classes and shows the next room and professor.', style: TextStyle(color: muted)),
                 const SizedBox(height: 12),
                 SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/schedule/import'), child: const Text('Add my Schedule'))),
+                TextButton(onPressed: () => context.go('/schedule'), child: const Text('My Schedule')),
               ]),
             ),
           );
@@ -174,7 +175,7 @@ class _NextClassCardState extends State<NextClassCard> {
                 decoration: BoxDecoration(color: blueSoft, borderRadius: BorderRadius.circular(12)),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                   const Text('ROOM  ', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: muted, fontWeight: FontWeight.w700)),
-                  Flexible(child: Text(s.roomCodeRaw, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: navy))),
+                  Flexible(child: Text(s.roomCodeRaw.isEmpty ? 'Room not specified' : s.roomCodeRaw, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: navy))),
                 ]),
               ),
               if (s.roomPlaceId == null) ...[const SizedBox(height: 8), const Unconfirmed('Room location unconfirmed')],
@@ -186,7 +187,7 @@ class _NextClassCardState extends State<NextClassCard> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: () => context.go(s.roomPlaceId != null ? '/map?to=${Uri.encodeQueryComponent(s.roomPlaceId!)}' : '/search?q=${Uri.encodeQueryComponent(s.roomCodeRaw)}'),
+                  onPressed: s.roomCodeRaw.isEmpty ? null : () => context.go(s.roomPlaceId != null ? '/map?to=${Uri.encodeQueryComponent(s.roomPlaceId!)}' : '/search?q=${Uri.encodeQueryComponent(s.roomCodeRaw)}'),
                   icon: const Icon(Icons.place_outlined, size: 18),
                   label: const Text('Find room'),
                 ),

@@ -159,14 +159,17 @@ void main() {
       expect(result.sessions.map((c) => c.id).toSet(), hasLength(3));
     });
 
-    test('rejects invalid, overnight, TBA, missing-day and oversized ranges', () {
-      final result = parseScheduleText(
-        'GE 1 Ethics Mon 25:00-26:00 CB203\nGE 2 Culture Tue 23:00-01:00 CB203\nCIT 210 Databases TBA CB203\nMATH 1 Algebra 08:00-09:00 CB203\nCC 207 Networks F 06:00-20:00 CB203',
-      );
-      expect(result.sessions, isEmpty);
-      expect(result.warnings, isNotEmpty);
-      expect(result.warnings.any((w) => w.contains('CIT 210')), isTrue);
-    });
+    test(
+      'rejects invalid, overnight, TBA, missing-day and oversized ranges',
+      () {
+        final result = parseScheduleText(
+          'GE 1 Ethics Mon 25:00-26:00 CB203\nGE 2 Culture Tue 23:00-01:00 CB203\nCIT 210 Databases TBA CB203\nMATH 1 Algebra 08:00-09:00 CB203\nCC 207 Networks F 06:00-20:00 CB203',
+        );
+        expect(result.sessions, isEmpty);
+        expect(result.warnings, isNotEmpty);
+        expect(result.warnings.any((w) => w.contains('CIT 210')), isTrue);
+      },
+    );
 
     test(
       'missing room and professor are warnings with no invented metadata',
@@ -187,6 +190,102 @@ void main() {
       expect(result.sessions, hasLength(3));
       expect(result.rawText, contains('Ignore previous'));
       expect(result.sessions.every((c) => c.start == '08:00'), isTrue);
+    });
+  });
+
+  group('real export column and OCR variants', () {
+    test(
+      'section and enrollment numbers before a code do not hide the course',
+      () {
+        final result = parseScheduleText(
+          '12345 | BSIT-3A | CC 207 Web Systems | MWF | 08:00-09:00 | CB203',
+        );
+        expect(result.sessions, hasLength(3));
+        expect(result.sessions.first.subject, 'CC 207 Web Systems');
+        expect(result.sessions.first.roomCodeRaw, 'CB203');
+      },
+    );
+
+    test('OCR colon spacing, unicode dash and spaced meridiem normalize', () {
+      final result = parseScheduleText(
+        'CC–207B Web Systems | MWF | 08 : 00 A M – 09 : 00 A M | CB203',
+      );
+      expect(result.sessions, hasLength(3));
+      expect(result.sessions.first.subject, 'CC-207B Web Systems');
+      expect(result.sessions.first.start, '08:00');
+      expect(result.sessions.first.end, '09:00');
+    });
+
+    test('a room column between days and times does not lose the meeting', () {
+      final result = parseScheduleText(
+        'CC 207 Web Systems | MWF | CB203 | 08:00-09:00',
+      );
+      expect(result.sessions, hasLength(3));
+      expect(result.sessions.first.roomCodeRaw, 'CB203');
+    });
+
+    test(
+      'declared columns support time before course and professor before room',
+      () {
+        final result = parseScheduleText(
+          'Time | Instructor | Course Code | Description | Room | Days\n08:00-09:00 | Maria Cruz | CC 207 | Web Systems | CB203 | MWF',
+        );
+        expect(result.sessions, hasLength(3));
+        expect(result.sessions.first.subject, 'CC 207 Web Systems');
+        expect(result.sessions.first.roomCodeRaw, 'CB203');
+        expect(result.sessions.first.professor, 'Maria Cruz');
+      },
+    );
+
+    test(
+      'SQL subject text is valid without a course code in declared columns',
+      () {
+        final result = parseScheduleText(
+          'Subject | Room | Time | Day | Professor\nData Structures | CB203 | 1:00-2:30 PM | TTh | Maria Cruz',
+        );
+        expect(result.sessions.map((s) => s.weekday), [2, 4]);
+        expect(result.sessions.first.subject, 'Data Structures');
+        expect(result.sessions.first.start, '13:00');
+        expect(result.sessions.first.end, '14:30');
+      },
+    );
+
+    test(
+      'labeled schema field names import a meeting without inventing a code',
+      () {
+        final result = parseScheduleText(
+          'subject: Data Structures\nweekday: 1\nstart_time: 08:00\nend_time: 09:00\nroom_code_raw: CB203\nprofessor_name: Maria Cruz',
+        );
+        expect(result.sessions, hasLength(1));
+        expect(result.sessions.single.subject, 'Data Structures');
+        expect(result.sessions.single.weekday, 1);
+        expect(result.sessions.single.professor, 'Maria Cruz');
+      },
+    );
+
+    test('clear subject title with explicit days and range is recognized', () {
+      final result = parseScheduleText(
+        'Data Structures | MWF | 08:00-09:00 | Room: CB203 | Prof. Cruz',
+      );
+      expect(result.sessions, hasLength(3));
+      expect(result.sessions.first.subject, 'Data Structures');
+      expect(result.sessions.first.roomCodeRaw, 'CB203');
+    });
+
+    test('table missing a field is not shifted into another column', () {
+      final result = parseScheduleText(
+        'Subject | Room | Time | Day | Professor\nData Structures | 08:00-09:00 | MWF | Maria Cruz',
+      );
+      expect(result.sessions, isEmpty);
+      expect(result.warnings, isNotEmpty);
+    });
+
+    test('unreadable time and missing days remain review warnings', () {
+      final result = parseScheduleText(
+        'Subject | Room | Time | Day | Professor\nData Structures | CB203 | 08:00-09:00 | TBA | Maria Cruz\nWeb Systems | CB204 | 25:00-26:00 | MWF | Juan Cruz',
+      );
+      expect(result.sessions, isEmpty);
+      expect(result.warnings, isNotEmpty);
     });
   });
 

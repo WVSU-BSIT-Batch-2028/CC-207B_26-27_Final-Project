@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,7 @@ import '../core/theme.dart';
 import '../core/time.dart';
 import '../data/schedule.dart';
 import '../widgets/common.dart';
+import '../widgets/schedule_document_preview.dart';
 import 'home_screen.dart' show Unconfirmed;
 
 class ScheduleScreen extends StatelessWidget {
@@ -86,7 +86,29 @@ class ScheduleScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            ListenableBuilder(
+            ListenableBuilder(listenable: AppScope.of(context).documents, builder: (context, _) {
+            final uploads = AppScope.of(context).documents.uploads;
+            final documents = AppScope.of(context).documents;
+            if (documents.error != null) {
+              return Column(children: [
+              Notice(documents.error!),
+              OutlinedButton(onPressed: documents.loadForDisplay, child: const Text('Retry loading saved files')),
+            ]);
+            }
+            if (uploads.isEmpty) return const SizedBox.shrink();
+            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('SAVED SCHEDULE FILES', style: TextStyle(fontWeight: FontWeight.w700)),
+              for (final document in uploads) Card(child: Padding(padding: const EdgeInsets.all(12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(document.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ScheduleDocumentPreview(document: document),
+                  OutlinedButton(onPressed: () => context.go('/schedule/import?upload=${document.id}'),
+                    child: const Text('Review classes from this file')),
+                ]),
+              )),
+            ]);
+          }),
+          ListenableBuilder(
               listenable: AppScope.of(context).notifications,
               builder: (context, _) {
                 final notifications = AppScope.of(context).notifications;
@@ -206,14 +228,14 @@ class ScheduleScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              c.roomCodeRaw,
+                            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 100), child: Text(
+                              c.roomCodeRaw.isEmpty ? 'Room not specified' : c.roomCodeRaw,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: navy,
                               ),
-                            ),
+                            )),
                           ],
                         ),
                       ),
@@ -276,7 +298,6 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
     final scope = AppScope.of(context);
     setState(() => _error = null);
     if (_subject.text.trim().isEmpty) return setState(() => _error = 'Enter the subject.');
-    if (_room.text.trim().isEmpty) return setState(() => _error = 'Enter the room code from your timetable.');
     if (!_hhmm.hasMatch(_start.text) || !_hhmm.hasMatch(_end.text)) return setState(() => _error = 'Use 24-hour times like 08:00 or 13:30.');
     if (toMinutes(_end.text) <= toMinutes(_start.text)) return setState(() => _error = 'End time must be after the start time.');
     setState(() => _saving = true);
@@ -289,7 +310,8 @@ class _ClassFormScreenState extends State<ClassFormScreen> {
       } catch (_) {/* lookup failed: keep as unconfirmed */}
     }
     await scope.schedule.save(ClassSession(
-      id: _existing?.id ?? '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}',
+      id: _existing?.id ?? newScheduleId(),
+      uploadId: _existing?.uploadId,
       subject: _subject.text.trim(),
       weekday: _weekday,
       start: _start.text,

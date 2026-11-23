@@ -19,15 +19,21 @@ flutter run --dart-define-from-file=env.json
 ## Add my Schedule
 
 1. On Home, tap **Add my Schedule**, then **Choose schedule file**.
-2. Select the IUIS timetable or Certificate of Registration (COR) exported as a PDF, PNG or JPG (up to 20 MB; PDFs up to 20 pages).
-3. Review the detected subjects, days, times, rooms and professors. Edit uncertain fields or uncheck unwanted meetings. Missing rooms must be completed before saving. Classes can still be added manually.
+2. Select the IUIS timetable or Certificate of Registration (COR) exported as a PDF, PNG, JPG or WebP (up to 20 MB; PDFs up to 20 pages).
+3. Review the detected subjects, days, times, rooms and professors. Edit uncertain fields or uncheck unwanted meetings. Missing rooms remain unconfirmed and can be completed later, as allowed by the SQL schema. Classes can still be added manually.
 4. Leave **Enable class reminders** on and save. Allow phone notification permission. On Android, allow exact alarms for timely reminders; without exact access, reminders can be delayed by Android.
 
-PDF text and image/scanned-PDF recognition are processed locally. The document is not sent to a server. When saving, room codes can be checked against the configured campus directory; unrecognized rooms remain unconfirmed. Documents are discarded after parsing; reviewed classes are stored on this device using shared preferences. Previously uploaded reference images remain viewable and removable.
+PDF text and image/scanned-PDF recognition are processed locally. The document is not sent to a server. When saving, room codes can be checked against the configured campus directory; unrecognized rooms remain unconfirmed. Each selected document is copied from the picker cache into private app storage before recognition. Its preview remains visible on the import screen and under **My Schedule → Saved schedule files**, including when zero meetings were detected. The recognized text and reviewed classes are stored on this device. **Review classes from this file** reopens a saved upload after restarting the app. Previously uploaded reference images remain viewable and removable.
 
-The parser supports row-based tables with course codes, weekday names or abbreviations (including MWF and TTh), 12/24-hour time ranges, and room/professor columns. It reconstructs rows from PDF character positions and OCR text positions. Recognition is best effort: check every extracted meeting. No real IUIS/COR sample was supplied with this change; grid-style timetables and unusual layouts may require manual correction. Image OCR requires the Android/iOS app; a browser preview cannot run native ML Kit.
+The parser supports row tables with section/number prefixes, course codes in different columns, subject titles in header-defined tables, weekday names or abbreviations (including MWF and TTh), 12/24-hour time ranges, OCR spacing around colons/AM/PM, and room/professor columns in different orders. Weekday headings and text geometry are used for weekly grids whose class blocks print time ranges. It reconstructs rows from PDF character positions and OCR text positions. Recognition is best effort: check every extracted meeting. The supplied screenshot shows the failed import result, not the original timetable, so its exact format is not yet verified. Grids with no printed times in class blocks and unusual layouts may require manual correction. **Review recognized text → Read these details** lets a student fix missed details without losing the selected file or starting over. Recognition never invents a class time from the visual height of a colored block. Image OCR requires the Android/iOS app; a browser preview cannot run native ML Kit.
 
 Imports append to existing classes and skip duplicate meetings. A course meeting several days a week creates a class entry for each day. Times and reminders use Asia/Manila regardless of device timezone.
+
+## Schedule SQL compatibility
+
+`../supabase/migrations/0003_schedule.sql` matches the supplied schema. New class/upload IDs are UUID v4 values. Saved class records use `upload_id`, `start_time`, `end_time`, `tz`, `room_code_raw`, `room_place_id`, `professor_name` and `remind_minutes`. Old camelCase preferences still load, preserving existing classes and reminder IDs. Validation enforces the schema's subject/day/time/timezone/reminder constraints. Changes are persisted before the UI or reminders are notified; failed writes do not replace the current class list.
+
+Saved upload metadata includes `id`, `storage_path` and `uploaded_at`, plus local display name and recognized text. The path resolves inside app-private storage. Imported classes reference that local upload ID. These are local equivalents of the SQL records: Supabase Auth, RLS and the private bucket policies are unchanged. The SQL bucket's 5 MB image-only limit applies to future authenticated cloud uploads, while this app's 20 MB PDF/image imports stay local. No student owner ID or anonymous cloud access is fabricated.
 
 ## Class reminders
 
@@ -57,4 +63,4 @@ flutter test --dart-define-from-file=env.json integration_live/
 
 Before releasing, verify an actual IUIS/COR export and a clear screenshot on a phone. Confirm notification delivery with the app closed, permission denial, an edited/deleted class and Android reboot behavior. Native OCR and actual notification delivery need a device; Dart tests cover parser/import review, persistence, timezone calculations and native scheduling through a fake backend.
 
-Verified for this branch: static analysis with no issues, 64 passing tests (including native PDF extraction), and a successful Android debug APK build using a full Java 21 JDK. iOS compilation and actual OCR/notification delivery on a phone still require device validation.
+Verified for this branch: static analysis with no issues, 89 passing tests (including native PDF table/grid extraction, document persistence, zero-result recovery and SQL mapping), and a successful Android debug APK build using a full Java 21 JDK. iOS compilation and actual OCR/notification delivery on a phone still require device validation.
