@@ -80,7 +80,7 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
       if (find.text('3.5 km').evaluate().isNotEmpty &&
-          find.text('Change').evaluate().isNotEmpty) {
+          find.text('Change start').evaluate().isNotEmpty) {
         break;
       }
     }
@@ -102,11 +102,8 @@ void main() {
       expect(find.text('3.5 km'), findsOneWidget);
       expect(find.text('~8 min'), findsOneWidget);
       expect(find.text('Walk'), findsOneWidget);
-      expect(find.text('Open Turn-by-Turn in OpenStreetMap'), findsOneWidget);
-      expect(
-        find.text('Location denied. Using manual starting point.'),
-        findsOneWidget,
-      );
+      expect(find.text('Start turn-by-turn navigation'), findsOneWidget);
+      expect(find.text('Try GPS again'), findsOneWidget);
     },
   );
 
@@ -121,7 +118,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await pumpUntilRouteReady(tester);
 
-    final changeText = find.text('Change');
+    final changeText = find.text('Change start');
     expect(changeText, findsOneWidget);
     final buttonFinder = find.ancestor(
       of: changeText,

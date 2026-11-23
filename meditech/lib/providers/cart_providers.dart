@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/cart.dart';
 import '../services/cart_service.dart';
+import 'session_providers.dart';
 
 // Provides CartService (overridable in widget tests)
 final cartServiceProvider = Provider<CartService>((ref) {
@@ -15,6 +16,9 @@ final cartServiceProvider = Provider<CartService>((ref) {
 class CartNotifier extends AsyncNotifier<CustomerCart> {
   @override
   Future<CustomerCart> build() async {
+    if (ref.watch(sessionProvider) == null) {
+      return const CustomerCart();
+    }
     final service = ref.watch(cartServiceProvider);
     return service.getMyCart();
   }
@@ -106,6 +110,7 @@ final cartProvider = AsyncNotifierProvider<CartNotifier, CustomerCart>(
 
 // Convenience badge count of total medicine units in cart
 final cartItemCountProvider = Provider<int>((ref) {
+  if (ref.watch(sessionProvider) == null) return 0;
   return ref.watch(cartProvider).value?.totalUnits ?? 0;
 });
 
