@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,6 +102,22 @@ class _FakeEmployeeService implements EmployeeService {
     bool markVerified = false,
     bool ownerConfirmed = false,
   }) async {}
+
+  @override
+  Future<String?> uploadEmployeeAvatar({
+    required String employeeAccountId,
+    required String fileName,
+    required Uint8List bytes,
+  }) async =>
+      null;
+
+  @override
+  Future<void> updateProfile({
+    required String employeeId,
+    required String firstName,
+    String? middleName,
+    required String lastName,
+  }) async {}
 }
 
 List<Employee> _sampleEmployees() => [
@@ -136,7 +154,7 @@ Future<void> _pumpEmployees(WidgetTester tester, EmployeeService service) async 
     ProviderScope(
       overrides: [employeeServiceProvider.overrideWithValue(service)],
       child: const MaterialApp(
-        home: EmployeesScreen(branchName: 'Demo Pharmacy', userName: 'Ana Santos'),
+        home: const EmployeesScreen(),
       ),
     ),
   );
@@ -144,7 +162,7 @@ Future<void> _pumpEmployees(WidgetTester tester, EmployeeService service) async 
 }
 
 void main() {
-  testWidgets('lists employees inside PharmacyFrame and opens drawer on tap', (tester) async {
+  testWidgets('lists employees and opens drawer on tap', (tester) async {
     final fake = _FakeEmployeeService(_sampleEmployees());
     await _pumpEmployees(tester, fake);
 

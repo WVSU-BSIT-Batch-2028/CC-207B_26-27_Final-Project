@@ -36,18 +36,29 @@ class NotificationListNotifier extends AsyncNotifier<List<AppNotification>> {
     ]);
   }
 
-  // Mark every unread row read. Deletes are blocked, so this is "clear".
+  /// Marks every unread notification for the signed-in user as read.
   Future<void> markAllRead() async {
     final current = state.value ?? [];
-    final unread = [for (final item in current) if (item.isUnread) item.id];
-    if (unread.isEmpty) return;
+    if (!current.any((item) => item.isUnread)) return;
     final service = ref.read(notificationServiceProvider);
     final readAt = DateTime.now().toUtc();
-    await Future.wait([for (final id in unread) service.markRead(id)]);
+    await service.markAllRead();
     state = AsyncData([
       for (final item in current)
         if (item.isUnread) item.copyWith(readAt: readAt) else item,
     ]);
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await ref.read(notificationServiceProvider).deleteNotification(id);
+    final current = state.value ?? [];
+    state = AsyncData([for (final item in current) if (item.id != id) item]);
+  }
+
+  /// Removes every notification for the signed-in user.
+  Future<void> clearAll() async {
+    await ref.read(notificationServiceProvider).clearAll();
+    state = const AsyncData([]);
   }
 }
 

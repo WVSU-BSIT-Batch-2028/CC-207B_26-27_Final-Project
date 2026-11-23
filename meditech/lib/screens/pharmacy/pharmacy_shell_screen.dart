@@ -2,74 +2,110 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/lto_renewal_providers.dart';
+import '../../providers/notification_providers.dart';
+import '../../providers/pharmacy_staff_providers.dart';
 import '../../providers/session_providers.dart';
 import '../../widgets/tablet/pharmacy_frame.dart';
-import 'branch_settings/branch_settings_screen.dart';
-import 'dashboard/pharmacy_dashboard_screen.dart';
-import 'inventory/inventory_screen.dart';
-import 'reservations/reservations_screen.dart';
-import 'stock_alerts/stock_alerts_screen.dart';
 
-// Approved pharmacy staff land here instead of staying on sign-in
-class PharmacyShellScreen extends ConsumerWidget {
+/// Persistent tablet chrome: sidebar, header, and [child] from [ShellRoute].
+class PharmacyShellScreen extends ConsumerStatefulWidget {
   const PharmacyShellScreen({
     super.key,
-    required this.section,
+    required this.child,
   });
 
-  final String section;
+  final Widget child;
+
+  @override
+  ConsumerState<PharmacyShellScreen> createState() =>
+      _PharmacyShellScreenState();
+}
+
+class _PharmacyShellScreenState extends ConsumerState<PharmacyShellScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        restoreSessionIfNeeded(
+          currentSession: ref.read(sessionProvider),
+          setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+        );
+      }
+    });
+  }
+
+  static String navigationIdFor(String matchedLocation) {
+    if (matchedLocation.startsWith('/reservations')) return 'reservations';
+    if (matchedLocation.startsWith('/inventory')) return 'inventory';
+    if (matchedLocation.startsWith('/stock-alerts')) return 'stock_alerts';
+    if (matchedLocation.startsWith('/employees')) return 'employees';
+    if (matchedLocation.startsWith('/profile')) return 'profile';
+    if (matchedLocation.startsWith('/settings')) return 'settings';
+    return 'dashboard';
+  }
 
   void _go(BuildContext context, String id) {
-    switch (id) {
-      case 'dashboard':
-        context.go('/dashboard');
-      case 'reservations':
-        context.go('/reservations');
-      case 'inventory':
-        context.go('/inventory');
-      case 'stock_alerts':
-        context.go('/inventory'); // or stays in shell
-      case 'employees':
-        context.go('/employees');
-      case 'notifications':
-        context.push('/notifications');
-      default:
-        context.go('/dashboard');
-    }
+    final path = switch (id) {
+      'dashboard' => '/dashboard',
+      'reservations' => '/reservations',
+      'inventory' => '/inventory',
+      'stock_alerts' => '/stock-alerts',
+      'employees' => '/employees',
+      _ => '/dashboard',
+    };
+
+    context.go(path);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final account = ref.watch(sessionProvider);
     final role = account?.role ?? 'staff';
-    final selected = section;
+    final location = GoRouterState.of(context).matchedLocation;
+    final selected = navigationIdFor(location);
+    final branch = ref.watch(ownBranchProvider).value;
+    final branchTitle = branch == null
+        ? 'Pharmacy branch'
+        : '${branch.pharmacyName} • ${branch.branchName}';
+    final branchMeta = branch == null
+        ? null
+        : '${branch.displayId} • ${branch.branchName}';
 
-    final body = switch (selected) {
-      'reservations' => const ReservationsScreen(),
-      'inventory' => const InventoryScreen(),
-      'stock_alerts' => const StockAlertsScreen(),
-      'settings' => const BranchSettingsScreen(),
-      _ => PharmacyDashboardScreen(),
-    };
+    final staffProfile = ref.watch(pharmacyStaffProfileProvider).value;
+    final displayName = staffProfile?.displayName ??
+        (role == 'owner' ? 'Branch Owner' : 'Staff Member');
+    final userRole = staffProfile?.roleLabel ??
+        switch (role) {
+          'owner' => 'Owner',
+          'pharmacist' => 'Pharmacist',
+          _ => 'Staff',
+        };
+    final unreadNotifications = ref.watch(unreadNotificationCountProvider);
+    final pendingCount = ref.watch(pharmacyPendingReservationsCountProvider);
+    final stockAlertCount = ref.watch(pharmacyStockAlertsCountProvider);
 
     return PharmacyFrame(
-      branchName: 'Pharmacy branch',
-      userName: role == 'owner' ? 'Branch Owner' : 'Staff',
-      userRole: role,
+      branchName: branchTitle,
+      branchMeta: branchMeta,
+      userName: displayName,
+      userRole: userRole,
+      userPhotoUrl: ref.watch(staffHeaderPhotoUrlProvider),
+      unreadNotifications: unreadNotifications,
+      pendingReservationsCount: pendingCount,
+      stockAlertsCount: stockAlertCount,
       selectedNavigationId: selected,
       onNavigationSelected: (id) => _go(context, id),
-      onNotificationsTap: () => _go(context, 'notifications'),
-      onSettingsTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const BranchSettingsScreen()),
-        );
-      },
+      onNotificationsTap: () => context.push('/notifications'),
+      onProfileTap: () => context.go('/profile'),
+      onSettingsTap: () => context.go('/settings'),
       onLogoutTap: () async {
         await ref.read(sessionProvider.notifier).signOut();
         if (context.mounted) context.go('/');
       },
-      body: body,
+      body: widget.child,
     );
   }
 }
-

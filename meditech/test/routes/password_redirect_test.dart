@@ -68,6 +68,12 @@ void main() {
     expect(redirectForPharmacySession(null, '/application-status'), '/');
     expect(redirectForPharmacySession(null, '/suspended'), '/');
     expect(redirectForPharmacySession(null, '/dashboard'), '/');
+    expect(redirectForPharmacySession(null, '/profile'), '/');
+    expect(redirectForPharmacySession(null, '/profile/edit'), '/');
+    expect(redirectForPharmacySession(null, '/employees'), '/');
+    expect(redirectForPharmacySession(null, '/settings'), '/');
+    expect(redirectForPharmacySession(null, '/notifications'), '/');
+    expect(redirectForPharmacySession(null, '/register'), null);
     expect(redirectForPharmacySession(null, '/'), null);
   });
 
@@ -80,6 +86,12 @@ void main() {
     );
     expect(redirectForPharmacySession(active, '/'), '/dashboard');
     expect(redirectForPharmacySession(active, '/dashboard'), null);
+    expect(redirectForPharmacySession(active, '/profile'), null);
+    expect(redirectForPharmacySession(active, '/profile/edit'), null);
+    expect(redirectForPharmacySession(active, '/employees'), null);
+    expect(redirectForPharmacySession(active, '/settings'), null);
+    expect(redirectForPharmacySession(active, '/reservations'), null);
+    expect(redirectForPharmacySession(active, '/notifications'), null);
     expect(redirectForPharmacySession(active, '/application-status'), '/dashboard');
   });
 
@@ -92,6 +104,7 @@ void main() {
     expect(redirectForAdminSession(admin, '/'), '/pharmacies');
     expect(redirectForAdminSession(admin, '/pharmacies'), null);
     expect(redirectForAdminSession(null, '/pharmacies'), '/');
+    expect(redirectForAdminSession(null, '/listings'), '/');
     expect(redirectForAdminSession(null, '/'), null);
   });
 }

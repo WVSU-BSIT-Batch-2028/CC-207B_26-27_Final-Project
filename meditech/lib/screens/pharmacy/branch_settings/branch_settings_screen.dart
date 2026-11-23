@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../models/branch_settings.dart';
 import '../../../providers/branch_settings_providers.dart';
+import '../../../providers/pharmacy_staff_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/pharmacy/pharmacy_user_profile_card.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -51,6 +52,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     setState(() => _isSaving = true);
     try {
       final service = ref.read(branchSettingsServiceProvider);
+      final isOwner = ref.read(sessionProvider)?.role == 'owner';
       await service.updateSettings(
         branchId: settings.branchId,
         address: _addressController.text.trim(),
@@ -58,9 +60,11 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
         operatingHours: _hoursController.text.trim(),
         ownerPrcLicense: _prcNumberController.text.trim(),
         ownerPrcExpiry: _prcExpiry,
+        updateBranchDetails: isOwner,
       );
 
       ref.invalidate(branchSettingsProvider);
+      ref.invalidate(pharmacyStaffProfileProvider);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,9 +85,12 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     final settingsAsync = ref.watch(branchSettingsProvider);
     final account = ref.watch(sessionProvider);
     final isOwner = account?.role == 'owner';
+    final canEditPrc =
+        isOwner || account?.role == 'pharmacist' || account?.role == 'staff';
+    final showSave = isOwner || canEditPrc;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: AsyncView<BranchSettings>(
         value: settingsAsync,
         onRetry: () {
@@ -116,26 +123,23 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Branch Settings',
+                            'Settings',
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.text,
                                 ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            isOwner
-                                ? 'Update branch address, hours, contact information, and your pharmacist license.'
-                                : 'View branch details. Only the branch owner can edit these settings.',
-                            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                          const Text(
+                            'Branch address, contact, hours, and pharmacist license on file.',
+                            style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Store Details Card
-                    _SettingsSectionCard(
+                    PharmacySettingsSectionCard(
                       title: 'Branch Details',
                       children: [
                         Row(
@@ -218,8 +222,8 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                     const SizedBox(height: AppSpacing.xl),
 
                     // Owner PRC License Card
-                    _SettingsSectionCard(
-                      title: 'Your PRC license (only if you are also a licensed pharmacist)',
+                    PharmacySettingsSectionCard(
+                      title: 'PRC license (pharmacists & owner-pharmacists)',
                       children: [
                         Row(
                           children: [
@@ -227,7 +231,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                               child: _buildEditableField(
                                 label: 'PRC license number',
                                 controller: _prcNumberController,
-                                enabled: isOwner,
+                                enabled: canEditPrc,
                                 hintText: '7 digits',
                               ),
                             ),
@@ -246,7 +250,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   InkWell(
-                                    onTap: !isOwner
+                                    onTap: !canEditPrc
                                         ? null
                                         : () async {
                                             final now = DateTime.now();
@@ -264,7 +268,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                                       height: 40,
                                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                                       decoration: BoxDecoration(
-                                        color: isOwner ? Colors.white : const Color(0xFFF3F4F6),
+                                        color: canEditPrc ? Colors.white : const Color(0xFFF3F4F6),
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(color: AppColors.border),
                                       ),
@@ -289,8 +293,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Save Button (Owner only)
-                    if (isOwner)
+                    if (showSave)
                       Align(
                         alignment: Alignment.centerLeft,
                         child: FilledButton(
@@ -380,39 +383,6 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SettingsSectionCard extends StatelessWidget {
-  const _SettingsSectionCard({
-    required this.title,
-    required this.children,
-  });
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ...children,
-        ],
-      ),
     );
   }
 }

@@ -57,6 +57,6 @@ class Validators {
   // Confirm password must match
   static String? confirmPassword(String? value, String password) {
     if (value == null || value.isEmpty) return 'Required.';
-    return value == password ? null : 'Passwords do not match.';
+    return value.trim() == password.trim() ? null : 'Passwords do not match.';
   }
 }

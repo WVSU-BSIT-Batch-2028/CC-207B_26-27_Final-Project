@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../../utils/app_failure.dart';
 
 // Shows loading, error, empty, or the real content for any screen's data
 class AsyncView<T> extends StatelessWidget {
@@ -28,9 +29,11 @@ class AsyncView<T> extends StatelessWidget {
       // Still loading
       loading: () => const Center(child: CircularProgressIndicator()),
       // Something went wrong
-      error: (_, _) => StateMessage(
+      error: (error, _) => StateMessage(
         icon: Icons.error_outline,
-        message: 'Something went wrong. Please try again.',
+        message: error is AppFailure
+            ? error.message
+            : 'Something went wrong. Please try again.',
         onRetry: onRetry,
       ),
       // Loaded: nothing to show, or the content

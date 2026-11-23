@@ -8,7 +8,11 @@ const _pharmacyShellPaths = {
   '/dashboard',
   '/reservations',
   '/inventory',
+  '/stock-alerts',
+  '/settings',
   '/employees',
+  '/profile',
+  '/profile/edit',
 };
 
 const _adminShellPaths = {
@@ -16,6 +20,7 @@ const _adminShellPaths = {
   '/catalogue',
   '/requests',
   '/audit',
+  '/listings',
 };
 
 // Temporary passwords must be changed before anything else

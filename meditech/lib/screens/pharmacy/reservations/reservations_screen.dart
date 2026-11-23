@@ -64,6 +64,16 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
       (_dateFilter != RequestedDateFilter.anyTime ? 1 : 0) +
       (_onlyRx ? 1 : 0);
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(branchReservationsProvider.notifier).refresh();
+      }
+    });
+  }
+
   void _resetFilters() {
     setState(() {
       _selectedStatuses.clear();

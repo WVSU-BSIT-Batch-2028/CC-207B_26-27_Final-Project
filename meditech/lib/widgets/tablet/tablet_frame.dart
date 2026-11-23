@@ -12,6 +12,7 @@ class TabletFrame extends StatelessWidget {
   final String? branchSubtitle;
   final String userName;
   final String userRole;
+  final String? userPhotoUrl;
   final int unreadNotifications;
   final List<TabletNavigationItem> navigationItems;
   final String selectedNavigationId;
@@ -33,6 +34,7 @@ class TabletFrame extends StatelessWidget {
     this.branchSubtitle,
     required this.userName,
     required this.userRole,
+    this.userPhotoUrl,
     this.unreadNotifications = 0,
     required this.navigationItems,
     required this.selectedNavigationId,
@@ -79,6 +81,7 @@ class TabletFrame extends StatelessWidget {
                   subtitle: branchSubtitle,
                   userName: userName,
                   userRole: userRole,
+                  userPhotoUrl: userPhotoUrl,
                   unreadNotifications: unreadNotifications,
                   onNotificationsTap: onNotificationsTap,
                   onProfileTap: onProfileTap,

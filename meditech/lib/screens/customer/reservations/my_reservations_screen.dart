@@ -58,6 +58,16 @@ class MyReservationsScreen extends ConsumerStatefulWidget {
 class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
   ReservationFilterTab _selectedTab = ReservationFilterTab.active;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(myReservationsProvider.notifier).refresh();
+      }
+    });
+  }
+
   void _openDetails(String reservationId) {
     if (GoRouter.maybeOf(context) != null) {
       context.push('/reservations/$reservationId');

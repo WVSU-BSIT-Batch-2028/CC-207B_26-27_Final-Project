@@ -23,6 +23,7 @@ class NotificationListScreen extends ConsumerStatefulWidget {
 class _NotificationListScreenState extends ConsumerState<NotificationListScreen> {
   static const _recentLimit = 4;
   bool _showAll = false;
+  bool _bulkBusy = false;
 
   Future<void> _open(AppNotification item) async {
     if (item.isUnread) {
@@ -32,9 +33,9 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
     widget.onOpen?.call(item);
   }
 
-  Future<void> _clear() async {
+  Future<void> _markRead(String id) async {
     try {
-      await ref.read(notificationListProvider.notifier).markAllRead();
+      await ref.read(notificationListProvider.notifier).markRead(id);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,9 +44,75 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
     }
   }
 
+  Future<void> _delete(String id) async {
+    try {
+      await ref.read(notificationListProvider.notifier).deleteNotification(id);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    if (_bulkBusy) return;
+    setState(() => _bulkBusy = true);
+    try {
+      await ref.read(notificationListProvider.notifier).markAllRead();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _bulkBusy = false);
+    }
+  }
+
+  Future<void> _clearAll() async {
+    if (_bulkBusy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear notifications?'),
+        content: const Text(
+          'This removes all notifications from your list. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _bulkBusy = true);
+    try {
+      await ref.read(notificationListProvider.notifier).clearAll();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _bulkBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = ref.watch(notificationListProvider);
+    final unreadCount = list.maybeWhen(
+      data: (items) => items.where((item) => item.isUnread).length,
+      orElse: () => 0,
+    );
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -106,6 +173,8 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
                     return _NotificationCard(
                       item: item,
                       onTap: () => _open(item),
+                      onMarkRead: item.isUnread ? () => _markRead(item.id) : null,
+                      onDelete: () => _delete(item.id),
                     );
                   },
                 ),
@@ -117,9 +186,32 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
                   AppSpacing.lg,
                   AppSpacing.lg,
                 ),
-                child: OutlinedButton(
-                  onPressed: items.any((item) => item.isUnread) ? _clear : null,
-                  child: const Text('Clear Notifications'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (unreadCount > 0)
+                      OutlinedButton.icon(
+                        onPressed: _bulkBusy ? null : _markAllRead,
+                        icon: _bulkBusy
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.done_all_outlined, size: 18),
+                        label: const Text('Mark all as read'),
+                      ),
+                    if (unreadCount > 0) const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: items.isNotEmpty && !_bulkBusy ? _clearAll : null,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger),
+                      ),
+                      label: const Text('Clear notifications'),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -177,10 +269,17 @@ _NotificationTone _toneFor(String type) {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item, required this.onTap});
+  const _NotificationCard({
+    required this.item,
+    required this.onTap,
+    this.onMarkRead,
+    required this.onDelete,
+  });
 
   final AppNotification item;
   final VoidCallback onTap;
+  final VoidCallback? onMarkRead;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -223,8 +322,8 @@ class _NotificationCard extends StatelessWidget {
                           ),
                         ),
                         if (item.isUnread)
-                          const Tooltip(
-                            message: 'Unread',
+                          const Padding(
+                            padding: EdgeInsets.only(right: 4),
                             child: Icon(
                               Icons.circle,
                               size: 8,
@@ -254,6 +353,46 @@ class _NotificationCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 4),
+              Column(
+                children: [
+                  if (onMarkRead != null)
+                    IconButton(
+                      tooltip: 'Mark as read',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      onPressed: onMarkRead,
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    )
+                  else
+                    const SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 20,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  IconButton(
+                    tooltip: 'Remove',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

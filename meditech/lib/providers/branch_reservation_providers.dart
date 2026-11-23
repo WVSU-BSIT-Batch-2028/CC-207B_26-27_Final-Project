@@ -23,20 +23,91 @@ final branchReservationsProvider =
 
 class BranchReservationsNotifier
     extends AsyncNotifier<List<BranchReservation>> {
+  RealtimeChannel? _channel;
+
   @override
   Future<List<BranchReservation>> build() async {
-    final session = ref.watch(sessionProvider);
-    final branchId = session?.branchId ?? 'demo-branch';
-    final service = ref.watch(branchReservationServiceProvider);
+    ref.onDispose(_unsubscribe);
+    restoreSessionIfNeeded(
+      currentSession: ref.read(sessionProvider),
+      setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+    );
+    ref.listen(sessionProvider, (previous, next) {
+      if (previous?.branchId != next?.branchId || (previous == null) != (next == null)) {
+        ref.invalidateSelf();
+      }
+    });
+
+    if (ref.read(sessionProvider) == null &&
+        Supabase.instance.client.auth.currentSession == null) {
+      return const [];
+    }
+
+    final branchId = await _resolveBranchId();
+    if (branchId == null) {
+      return const [];
+    }
+    _subscribeToBranchReservations(branchId);
+    final service = ref.read(branchReservationServiceProvider);
     return service.getReservations(branchId);
+  }
+
+  void _subscribeToBranchReservations(String branchId) {
+    _unsubscribe();
+    try {
+      final client = Supabase.instance.client;
+      _channel = client
+          .channel('branch-reservations-$branchId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'reservations',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'branch_id',
+              value: branchId,
+            ),
+            callback: (_) => refresh(),
+          )
+          .subscribe();
+    } catch (_) {
+      // Realtime optional when not configured (tests / offline).
+    }
+  }
+
+  void _unsubscribe() {
+    final channel = _channel;
+    _channel = null;
+    if (channel != null) {
+      try {
+        Supabase.instance.client.removeChannel(channel);
+      } catch (_) {}
+    }
+  }
+
+  Future<String?> _resolveBranchId() async {
+    if (ref.read(sessionProvider) == null &&
+        Supabase.instance.client.auth.currentSession == null) {
+      return null;
+    }
+    try {
+      final client = Supabase.instance.client;
+      final id = await client.rpc('my_branch_id');
+      if (id != null && id.toString().isNotEmpty) {
+        return id as String;
+      }
+    } catch (_) {
+      // Fall back to JWT claim below.
+    }
+    return ref.read(sessionProvider)?.branchId;
   }
 
   // Reload the branch reservations list
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final session = ref.read(sessionProvider);
-      final branchId = session?.branchId ?? 'demo-branch';
+      final branchId = await _resolveBranchId();
+      if (branchId == null) return const <BranchReservation>[];
       final service = ref.read(branchReservationServiceProvider);
       return service.getReservations(branchId);
     });
