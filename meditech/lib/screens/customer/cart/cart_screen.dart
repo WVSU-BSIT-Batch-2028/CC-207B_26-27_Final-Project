@@ -2,9 +2,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../models/cart.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
@@ -14,6 +16,7 @@ import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../reservations/reservation_submitted_screen.dart';
+import '../pharmacy/directions_screen.dart';
 import '../pharmacy/pharmacy_details_screen.dart';
 
 // Customer cart screen matching wireframes P-15, P-17, and P-18
@@ -163,12 +166,39 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  void _getDirections(CustomerCart cart) {
+  Future<void> _getDirections(CustomerCart cart) async {
     final branchId = cart.branchId;
     if (branchId == null) return;
+
+    final branch = await ref.read(pharmacyDetailProvider(branchId).future);
+    if (!mounted) return;
+
+    final hasCoords = branch != null &&
+        (branch.latitude != 0 || branch.longitude != 0);
+    final args = DirectionsArgs(
+      pharmacyName: cart.pharmacyName ?? '',
+      branchName: cart.branchName ?? '',
+      address: cart.branchAddress ?? '',
+      destination: hasCoords
+          ? LatLng(branch.latitude, branch.longitude)
+          : const LatLng(10.7202, 122.5621),
+    );
+
     if (GoRouter.maybeOf(context) != null) {
-      context.push('/map?branch=$branchId');
+      context.push('/directions', extra: args);
+      return;
     }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => DirectionsScreen(
+          pharmacyName: args.pharmacyName,
+          branchName: args.branchName,
+          address: args.address,
+          destination: args.destination,
+        ),
+      ),
+    );
   }
 
   void _changePharmacy() {
