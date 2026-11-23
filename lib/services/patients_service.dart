@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/doctor_prescription.dart';
 import '../models/patient.dart';
@@ -75,7 +76,7 @@ class PatientsService {
 
       final patients = <Patient>[
         for (final user in users.docs)
-          _toPatient(user.id, user.data(), profileById[user.id], lastVisitById[user.id]),
+          toPatient(user.id, user.data(), profileById[user.id], lastVisitById[user.id]),
       ];
 
       // Most recent visit first; patients with no visit yet go last, by name.
@@ -103,7 +104,7 @@ class PatientsService {
       final conditions = <String>[];
       final main = _text(profile?['condition'], '');
       if (main.isNotEmpty) conditions.add(main);
-      for (final entry in _historyOf(profile)) {
+      for (final entry in historyOf(profile)) {
         if (!conditions.contains(entry.condition)) conditions.add(entry.condition);
       }
 
@@ -126,7 +127,7 @@ class PatientsService {
 
       return PatientRecord(
         patientId: patientId,
-        history: _historyOf(profile),
+        history: historyOf(profile),
         allergies: _stringList(profile?['allergies']),
         immunizations: _stringList(profile?['immunizations']),
         vitals: vitals,
@@ -166,7 +167,7 @@ class PatientsService {
       final snap = await _db.collection('prescriptions').where('patientId', isEqualTo: patientId).get();
       final prescriptions = <DoctorPrescription>[];
       for (final doc in snap.docs) {
-        final prescription = _toPrescription(doc.id, doc.data());
+        final prescription = toPrescription(doc.id, doc.data());
         if (prescription != null) prescriptions.add(prescription);
       }
       prescriptions.sort((a, b) => b.startDate.compareTo(a.startDate));
@@ -256,7 +257,8 @@ class PatientsService {
   }
 
   /// Builds a [Patient] from the account, the optional profile and the last visit.
-  Patient _toPatient(
+  @visibleForTesting
+  Patient toPatient(
     String uid,
     Map<String, dynamic> user,
     Map<String, dynamic>? profile,
@@ -279,7 +281,8 @@ class PatientsService {
   }
 
   /// The profile's `medicalHistory` list (maps of condition and diagnosedYear).
-  List<MedicalHistoryEntry> _historyOf(Map<String, dynamic>? profile) {
+  @visibleForTesting
+  List<MedicalHistoryEntry> historyOf(Map<String, dynamic>? profile) {
     final raw = profile?['medicalHistory'];
     if (raw is! List) return const <MedicalHistoryEntry>[];
     return [
@@ -303,7 +306,7 @@ class PatientsService {
       final byType = <VitalType, List<VitalReading>>{};
       for (final doc in snap.docs) {
         final data = doc.data();
-        final type = _vitalTypeFrom(data['type']);
+        final type = vitalTypeFrom(data['type']);
         final date = _toDate(data['date']);
         final value = data['value'];
         if (type == null || date == null || value is! num) continue;
@@ -338,7 +341,8 @@ class PatientsService {
   }
 
   /// "bloodPressure", "blood_pressure" and "Blood Pressure" all mean the same type.
-  VitalType? _vitalTypeFrom(Object? raw) {
+  @visibleForTesting
+  VitalType? vitalTypeFrom(Object? raw) {
     final text = raw?.toString().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
     for (final type in VitalType.values) {
       if (type.name.toLowerCase() == text) return type;
@@ -376,14 +380,15 @@ class PatientsService {
   /// it has no start date. It accepts both the plan's fields (`medicine`,
   /// `frequency`, `endDate`) and the extras (`timesPerDay`, `durationDays`),
   /// so prescriptions written by a teammate also show up.
-  DoctorPrescription? _toPrescription(String id, Map<String, dynamic> data) {
+  @visibleForTesting
+  DoctorPrescription? toPrescription(String id, Map<String, dynamic> data) {
     final start = _toDate(data['startDate']);
     if (start == null) return null;
     final end = _toDate(data['endDate']);
 
     final timesPerDay = data['timesPerDay'] is num
         ? (data['timesPerDay'] as num).toInt()
-        : _timesFromText(data['frequency']);
+        : timesFromText(data['frequency']);
     final durationDays = data['durationDays'] is num
         ? (data['durationDays'] as num).toInt()
         : (end != null ? end.difference(start).inDays.clamp(1, 3650).toInt() : 1);
@@ -403,7 +408,8 @@ class PatientsService {
   }
 
   /// "2x a day" -> 2, "Twice a day" -> 2, "Once a day" -> 1; 1 if unclear.
-  int _timesFromText(Object? raw) {
+  @visibleForTesting
+  int timesFromText(Object? raw) {
     final text = raw?.toString().toLowerCase() ?? '';
     final number = RegExp(r'\d+').firstMatch(text);
     if (number != null) return int.parse(number.group(0)!);

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/consultation_detail.dart';
 import '../models/health_record.dart';
@@ -79,21 +80,7 @@ class RecordsService {
       if (!snap.exists || data == null) {
         throw const RecordsException('This medical record could not be found.');
       }
-      final date = _toDate(data['date']);
-      if (date == null) {
-        throw const RecordsException('This medical record is incomplete.');
-      }
-
-      return ConsultationDetail(
-        id: snap.id,
-        doctorName: _text(data['doctorName'], 'Not recorded'),
-        department: _text(data['department'], 'General Consultation'),
-        type: _text(data['type'], 'Consultation'),
-        date: date,
-        // The plan has a single `notes` field, so it is the fallback for the diagnosis.
-        diagnosis: _text(data['diagnosis'], _text(data['notes'], 'No diagnosis recorded.')),
-        treatment: _text(data['treatment'], 'No recommendations recorded.'),
-      );
+      return consultationDetailFrom(snap.id, data);
     });
   }
 
@@ -110,30 +97,7 @@ class RecordsService {
       if (!snap.exists || data == null) {
         throw const RecordsException('This lab result could not be found.');
       }
-      final date = _toDate(data['date']);
-      if (date == null) {
-        throw const RecordsException('This lab result is incomplete.');
-      }
-
-      // The values are a list of maps (name, value, unit, range, flag).
-      final rawValues = data['values'];
-      final values = <LabValue>[
-        if (rawValues is List)
-          for (final item in rawValues)
-            if (item is Map) LabValue.fromMap(Map<String, dynamic>.from(item)),
-      ];
-
-      return LabResultDetail(
-        id: snap.id,
-        testName: _text(data['name'], 'Lab Result'),
-        patientName: await _patientName(data['patientId']),
-        requestedBy: _text(data['enteredBy'], 'Not recorded'),
-        status: _text(data['status'], 'Complete'),
-        date: date,
-        results: values,
-        overallResult: _text(data['overallResult'], 'No summary recorded.'),
-        doctorNotes: _text(data['doctorNotes'], 'No notes recorded.'),
-      );
+      return labDetailFrom(snap.id, data, await _patientName(data['patientId']));
     });
   }
 
@@ -145,15 +109,8 @@ class RecordsService {
     final records = <HealthRecord>[];
     for (final doc in snap.docs) {
       final data = doc.data();
-      final date = _toDate(data['date']);
-      if (date == null) continue; // skip a document that has no date
-      records.add(HealthRecord(
-        id: doc.id,
-        type: RecordType.consultation,
-        title: _text(data['department'], 'General Consultation'),
-        subtitle: _text(data['doctorName'], 'Doctor'),
-        date: date,
-      ));
+      final record = consultationRecordFrom(doc.id, data);
+      if (record != null) records.add(record);
     }
     records.sort((a, b) => b.date.compareTo(a.date));
     return records;
@@ -165,18 +122,86 @@ class RecordsService {
     final records = <HealthRecord>[];
     for (final doc in snap.docs) {
       final data = doc.data();
-      final date = _toDate(data['date']);
-      if (date == null) continue; // skip a document that has no date
-      records.add(HealthRecord(
-        id: doc.id,
-        type: RecordType.labResult,
-        title: 'Laboratory Results',
-        subtitle: _text(data['name'], 'Lab Result'),
-        date: date,
-      ));
+      final record = labRecordFrom(doc.id, data);
+      if (record != null) records.add(record);
     }
     records.sort((a, b) => b.date.compareTo(a.date));
     return records;
+  }
+
+  /// A consultation document as a list card, or null if it has no date.
+  @visibleForTesting
+  HealthRecord? consultationRecordFrom(String id, Map<String, dynamic> data) {
+    final date = _toDate(data['date']);
+    if (date == null) return null;
+    return HealthRecord(
+      id: id,
+      type: RecordType.consultation,
+      title: _text(data['department'], 'General Consultation'),
+      subtitle: _text(data['doctorName'], 'Doctor'),
+      date: date,
+    );
+  }
+
+  /// A lab result document as a list card, or null if it has no date.
+  @visibleForTesting
+  HealthRecord? labRecordFrom(String id, Map<String, dynamic> data) {
+    final date = _toDate(data['date']);
+    if (date == null) return null;
+    return HealthRecord(
+      id: id,
+      type: RecordType.labResult,
+      title: 'Laboratory Results',
+      subtitle: _text(data['name'], 'Lab Result'),
+      date: date,
+    );
+  }
+
+  /// A consultation document as the full popup data.
+  /// Throws [RecordsException] if it has no date.
+  @visibleForTesting
+  ConsultationDetail consultationDetailFrom(String id, Map<String, dynamic> data) {
+    final date = _toDate(data['date']);
+    if (date == null) {
+      throw const RecordsException('This medical record is incomplete.');
+    }
+    return ConsultationDetail(
+      id: id,
+      doctorName: _text(data['doctorName'], 'Not recorded'),
+      department: _text(data['department'], 'General Consultation'),
+      type: _text(data['type'], 'Consultation'),
+      date: date,
+      // The plan has a single `notes` field, so it is the fallback for the diagnosis.
+      diagnosis: _text(data['diagnosis'], _text(data['notes'], 'No diagnosis recorded.')),
+      treatment: _text(data['treatment'], 'No recommendations recorded.'),
+    );
+  }
+
+  /// A lab result document as the full popup data.
+  /// Throws [RecordsException] if it has no date.
+  @visibleForTesting
+  LabResultDetail labDetailFrom(String id, Map<String, dynamic> data, String patientName) {
+    final date = _toDate(data['date']);
+    if (date == null) {
+      throw const RecordsException('This lab result is incomplete.');
+    }
+    final rawValues = data['values'];
+    final values = <LabValue>[
+      if (rawValues is List)
+        for (final item in rawValues)
+          if (item is Map) LabValue.fromMap(Map<String, dynamic>.from(item)),
+    ];
+    return LabResultDetail(
+      id: id,
+      testName: _text(data['name'], 'Lab Result'),
+      patientName: patientName,
+      requestedBy: _text(data['enteredBy'], 'Not recorded'),
+      status: _text(data['status'], 'Complete'),
+      date: date,
+      results: values,
+      overallResult: _text(data['overallResult'], 'No summary recorded.'),
+      doctorNotes: _text(data['doctorNotes'], 'No notes recorded.'),
+    );
   }
 
   /// The patient's full name from `users/{uid}`, or "Patient" if not found.
