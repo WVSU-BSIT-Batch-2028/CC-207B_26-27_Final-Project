@@ -7,14 +7,13 @@ import '../../core/utils/date_format.dart';
 import '../../core/utils/validators.dart';
 import '../../models/user_profile.dart';
 import '../../models/user_role.dart';
+import '../../services/auth_service.dart';
 import '../../services/profile_service.dart';
-import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/menu_tile.dart';
 
 /// Personal Information for both roles. Read-only until "Edit" is pressed;
-/// saving validates the form and stores the values locally.
-/// (Patient also has Date of Birth, matching the prototype.)
+/// saving validates the form and stores the values.
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key, required this.role});
 
@@ -128,6 +127,128 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  Future<void> _showChangePasswordDialog() async {
+    final dialogKey = GlobalKey<FormState>();
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obscure = true;
+    bool submitting = false;
+    String? dialogError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: dialogKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (dialogError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        dialogError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                  TextFormField(
+                    controller: currentCtrl,
+                    obscureText: obscure,
+                    decoration: AppTheme.inputDecoration(label: 'Current Password'),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Enter your current password.' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: newCtrl,
+                    obscureText: obscure,
+                    decoration: AppTheme.inputDecoration(
+                      label: 'New Password',
+                      hint: '8+ chars, A-Z, a-z, 0-9',
+                    ).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () => setDialogState(() => obscure = !obscure),
+                      ),
+                    ),
+                    validator: Validators.password,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    obscureText: obscure,
+                    decoration: AppTheme.inputDecoration(label: 'Confirm New Password'),
+                    validator: (v) {
+                      if (v != newCtrl.text) return 'Passwords do not match.';
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!(dialogKey.currentState?.validate() ?? false)) return;
+                      setDialogState(() {
+                        submitting = true;
+                        dialogError = null;
+                      });
+                      try {
+                        await AuthService().changePassword(
+                          currentPassword: currentCtrl.text,
+                          newPassword: newCtrl.text,
+                        );
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(content: Text('Password updated successfully.')),
+                          );
+                        }
+                      } on AuthException catch (e) {
+                        setDialogState(() {
+                          submitting = false;
+                          dialogError = e.message;
+                        });
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Update Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = _original;
@@ -178,7 +299,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                         suffix: const Icon(Icons.calendar_today_rounded, size: 18),
                       ),
                     Padding(
-                      padding: EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Text('Gender', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy)),
                     ),
                     Padding(
@@ -241,17 +362,13 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       ),
                     const SizedBox(height: AppSpacing.lg),
                     Padding(
-                      padding: EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Text('Security', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.navy)),
                     ),
                     MenuTile(
                       icon: Icons.lock_reset_rounded,
                       title: 'Change Password',
-                      onTap: () => showComingSoonSheet(
-                        context,
-                        title: 'Change Password',
-                        message: 'Part of the Auth module. It will plug in here once login is built.',
-                      ),
+                      onTap: _showChangePasswordDialog,
                     ),
                   ],
                 ),

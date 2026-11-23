@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/theme_controller.dart';
@@ -18,9 +17,8 @@ import 'notifications_screen.dart';
 import 'personal_info_screen.dart';
 import 'preference_sheets.dart';
 
-/// Profile tab for BOTH roles. Same rows for patient and doctor:
-/// Personal Information, Notifications, Language, App Theme, Help & Support.
-/// (Plus the demo-only "Switch view" and Log Out.)
+/// Profile tab for BOTH roles:
+/// Personal Information, Notifications, Language, App Theme, Help & Support, and Log Out.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.role});
 
@@ -47,10 +45,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _profile = profile);
   }
 
-  /// Header name: "Dr. Santos" for doctors, full name for patients.
+  /// Header name: "Dr. <LastName>" for doctors, full name for patients.
   String _headerName(UserProfile p) {
     if (!_isDoctor) return p.fullName;
-    final parts = p.fullName.replaceAll('Dr. ', '').trim().split(' ');
+    final clean = p.fullName.replaceFirst(RegExp(r'^Dr\.?\s*', caseSensitive: false), '').trim();
+    if (clean.isEmpty) return 'Doctor';
+    final parts = clean.split(RegExp(r'\s+'));
     return 'Dr. ${parts.last}';
   }
 
@@ -59,15 +59,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _load(); // pick up any edits made on the next screen
   }
 
-  void _switchView() {
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.authGate, (route) => false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final role = widget.role;
     final profile = _profile;
-    final otherRole = _isDoctor ? UserRole.patient : UserRole.doctor;
 
     return SafeArea(
       bottom: false,
@@ -138,7 +133,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   subtitle: 'English',
                   onTap: () => showLanguageSheet(context),
                 ),
-                // Listens to the theme so the "Light / Dark" subtitle stays current.
                 ListenableBuilder(
                   listenable: ThemeController.instance,
                   builder: (context, _) => MenuTile(
@@ -159,33 +153,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.sm),
           FadeSlideIn(
             delay: const Duration(milliseconds: 180),
-            child: Column(
-              children: [
-                // Demo-only: lets the team check both sides without a login.
-                MenuTile(
-                  icon: Icons.swap_horiz_rounded,
-                  title: 'Switch view (demo)',
-                  subtitle: 'Go to the ${otherRole.label.toLowerCase()} side',
-                  color: AppColors.sleep,
-                  onTap: _switchView,
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => confirmLogout(context),
+                icon: const Icon(Icons.logout_rounded, size: 20),
+                label: const Text('Log Out'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: const BorderSide(color: AppColors.danger, width: 1.4),
+                  minimumSize: const Size(0, 52),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => confirmLogout(context),
-                    icon: const Icon(Icons.logout_rounded, size: 20),
-                    label: const Text('Log Out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger, width: 1.4),
-                      minimumSize: const Size(0, 52),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
