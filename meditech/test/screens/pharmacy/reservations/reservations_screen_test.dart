@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meditech/models/signed_in_account.dart';
 import 'package:meditech/providers/branch_reservation_providers.dart';
+import 'package:meditech/providers/session_providers.dart';
 import 'package:meditech/screens/pharmacy/reservations/reservations_screen.dart';
 import 'package:meditech/services/branch_reservation_service.dart';
+
+class _StaffSession extends SessionNotifier {
+  @override
+  SignedInAccount? build() {
+    return const SignedInAccount(
+      accountType: 'staff',
+      state: 'active',
+      role: 'pharmacist',
+      branchId: 'demo-branch',
+    );
+  }
+}
 
 void main() {
   testWidgets('displays reservation list with references, patient names, and badges',
@@ -14,6 +28,7 @@ void main() {
       ProviderScope(
         overrides: [
           branchReservationServiceProvider.overrideWithValue(fakeService),
+          sessionProvider.overrideWith(_StaffSession.new),
         ],
         child: const MaterialApp(
           home: ReservationsScreen(),
@@ -47,6 +62,7 @@ void main() {
       ProviderScope(
         overrides: [
           branchReservationServiceProvider.overrideWithValue(fakeService),
+          sessionProvider.overrideWith(_StaffSession.new),
         ],
         child: const MaterialApp(
           home: ReservationsScreen(),
@@ -88,6 +104,7 @@ void main() {
       ProviderScope(
         overrides: [
           branchReservationServiceProvider.overrideWithValue(fakeService),
+          sessionProvider.overrideWith(_StaffSession.new),
         ],
         child: const MaterialApp(
           home: ReservationsScreen(),

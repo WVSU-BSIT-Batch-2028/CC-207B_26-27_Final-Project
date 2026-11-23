@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../models/branch_settings.dart';
 import '../../../providers/branch_settings_providers.dart';
 import '../../../providers/pharmacy_staff_providers.dart';
@@ -83,6 +84,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(branchSettingsProvider);
+    final profile = ref.watch(pharmacyStaffProfileProvider).asData?.value;
     final account = ref.watch(sessionProvider);
     final isOwner = account?.role == 'owner';
     final canEditPrc =
@@ -138,6 +140,18 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
+
+                    if (profile != null) ...[
+                      PharmacyUserProfileCard(
+                        profile: profile,
+                        onChangePassword: () {
+                          if (GoRouter.maybeOf(context) != null) {
+                            context.push('/change-password');
+                          }
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
 
                     PharmacySettingsSectionCard(
                       title: 'Branch Details',
