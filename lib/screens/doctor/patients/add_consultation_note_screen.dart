@@ -4,8 +4,14 @@
 // that the patient reads in Records > Consultations > Medical Record.
 //
 // WHAT THE DOCTOR SEES: an "Add Consultation Notes" header with a back arrow,
-// who the notes are for, and a form: Department, Date of visit, Assessment /
-// Diagnosis, Treatment / Recommendations, and a Save button.
+// who the notes are for, and a form: Appointment (optional), Department, Date
+// of visit, Assessment / Diagnosis, Treatment / Recommendations, and a Save
+// button.
+//
+// LINKING TO AN APPOINTMENT: the Appointment dropdown lists this patient's
+// completed appointments (from AppointmentService). Choosing one fills in the
+// date and department and saves the appointment's id in `appointmentId`, so
+// the notes belong to that visit.
 //
 // WHAT THE DOCTOR CAN DO: fill in the form and tap Save. Both notes are
 // required, so Save shows a message under any field left empty. When it is
@@ -21,7 +27,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../models/appointment.dart';
+import '../../../models/appointment_status.dart';
 import '../../../models/patient.dart';
+import '../../../services/appointment_service.dart';
 import '../../../services/patients_service.dart';
 import '../../../widgets/h360_button.dart';
 import '../../../widgets/h360_card.dart';
@@ -53,19 +62,34 @@ class _AddConsultationNoteScreenState extends State<AddConsultationNoteScreen> {
   final TextEditingController _diagnosisController = TextEditingController();
   final TextEditingController _treatmentController = TextEditingController();
 
-  /// The choices for Department.
-  static const List<String> _departments = [
+  /// The usual choices for Department. An appointment with another specialty
+  /// adds its own choice to [_departments].
+  static const List<String> _baseDepartments = [
     'General Consultation',
     'Follow-up Check-up',
     'Internal Medicine',
     'Pediatrics',
   ];
 
-  String _department = _departments.first;
+  List<String> _departments = List.of(_baseDepartments);
+  String _department = _baseDepartments.first;
   DateTime _date = DateTime.now();
+
+  /// The completed appointments of this patient (for the Appointment dropdown).
+  List<Appointment> _appointments = const [];
+  bool _loadingAppointments = true;
+
+  /// The id of the chosen appointment, or '' when the notes are not linked to one.
+  String _appointmentId = '';
 
   /// True while the notes are being saved (the button shows a spinner).
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppointments();
+  }
 
   @override
   void dispose() {
@@ -74,13 +98,56 @@ class _AddConsultationNoteScreenState extends State<AddConsultationNoteScreen> {
     super.dispose();
   }
 
+  /// Loads this patient's completed appointments for the Appointment dropdown.
+  /// If they cannot be loaded, the doctor can still write unlinked notes.
+  Future<void> _loadAppointments() async {
+    try {
+      final all = await AppointmentService.instance.fetchAppointments();
+      final now = DateTime.now();
+      // Done appointments, or confirmed ones whose time has already passed.
+      final mine = all.where((a) {
+        if (a.patientId != widget.patient.id) return false;
+        return a.status == AppointmentStatus.done ||
+            (a.status == AppointmentStatus.confirmed && a.dateTime.isBefore(now));
+      }).toList()
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      if (!mounted) return;
+      setState(() {
+        _appointments = mine;
+        _loadingAppointments = false;
+      });
+    } on AppointmentException {
+      if (!mounted) return;
+      setState(() => _loadingAppointments = false);
+    }
+  }
+
+  /// An appointment was chosen (or "Not linked"): fill in its date and department.
+  void _onAppointmentChanged(String? id) {
+    final value = id ?? '';
+    setState(() {
+      _appointmentId = value;
+      if (value.isEmpty) return;
+
+      final appointment = _appointments.firstWhere((a) => a.id == value);
+      final now = DateTime.now();
+      _date = appointment.dateTime.isAfter(now) ? now : appointment.dateTime;
+      if (!_departments.contains(appointment.specialty)) {
+        _departments = [..._departments, appointment.specialty];
+      }
+      _department = appointment.specialty;
+    });
+  }
+
   /// Opens the calendar and stores the chosen date. A visit cannot be in the future.
   Future<void> _pickDate() async {
     final today = DateTime.now();
+    final first = today.subtract(const Duration(days: 365));
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: today.subtract(const Duration(days: 365)),
+      // An appointment older than a year would be outside the calendar.
+      initialDate: _date.isBefore(first) ? first : _date,
+      firstDate: first,
       lastDate: today,
     );
     if (picked != null) setState(() => _date = picked);
@@ -98,6 +165,7 @@ class _AddConsultationNoteScreenState extends State<AddConsultationNoteScreen> {
         widget.patient.id,
         department: _department,
         date: _date,
+        appointmentId: _appointmentId,
         diagnosis: _diagnosisController.text.trim(),
         treatment: _treatmentController.text.trim(),
       );
@@ -166,6 +234,47 @@ class _AddConsultationNoteScreenState extends State<AddConsultationNoteScreen> {
       Text(
         'Consultation notes for ${widget.patient.name}',
         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+      ),
+      gap,
+
+      // Appointment (optional): link the notes to a completed appointment
+      _fieldCard(
+        label: 'Appointment (optional)',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              value: _appointmentId,
+              isExpanded: true,
+              decoration: AppTheme.inputDecoration(hint: 'Choose an appointment'),
+              items: [
+                DropdownMenuItem(
+                  value: '',
+                  child: Text('Not linked to an appointment', style: _itemStyle),
+                ),
+                for (final appointment in _appointments)
+                  DropdownMenuItem(
+                    value: appointment.id,
+                    child: Text(
+                      '${formatLongDate(appointment.dateTime)} - ${appointment.specialty}',
+                      style: _itemStyle,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: _loadingAppointments ? null : _onAppointmentChanged,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _loadingAppointments
+                  ? 'Loading appointments...'
+                  : _appointments.isEmpty
+                      ? 'No completed appointments found for this patient.'
+                      : 'Choosing one fills in the date and department.',
+              style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+            ),
+          ],
+        ),
       ),
       gap,
 
