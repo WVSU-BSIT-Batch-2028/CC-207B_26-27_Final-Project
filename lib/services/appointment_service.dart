@@ -1,67 +1,137 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/appointment.dart';
 import '../models/appointment_status.dart';
+import '../models/user_role.dart';
+import 'auth_service.dart';
 import 'dashboard_service.dart';
 
 /// Error returned when appointment data cannot be loaded or updated.
 class AppointmentException implements Exception {
-  /// Creates an appointment exception with a readable message.
   const AppointmentException(this.message);
 
-  /// Message displayed to the user.
   final String message;
 
   @override
   String toString() => message;
 }
 
-/// Provides appointment data and appointment management operations.
-///
-/// This service currently uses mock data and simulates network delays.
-/// Its methods are structured so the data source can later be replaced
-/// with Firebase, MySQL, or an API without changing the screens.
+/// Provides Firestore-backed appointment data and management operations.
 class AppointmentService {
   AppointmentService._();
 
-  /// Shared instance of the appointment service.
   static final AppointmentService instance = AppointmentService._();
 
-  /// Maximum time allowed for a patient to request booking changes.
   static const Duration changeRequestWindow = Duration(hours: 24);
-
-  /// Maximum number of edit requests a patient can submit per appointment.
   static const int maximumEditRequests = 2;
 
-  /// Stores appointments created through the patient booking flow.
-  final List<Appointment> _createdAppointments = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AuthService _authService = AuthService();
 
-  /// Stores sample appointments so changes remain available while running.
-  late final List<Appointment> _sampleAppointments = _buildSampleAppointments();
+  CollectionReference<Map<String, dynamic>> get _appointments =>
+      _firestore.collection('appointments');
 
-  /// Retrieves appointments for the patient and doctor views.
-  Future<List<Appointment>> fetchAppointments() async {
-    await Future<void>.delayed(const Duration(seconds: 1));
+  // ---------------------------------------------------------------------------
+  // Authentication and role helpers
+  // ---------------------------------------------------------------------------
 
-    switch (DashboardService.instance.scenario) {
-      case DemoScenario.error:
-        throw const AppointmentException(
-          "We couldn't load the appointments. Check your connection and try again.",
-        );
+  String _requireSignedIn() {
+    final user = _authService.currentUser;
 
-      case DemoScenario.empty:
-        return List.unmodifiable(_createdAppointments);
+    if (user == null) {
+      throw const AppointmentException(
+        'Please sign in to access appointments.',
+      );
+    }
 
-      case DemoScenario.normal:
-        return List.unmodifiable([
-          ..._createdAppointments,
-          ..._sampleAppointments,
-        ]);
+    return user.uid;
+  }
+
+  Future<void> _requireRole(UserRole requiredRole) async {
+    final uid = _requireSignedIn();
+
+    final role = await _authService.getUserRole(uid);
+
+    if (role != requiredRole) {
+      throw AppointmentException(
+        requiredRole == UserRole.doctor
+            ? 'Only doctors can perform this action.'
+            : 'Only patients can perform this action.',
+      );
     }
   }
 
-  /// Creates an appointment from the patient booking flow.
-  ///
-  /// The original booking timestamp is saved to enforce the 24-hour
-  /// change request window. New appointments begin with zero edit requests.
+  Future<void> _prepareManagementAction() async {
+    if (DashboardService.instance.scenario == DemoScenario.error) {
+      throw const AppointmentException(
+        "We couldn't update the appointment. Please try again.",
+      );
+    }
+
+    _requireSignedIn();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fetch appointments
+  // ---------------------------------------------------------------------------
+
+  /// Retrieves appointments belonging to the signed-in patient or all
+  /// appointments when accessed by a doctor.
+  Future<List<Appointment>> fetchAppointments() async {
+    if (DashboardService.instance.scenario == DemoScenario.error) {
+      throw const AppointmentException(
+        "We couldn't load the appointments. Check your connection and try again.",
+      );
+    }
+
+    try {
+      final uid = _requireSignedIn();
+      final role = await _authService.getUserRole(uid);
+
+      Query<Map<String, dynamic>> query = _appointments;
+
+      if (role == UserRole.patient) {
+        // Required by the Firestore security rules.
+        query = query.where('patientId', isEqualTo: uid);
+      }
+
+      final snapshot = await query.get();
+
+      final results = snapshot.docs
+          .map(
+            (document) => _fromFirestore(
+              document.id,
+              document.data(),
+            ),
+          )
+          .toList();
+
+      results.sort(
+        (a, b) => a.dateTime.compareTo(b.dateTime),
+      );
+
+      return List.unmodifiable(results);
+    } on AppointmentException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw AppointmentException(
+        _firebaseErrorMessage(
+          e,
+          "We couldn't load the appointments. Check your connection and try again.",
+        ),
+      );
+    } catch (_) {
+      throw const AppointmentException(
+        "We couldn't load the appointments. Please try again.",
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Create appointment
+  // ---------------------------------------------------------------------------
+
+  /// Creates an appointment for the currently signed-in patient.
   Future<Appointment> createAppointment({
     required String title,
     required String doctorName,
@@ -75,7 +145,7 @@ class AppointmentService {
     String? patientId,
     String? meetingUrl,
   }) async {
-    await Future<void>.delayed(const Duration(seconds: 1));
+    await _requireRole(UserRole.patient);
 
     if (DashboardService.instance.scenario == DemoScenario.error) {
       throw const AppointmentException(
@@ -89,294 +159,213 @@ class AppointmentService {
       );
     }
 
-    final appointment = Appointment(
-      id: 'apt-${DateTime.now().microsecondsSinceEpoch}',
-      title: title,
-      patientName: patientName,
-      patientId: patientId,
-      doctorName: doctorName,
-      specialty: specialty,
-      dateTime: dateTime,
-      location: location,
-      isVideo: isVideo,
-      status: AppointmentStatus.pending,
-      consultationFee: consultationFee,
-      reminderEnabled: reminderEnabled,
-      meetingUrl: meetingUrl,
-      bookedAt: DateTime.now(),
-      editRequestCount: 0,
-    );
+    final uid = _requireSignedIn();
 
-    _createdAppointments.insert(0, appointment);
+    if (patientId != null && patientId != uid) {
+      throw const AppointmentException(
+        'You can only create appointments for your own account.',
+      );
+    }
 
-    return appointment;
+    try {
+      final userDocument = await _firestore.collection('users').doc(uid).get();
+
+      final accountName = userDocument.data()?['fullName'] as String?;
+
+      final resolvedPatientName =
+          _authService.currentUser?.displayName?.trim().isNotEmpty == true
+              ? _authService.currentUser!.displayName!.trim()
+              : accountName?.trim().isNotEmpty == true
+                  ? accountName!.trim()
+                  : patientName == 'Demo Patient'
+                      ? 'Patient'
+                      : patientName;
+
+      final bookedAt = DateTime.now();
+
+      final document = _appointments.doc();
+
+      final appointment = Appointment(
+        id: document.id,
+        title: title,
+        patientName: resolvedPatientName,
+        patientId: uid,
+        doctorName: doctorName,
+        specialty: specialty,
+        dateTime: dateTime,
+        location: location,
+        isVideo: isVideo,
+        status: AppointmentStatus.pending,
+        consultationFee: consultationFee,
+        reminderEnabled: reminderEnabled,
+        meetingUrl: meetingUrl,
+        bookedAt: bookedAt,
+        editRequestCount: 0,
+      );
+
+      await document.set(_toFirestore(appointment));
+
+      return appointment;
+    } on AppointmentException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw AppointmentException(
+        _firebaseErrorMessage(
+          e,
+          "We couldn't complete your booking. Please try again.",
+        ),
+      );
+    } catch (_) {
+      throw const AppointmentException(
+        "We couldn't complete your booking. Please try again.",
+      );
+    }
   }
 
-  /// Confirms an appointment that is currently pending and not yet past.
+  // ---------------------------------------------------------------------------
+  // Doctor appointment actions
+  // ---------------------------------------------------------------------------
+
+  /// Confirms an appointment that is pending and not yet past.
   Future<Appointment> confirmAppointment(String appointmentId) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensureUpcoming(appointment);
 
-    _ensureUpcoming(appointment);
+      if (appointment.status != AppointmentStatus.pending) {
+        throw const AppointmentException(
+          'Only pending appointments can be confirmed.',
+        );
+      }
 
-    if (appointment.status != AppointmentStatus.pending) {
-      throw const AppointmentException(
-        'Only pending appointments can be confirmed.',
+      return _copyAppointment(
+        appointment,
+        status: AppointmentStatus.confirmed,
       );
-    }
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      status: AppointmentStatus.confirmed,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+    });
   }
 
-  /// Cancels an appointment immediately without doctor approval.
-  ///
-  /// This method is intended for doctor-side cancellation.
-  /// Patients should use [cancelPatientAppointment] so the 24-hour
-  /// booking window is enforced.
+  /// Cancels an appointment immediately from the doctor side.
   Future<Appointment> cancelAppointment(String appointmentId) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensureUpcoming(appointment);
 
-    _ensureUpcoming(appointment);
+      if (appointment.status == AppointmentStatus.cancelled) {
+        throw const AppointmentException(
+          'This appointment has already been cancelled.',
+        );
+      }
 
-    if (appointment.status == AppointmentStatus.cancelled) {
-      throw const AppointmentException(
-        'This appointment has already been cancelled.',
+      return _copyAppointment(
+        appointment,
+        status: AppointmentStatus.cancelled,
+        clearChangeRequest: true,
       );
-    }
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      status: AppointmentStatus.cancelled,
-      clearChangeRequest: true,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
-  }
-
-  /// Allows a patient to cancel an upcoming appointment immediately.
-  ///
-  /// Cancellation does not consume an edit request. The existing
-  /// 24-hour booking window is still enforced.
-  Future<Appointment> cancelPatientAppointment(
-    String appointmentId,
-  ) async {
-    await _prepareManagementAction();
-
-    final appointment = _findAppointment(appointmentId);
-
-    _ensureWithinChangeRequestWindow(appointment);
-    _ensureUpcoming(appointment);
-
-    if (appointment.status == AppointmentStatus.cancelled) {
-      throw const AppointmentException(
-        'This appointment has already been cancelled.',
-      );
-    }
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      status: AppointmentStatus.cancelled,
-      clearChangeRequest: true,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
-  }
-
-  /// Submits a patient's request to change all booking details.
-  ///
-  /// Every submitted request consumes one of the two allowed edit requests,
-  /// even if the doctor later rejects it.
-  ///
-  /// The original appointment remains unchanged until a doctor approves
-  /// the request.
-  Future<Appointment> requestAppointmentChange({
-    required String appointmentId,
-    required String doctorName,
-    required String specialty,
-    required DateTime dateTime,
-    required String location,
-    required bool isVideo,
-    required double consultationFee,
-    required bool reminderEnabled,
-  }) async {
-    await _prepareManagementAction();
-
-    final appointment = _findAppointment(appointmentId);
-
-    _ensureWithinChangeRequestWindow(appointment);
-    _ensureUpcoming(appointment);
-
-    if (appointment.status == AppointmentStatus.cancelled) {
-      throw const AppointmentException(
-        'A cancelled appointment cannot be edited.',
-      );
-    }
-
-    if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
-      throw const AppointmentException(
-        'You already have a change request waiting for doctor approval.',
-      );
-    }
-
-    if (appointment.editRequestCount >= maximumEditRequests) {
-      throw const AppointmentException(
-        'You have used both allowed edit requests for this appointment.',
-      );
-    }
-
-    if (!dateTime.isAfter(DateTime.now())) {
-      throw const AppointmentException(
-        'The requested appointment date and time must be in the future.',
-      );
-    }
-
-    final request = AppointmentChangeRequest(
-      doctorName: doctorName,
-      specialty: specialty,
-      dateTime: dateTime,
-      location: location,
-      isVideo: isVideo,
-      consultationFee: consultationFee,
-      reminderEnabled: reminderEnabled,
-      requestedAt: DateTime.now(),
-    );
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      changeRequest: request,
-      editRequestCount: appointment.editRequestCount + 1,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+    });
   }
 
   /// Approves a patient's pending change request.
-  ///
-  /// The requested booking details replace the original details only
-  /// after this method is called successfully. The edit request count
-  /// and original booking timestamp remain unchanged.
   Future<Appointment> approveAppointmentChange(
     String appointmentId,
   ) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
-    final request = appointment.changeRequest;
+    return _updateAppointment(appointmentId, (appointment) {
+      final request = appointment.changeRequest;
 
-    _ensureUpcoming(appointment);
+      _ensureUpcoming(appointment);
 
-    if (appointment.status == AppointmentStatus.cancelled) {
-      throw const AppointmentException(
-        'A cancelled appointment cannot be changed.',
+      if (appointment.status == AppointmentStatus.cancelled) {
+        throw const AppointmentException(
+          'A cancelled appointment cannot be changed.',
+        );
+      }
+
+      if (request == null || request.status != ChangeRequestStatus.pending) {
+        throw const AppointmentException(
+          'There is no pending change request to approve.',
+        );
+      }
+
+      if (!request.dateTime.isAfter(DateTime.now())) {
+        throw const AppointmentException(
+          'The requested appointment date and time has already passed.',
+        );
+      }
+
+      final approvedRequest = _copyChangeRequest(
+        request,
+        status: ChangeRequestStatus.approved,
       );
-    }
 
-    if (request == null || request.status != ChangeRequestStatus.pending) {
-      throw const AppointmentException(
-        'There is no pending change request to approve.',
+      return _copyAppointment(
+        appointment,
+        title: 'Consultation with ${request.doctorName}',
+        doctorName: request.doctorName,
+        specialty: request.specialty,
+        dateTime: request.dateTime,
+        location: request.location,
+        isVideo: request.isVideo,
+        consultationFee: request.consultationFee,
+        reminderEnabled: request.reminderEnabled,
+        clearMeetingUrl: true,
+        changeRequest: approvedRequest,
       );
-    }
-
-    if (!request.dateTime.isAfter(DateTime.now())) {
-      throw const AppointmentException(
-        'The requested appointment date and time has already passed.',
-      );
-    }
-
-    final approvedRequest = _copyChangeRequest(
-      request,
-      status: ChangeRequestStatus.approved,
-    );
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      title: 'Consultation with ${request.doctorName}',
-      doctorName: request.doctorName,
-      specialty: request.specialty,
-      dateTime: request.dateTime,
-      location: request.location,
-      isVideo: request.isVideo,
-      consultationFee: request.consultationFee,
-      reminderEnabled: request.reminderEnabled,
-      clearMeetingUrl: true,
-      changeRequest: approvedRequest,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+    });
   }
 
   /// Rejects a patient's pending change request.
-  ///
-  /// The original appointment details and edit request count remain
-  /// unchanged. The rejected request is retained for patient display.
   Future<Appointment> rejectAppointmentChange(
     String appointmentId,
   ) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
-    final request = appointment.changeRequest;
+    return _updateAppointment(appointmentId, (appointment) {
+      final request = appointment.changeRequest;
 
-    _ensureUpcoming(appointment);
+      _ensureUpcoming(appointment);
 
-    if (request == null || request.status != ChangeRequestStatus.pending) {
-      throw const AppointmentException(
-        'There is no pending change request to reject.',
+      if (request == null || request.status != ChangeRequestStatus.pending) {
+        throw const AppointmentException(
+          'There is no pending change request to reject.',
+        );
+      }
+
+      final rejectedRequest = _copyChangeRequest(
+        request,
+        status: ChangeRequestStatus.rejected,
       );
-    }
 
-    final rejectedRequest = _copyChangeRequest(
-      request,
-      status: ChangeRequestStatus.rejected,
-    );
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      changeRequest: rejectedRequest,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+      return _copyAppointment(
+        appointment,
+        changeRequest: rejectedRequest,
+      );
+    });
   }
 
   /// Marks a past appointment as completed.
   Future<Appointment> markAppointmentDone(String appointmentId) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensurePast(appointment);
+      _ensureNotCancelled(appointment);
 
-    _ensurePast(appointment);
-    _ensureNotCancelled(appointment);
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      status: AppointmentStatus.done,
-      outcome: AppointmentOutcome.done,
-      clearChangeRequest: true,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+      return _copyAppointment(
+        appointment,
+        status: AppointmentStatus.done,
+        outcome: AppointmentOutcome.done,
+        clearChangeRequest: true,
+      );
+    });
   }
 
   /// Marks a past appointment as a no-show.
@@ -384,52 +373,28 @@ class AppointmentService {
     String appointmentId,
   ) async {
     await _prepareManagementAction();
+    await _requireRole(UserRole.doctor);
 
-    final appointment = _findAppointment(appointmentId);
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensurePast(appointment);
+      _ensureNotCancelled(appointment);
 
-    _ensurePast(appointment);
-    _ensureNotCancelled(appointment);
-
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      status: AppointmentStatus.noShow,
-      outcome: AppointmentOutcome.noShow,
-      clearChangeRequest: true,
-    );
-
-    _replaceAppointment(updatedAppointment);
-
-    return updatedAppointment;
+      return _copyAppointment(
+        appointment,
+        status: AppointmentStatus.noShow,
+        outcome: AppointmentOutcome.noShow,
+        clearChangeRequest: true,
+      );
+    });
   }
 
-  /// Updates the Google Meet URL of an upcoming confirmed video appointment.
+  /// Updates the Google Meet URL of a confirmed video appointment.
   Future<Appointment> updateMeetingUrl({
     required String appointmentId,
     required String meetingUrl,
   }) async {
     await _prepareManagementAction();
-
-    final appointment = _findAppointment(appointmentId);
-
-    _ensureUpcoming(appointment);
-
-    if (!appointment.isVideo) {
-      throw const AppointmentException(
-        'A meeting link can only be added to a video consultation.',
-      );
-    }
-
-    if (appointment.status != AppointmentStatus.confirmed) {
-      throw const AppointmentException(
-        'Only confirmed appointments can receive a meeting link.',
-      );
-    }
-
-    if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
-      throw const AppointmentException(
-        'Resolve the pending change request before updating the meeting link.',
-      );
-    }
+    await _requireRole(UserRole.doctor);
 
     final uri = Uri.tryParse(meetingUrl.trim());
 
@@ -442,19 +407,188 @@ class AppointmentService {
       );
     }
 
-    final updatedAppointment = _copyAppointment(
-      appointment,
-      meetingUrl: meetingUrl.trim(),
-    );
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensureUpcoming(appointment);
 
-    _replaceAppointment(updatedAppointment);
+      if (!appointment.isVideo) {
+        throw const AppointmentException(
+          'A meeting link can only be added to a video consultation.',
+        );
+      }
 
-    return updatedAppointment;
+      if (appointment.status != AppointmentStatus.confirmed) {
+        throw const AppointmentException(
+          'Only confirmed appointments can receive a meeting link.',
+        );
+      }
+
+      if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
+        throw const AppointmentException(
+          'Resolve the pending change request before updating the meeting link.',
+        );
+      }
+
+      return _copyAppointment(
+        appointment,
+        meetingUrl: meetingUrl.trim(),
+      );
+    });
   }
 
-  /// Checks whether a patient is still within the original 24-hour window.
+  // ---------------------------------------------------------------------------
+  // Patient appointment actions
+  // ---------------------------------------------------------------------------
+
+  /// Allows a patient to cancel an upcoming appointment within 24 hours
+  /// of its original booking time.
+  Future<Appointment> cancelPatientAppointment(
+    String appointmentId,
+  ) async {
+    await _prepareManagementAction();
+    await _requireRole(UserRole.patient);
+
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensureWithinChangeRequestWindow(appointment);
+      _ensureUpcoming(appointment);
+
+      if (appointment.status == AppointmentStatus.cancelled) {
+        throw const AppointmentException(
+          'This appointment has already been cancelled.',
+        );
+      }
+
+      return _copyAppointment(
+        appointment,
+        status: AppointmentStatus.cancelled,
+        clearChangeRequest: true,
+      );
+    });
+  }
+
+  /// Submits a patient's request to change booking details.
   ///
-  /// This check does not change or reset the original booking timestamp.
+  /// The original appointment remains unchanged until a doctor approves
+  /// the request. Every submitted request consumes one edit request.
+  Future<Appointment> requestAppointmentChange({
+    required String appointmentId,
+    required String doctorName,
+    required String specialty,
+    required DateTime dateTime,
+    required String location,
+    required bool isVideo,
+    required double consultationFee,
+    required bool reminderEnabled,
+  }) async {
+    await _prepareManagementAction();
+    await _requireRole(UserRole.patient);
+
+    return _updateAppointment(appointmentId, (appointment) {
+      _ensureWithinChangeRequestWindow(appointment);
+      _ensureUpcoming(appointment);
+
+      if (appointment.status == AppointmentStatus.cancelled) {
+        throw const AppointmentException(
+          'A cancelled appointment cannot be edited.',
+        );
+      }
+
+      if (appointment.changeRequest?.status == ChangeRequestStatus.pending) {
+        throw const AppointmentException(
+          'You already have a change request waiting for doctor approval.',
+        );
+      }
+
+      if (appointment.editRequestCount >= maximumEditRequests) {
+        throw const AppointmentException(
+          'You have used both allowed edit requests for this appointment.',
+        );
+      }
+
+      if (!dateTime.isAfter(DateTime.now())) {
+        throw const AppointmentException(
+          'The requested appointment date and time must be in the future.',
+        );
+      }
+
+      final request = AppointmentChangeRequest(
+        doctorName: doctorName,
+        specialty: specialty,
+        dateTime: dateTime,
+        location: location,
+        isVideo: isVideo,
+        consultationFee: consultationFee,
+        reminderEnabled: reminderEnabled,
+        requestedAt: DateTime.now(),
+      );
+
+      return _copyAppointment(
+        appointment,
+        changeRequest: request,
+        editRequestCount: appointment.editRequestCount + 1,
+      );
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Firestore update helper
+  // ---------------------------------------------------------------------------
+
+  /// Reads, validates, and updates an appointment atomically.
+  ///
+  /// A transaction prevents simultaneous requests from overwriting each
+  /// other's changes or bypassing the edit-request limit.
+  Future<Appointment> _updateAppointment(
+    String appointmentId,
+    Appointment Function(Appointment appointment) update,
+  ) async {
+    try {
+      final reference = _appointments.doc(appointmentId);
+
+      return await _firestore.runTransaction<Appointment>(
+        (transaction) async {
+          final snapshot = await transaction.get(reference);
+
+          if (!snapshot.exists || snapshot.data() == null) {
+            throw const AppointmentException(
+              'The appointment could not be found.',
+            );
+          }
+
+          final appointment = _fromFirestore(
+            snapshot.id,
+            snapshot.data()!,
+          );
+
+          final updatedAppointment = update(appointment);
+
+          transaction.update(
+            reference,
+            _toFirestore(updatedAppointment),
+          );
+
+          return updatedAppointment;
+        },
+      );
+    } on AppointmentException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw AppointmentException(
+        _firebaseErrorMessage(
+          e,
+          "We couldn't update the appointment. Please try again.",
+        ),
+      );
+    } catch (_) {
+      throw const AppointmentException(
+        "We couldn't update the appointment. Please try again.",
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Appointment validation
+  // ---------------------------------------------------------------------------
+
   void _ensureWithinChangeRequestWindow(Appointment appointment) {
     final bookedAt = appointment.bookedAt;
 
@@ -473,7 +607,6 @@ class AppointmentService {
     }
   }
 
-  /// Prevents changes to appointments whose scheduled time has passed.
   void _ensureUpcoming(Appointment appointment) {
     if (!appointment.dateTime.isAfter(DateTime.now())) {
       throw const AppointmentException(
@@ -488,7 +621,6 @@ class AppointmentService {
     }
   }
 
-  /// Ensures that an appointment has already passed.
   void _ensurePast(Appointment appointment) {
     if (appointment.dateTime.isAfter(DateTime.now())) {
       throw const AppointmentException(
@@ -497,7 +629,6 @@ class AppointmentService {
     }
   }
 
-  /// Prevents outcome changes to cancelled appointments.
   void _ensureNotCancelled(Appointment appointment) {
     if (appointment.status == AppointmentStatus.cancelled) {
       throw const AppointmentException(
@@ -506,56 +637,160 @@ class AppointmentService {
     }
   }
 
-  /// Simulates the delay and error handling of a management request.
-  Future<void> _prepareManagementAction() async {
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+  // ---------------------------------------------------------------------------
+  // Firestore serialization
+  // ---------------------------------------------------------------------------
 
-    if (DashboardService.instance.scenario == DemoScenario.error) {
-      throw const AppointmentException(
-        "We couldn't update the appointment. Please try again.",
-      );
-    }
+  /// Converts an appointment into the agreed Firestore document structure.
+  Map<String, dynamic> _toFirestore(Appointment appointment) {
+    return {
+      'title': appointment.title,
+      'patientId': appointment.patientId,
+      'patientName': appointment.patientName,
+      'doctorName': appointment.doctorName,
+      'specialty': appointment.specialty,
+      'dateTime': Timestamp.fromDate(appointment.dateTime),
+      'location': appointment.location,
+      'status': appointment.status.name,
+      'isVideo': appointment.isVideo,
+      'meetLink': appointment.meetingUrl,
+      'fee': appointment.consultationFee,
+      'reminder': appointment.reminderEnabled,
+      'bookedAt': appointment.bookedAt == null
+          ? null
+          : Timestamp.fromDate(appointment.bookedAt!),
+      'outcome': appointment.outcome.name,
+      'editRequestCount': appointment.editRequestCount,
+      'changeRequest': appointment.changeRequest == null
+          ? null
+          : _changeRequestToFirestore(appointment.changeRequest!),
+    };
   }
 
-  /// Finds an appointment by its unique ID.
-  Appointment _findAppointment(String appointmentId) {
-    for (final appointment in [
-      ..._createdAppointments,
-      ..._sampleAppointments,
-    ]) {
-      if (appointment.id == appointmentId) {
-        return appointment;
+  Map<String, dynamic> _changeRequestToFirestore(
+    AppointmentChangeRequest request,
+  ) {
+    return {
+      'doctorName': request.doctorName,
+      'specialty': request.specialty,
+      'dateTime': Timestamp.fromDate(request.dateTime),
+      'location': request.location,
+      'isVideo': request.isVideo,
+      'fee': request.consultationFee,
+      'reminder': request.reminderEnabled,
+      'requestedAt': Timestamp.fromDate(request.requestedAt),
+      'status': request.status.name,
+    };
+  }
+
+  /// Converts a Firestore document into the existing Appointment model.
+  Appointment _fromFirestore(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final requestData = data['changeRequest'];
+
+    AppointmentChangeRequest? changeRequest;
+
+    if (requestData is Map<String, dynamic>) {
+      changeRequest = _changeRequestFromFirestore(requestData);
+    } else if (requestData is Map) {
+      changeRequest = _changeRequestFromFirestore(
+        Map<String, dynamic>.from(requestData),
+      );
+    }
+
+    return Appointment(
+      id: id,
+      title: data['title'] as String? ?? 'Consultation',
+      patientName: data['patientName'] as String?,
+      patientId: data['patientId'] as String?,
+      doctorName: data['doctorName'] as String? ?? 'Doctor',
+      specialty: data['specialty'] as String? ?? 'General Consultation',
+      dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
+      location: data['location'] as String? ?? '',
+      isVideo: data['isVideo'] as bool? ?? false,
+      status: _enumValue(
+        AppointmentStatus.values,
+        data['status'],
+        AppointmentStatus.pending,
+      ),
+      consultationFee: _readDouble(data['fee']),
+      reminderEnabled: data['reminder'] as bool? ?? false,
+      meetingUrl: data['meetLink'] as String?,
+      bookedAt: _readDate(data['bookedAt']),
+      outcome: _enumValue(
+        AppointmentOutcome.values,
+        data['outcome'],
+        AppointmentOutcome.none,
+      ),
+      changeRequest: changeRequest,
+      editRequestCount: data['editRequestCount'] as int? ?? 0,
+    );
+  }
+
+  AppointmentChangeRequest _changeRequestFromFirestore(
+    Map<String, dynamic> data,
+  ) {
+    return AppointmentChangeRequest(
+      doctorName: data['doctorName'] as String? ?? '',
+      specialty: data['specialty'] as String? ?? '',
+      dateTime: _readDate(data['dateTime']) ?? DateTime.now(),
+      location: data['location'] as String? ?? '',
+      isVideo: data['isVideo'] as bool? ?? false,
+      consultationFee: _readDouble(data['fee']),
+      reminderEnabled: data['reminder'] as bool? ?? false,
+      requestedAt: _readDate(data['requestedAt']) ?? DateTime.now(),
+      status: _enumValue(
+        ChangeRequestStatus.values,
+        data['status'],
+        ChangeRequestStatus.pending,
+      ),
+    );
+  }
+
+  DateTime? _readDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
+  double? _readDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return null;
+  }
+
+  T _enumValue<T extends Enum>(
+    List<T> values,
+    dynamic value,
+    T fallback,
+  ) {
+    for (final item in values) {
+      if (item.name == value) {
+        return item;
       }
     }
 
-    throw const AppointmentException(
-      'The appointment could not be found.',
-    );
+    return fallback;
   }
 
-  /// Replaces an existing appointment in the correct in-memory list.
-  void _replaceAppointment(Appointment updatedAppointment) {
-    final createdIndex = _createdAppointments.indexWhere(
-      (appointment) => appointment.id == updatedAppointment.id,
-    );
+  // ---------------------------------------------------------------------------
+  // Model copy helpers
+  // ---------------------------------------------------------------------------
 
-    if (createdIndex != -1) {
-      _createdAppointments[createdIndex] = updatedAppointment;
-      return;
-    }
-
-    final sampleIndex = _sampleAppointments.indexWhere(
-      (appointment) => appointment.id == updatedAppointment.id,
-    );
-
-    if (sampleIndex != -1) {
-      _sampleAppointments[sampleIndex] = updatedAppointment;
-    }
-  }
-
-  /// Creates a copy of an appointment with selected fields updated.
-  ///
-  /// The clear flags allow nullable fields to be explicitly reset to null.
   Appointment _copyAppointment(
     Appointment appointment, {
     String? title,
@@ -597,7 +832,6 @@ class AppointmentService {
     );
   }
 
-  /// Creates a copy of a change request with an updated review status.
   AppointmentChangeRequest _copyChangeRequest(
     AppointmentChangeRequest request, {
     required ChangeRequestStatus status,
@@ -615,90 +849,23 @@ class AppointmentService {
     );
   }
 
-  /// Builds sample appointments for the patient and doctor views.
-  ///
-  /// Booking timestamps are included to demonstrate the 24-hour rule.
-  List<Appointment> _buildSampleAppointments() {
-    final now = DateTime.now();
+  // ---------------------------------------------------------------------------
+  // Firebase error messages
+  // ---------------------------------------------------------------------------
 
-    return [
-      Appointment(
-        id: 'apt-001',
-        title: 'General Consultation',
-        patientName: 'Ana Dela Cruz',
-        patientId: 'PAT-001',
-        doctorName: 'Dr. Elena Cruz',
-        specialty: 'General Practitioner',
-        dateTime: now.add(const Duration(days: 2)),
-        location: 'Health360 Medical Clinic',
-        isVideo: false,
-        status: AppointmentStatus.confirmed,
-        consultationFee: 500,
-        bookedAt: now.subtract(const Duration(hours: 2)),
-        editRequestCount: 0,
-      ),
-      Appointment(
-        id: 'apt-002',
-        title: 'Internal Medicine Consultation',
-        patientName: 'Paolo Mendoza',
-        patientId: 'PAT-002',
-        doctorName: 'Dr. Andrea Santos',
-        specialty: 'Internal Medicine',
-        dateTime: now.add(const Duration(days: 3)),
-        location: 'Google Meet',
-        isVideo: true,
-        status: AppointmentStatus.pending,
-        consultationFee: 700,
-        bookedAt: now.subtract(const Duration(hours: 26)),
-        editRequestCount: 0,
-      ),
-      Appointment(
-        id: 'apt-003',
-        title: 'Pediatric Consultation',
-        patientName: 'Mark Villanueva',
-        patientId: 'PAT-003',
-        doctorName: 'Dr. Sofia Villanueva',
-        specialty: 'Pediatrician',
-        dateTime: now.add(const Duration(days: 4)),
-        location: 'Health360 Medical Clinic',
-        isVideo: false,
-        status: AppointmentStatus.cancelled,
-        consultationFee: 650,
-        bookedAt: now.subtract(const Duration(days: 2)),
-        editRequestCount: 0,
-      ),
-      Appointment(
-        id: 'apt-004',
-        title: 'General Consultation',
-        patientName: 'Liza Ramos',
-        patientId: 'PAT-004',
-        doctorName: 'Dr. Elena Cruz',
-        specialty: 'General Practitioner',
-        dateTime: now.subtract(const Duration(days: 5)),
-        location: 'Health360 Medical Clinic',
-        isVideo: false,
-        status: AppointmentStatus.done,
-        consultationFee: 500,
-        bookedAt: now.subtract(const Duration(days: 7)),
-        outcome: AppointmentOutcome.done,
-        editRequestCount: 0,
-      ),
-      Appointment(
-        id: 'apt-005',
-        title: 'Internal Medicine Consultation',
-        patientName: 'Paolo Mendoza',
-        patientId: 'PAT-002',
-        doctorName: 'Dr. Andrea Santos',
-        specialty: 'Internal Medicine',
-        dateTime: now.subtract(const Duration(days: 2)),
-        location: 'Google Meet',
-        isVideo: true,
-        status: AppointmentStatus.noShow,
-        consultationFee: 700,
-        bookedAt: now.subtract(const Duration(days: 4)),
-        outcome: AppointmentOutcome.noShow,
-        editRequestCount: 0,
-      ),
-    ];
+  String _firebaseErrorMessage(
+    FirebaseException error,
+    String fallback,
+  ) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'You do not have permission to access this appointment. Check your account role and Firestore security rules.';
+      case 'unavailable':
+        return 'The service is temporarily unavailable. Check your internet connection and try again.';
+      case 'not-found':
+        return 'The appointment could not be found.';
+      default:
+        return error.message ?? fallback;
+    }
   }
 }

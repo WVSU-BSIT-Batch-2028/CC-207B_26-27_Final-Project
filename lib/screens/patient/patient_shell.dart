@@ -20,32 +20,36 @@ import 'appointments/booking/appointment_confirmation_screen.dart';
 import 'prescriptions/prescriptions_screen.dart';
 
 /// Patient frame: Home / Appointment / Prescription / Records / Profile.
-///
-/// IndexedStack keeps each tab alive, so switching tabs never reloads data.
 class PatientShell extends StatefulWidget {
-  /// Creates the patient navigation shell.
   const PatientShell({super.key});
 
   @override
   State<PatientShell> createState() => _PatientShellState();
 }
 
-/// Manages patient tab navigation and appointment booking navigation.
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
-
-  /// Changes the currently selected patient tab.
-  void _goTo(int index) => setState(() => _index = index);
-
-  /// Refreshes the Appointments Overview after a successful booking.
-  ///
-  /// Replacing its key recreates the screen and loads the latest
-  /// appointments from AppointmentService.
   int _appointmentsRefreshToken = 0;
 
-  /// Returns to the Appointments Overview after confirmation.
-  void _finishBooking() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+  void _goTo(int index) {
+    if (!mounted) return;
+
+    setState(() {
+      _index = index;
+    });
+  }
+
+  /// Returns to the Patient Shell after booking confirmation.
+  /// Refreshes the Appointments screen to retrieve the latest records.
+  void _finishBooking(
+    NavigatorState navigator,
+    Route<dynamic>? patientRoute,
+  ) {
+    if (!mounted || !navigator.mounted || patientRoute == null) return;
+
+    navigator.popUntil(
+      (route) => identical(route, patientRoute),
+    );
 
     if (!mounted) return;
 
@@ -55,51 +59,76 @@ class _PatientShellState extends State<PatientShell> {
     });
   }
 
-  /// Opens the doctor selection stage of appointment booking.
-  Future<void> _openDoctorSelection() async {
-    await Navigator.of(context).push(
+  /// Opens the appointment booking flow.
+  void _openDoctorSelection() {
+    // Capture the actual Patient Shell route.
+    final patientRoute = ModalRoute.of(context);
+
+    Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => DoctorSelectionScreen(
-          onNext: (Doctor doctor) {
-            // Open the date and time selection stage.
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => DateTimeSelectionScreen(
-                  doctor: doctor,
-                  onNext: (DateTime dateTime) {
-                    // Open the appointment details stage.
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => AppointmentDetailsScreen(
-                          doctor: doctor,
-                          appointmentDateTime: dateTime,
-                          onBookNow: (details) {
-                            // Open the appointment confirmation stage.
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => AppointmentConfirmationScreen(
-                                  doctor: doctor,
-                                  appointmentDateTime: dateTime,
-                                  bookingDetails: details,
-                                  onDone: _finishBooking,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+        builder: (doctorContext) {
+          return DoctorSelectionScreen(
+            onNext: (Doctor doctor) {
+              if (!doctorContext.mounted) return;
+
+              Navigator.of(doctorContext).push(
+                MaterialPageRoute<void>(
+                  builder: (dateTimeContext) {
+                    return DateTimeSelectionScreen(
+                      doctor: doctor,
+                      onNext: (DateTime dateTime) {
+                        if (!dateTimeContext.mounted) return;
+
+                        Navigator.of(dateTimeContext).push(
+                          MaterialPageRoute<void>(
+                            builder: (detailsContext) {
+                              return AppointmentDetailsScreen(
+                                doctor: doctor,
+                                appointmentDateTime: dateTime,
+                                onBookNow: (details) {
+                                  if (!detailsContext.mounted) return;
+
+                                  Navigator.of(detailsContext).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (confirmationContext) {
+                                        return AppointmentConfirmationScreen(
+                                          doctor: doctor,
+                                          appointmentDateTime: dateTime,
+                                          bookingDetails: details,
+                                          onDone: () {
+                                            if (!confirmationContext.mounted) {
+                                              return;
+                                            }
+
+                                            _finishBooking(
+                                              Navigator.of(
+                                                confirmationContext,
+                                              ),
+                                              patientRoute,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  /// Opens the video consultation screen for the selected appointment.
+  /// Opens the video consultation screen.
   void _openVideoConsultation(Appointment appointment) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -114,20 +143,25 @@ class _PatientShellState extends State<PatientShell> {
   void initState() {
     super.initState();
 
-    // Show the "How to use" guide the first time the patient side opens.
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _showGuideIfFirstTime());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _showGuideIfFirstTime();
+      }
+    });
   }
 
-  /// Displays the patient guide when it has not been viewed before.
+  /// Displays the patient guide when it has not been viewed.
   Future<void> _showGuideIfFirstTime() async {
-    if (await GuideService.instance.hasSeen(UserRole.patient)) return;
-    if (!mounted) return;
+    final hasSeen = await GuideService.instance.hasSeen(UserRole.patient);
+
+    if (!mounted || hasSeen) return;
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => const HowToUseScreen(role: UserRole.patient),
+        builder: (_) => const HowToUseScreen(
+          role: UserRole.patient,
+        ),
       ),
     );
 
@@ -136,14 +170,17 @@ class _PatientShellState extends State<PatientShell> {
 
   /// Opens the AI assistant and handles its requested navigation action.
   Future<void> _openAssistant() async {
-    final action = await Navigator.of(context).pushNamed(AppRoutes.assistant);
+    final action = await Navigator.of(context).pushNamed(
+      AppRoutes.assistant,
+    );
+
+    if (!mounted) return;
 
     if (action == AssistantAction.bookAppointment) {
       _goTo(1);
     }
   }
 
-  /// Builds the patient shell and bottom navigation.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,21 +191,18 @@ class _PatientShellState extends State<PatientShell> {
             onNavigate: _goTo,
             onOpenAssistant: _openAssistant,
           ),
-
-          // Patient Appointments Overview.
           AppointmentsScreen(
             key: ValueKey(_appointmentsRefreshToken),
             onBookAppointment: _openDoctorSelection,
             onJoinConsultation: _openVideoConsultation,
           ),
-
-          // Patient Prescriptions (Active / History).
           const PrescriptionsScreen(),
-
-          // Records tab (Gian). Back arrow returns to Home.
-          RecordsScreen(onBack: () => _goTo(0)),
-
-          const ProfileScreen(role: UserRole.patient),
+          RecordsScreen(
+            onBack: () => _goTo(0),
+          ),
+          const ProfileScreen(
+            role: UserRole.patient,
+          ),
         ],
       ),
       bottomNavigationBar: H360BottomNav(

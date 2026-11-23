@@ -4,7 +4,8 @@
 // patient's avatar, name, sex and age, and phone number, then three cards
 // (Medical Conditions, Allergies, Last Visit) and a "View Full Record" button.
 //
-// WHAT THE DOCTOR CAN DO: tap "View Full Record", pull down to refresh, tap
+// WHAT THE DOCTOR CAN DO: tap "View Full Record", tap "Add Consultation Notes",
+// pull down to refresh, tap
 // the back arrow to return to the Patients list.
 //
 // WHERE THE DATA COMES FROM: the name, age, sex, phone and last visit come
@@ -29,19 +30,22 @@ import 'widgets/patient_info_card.dart';
 enum _LoadStatus { loading, ready, error }
 
 /// Doctor Patient Details. [onBack] returns to the Patients list;
-/// [onViewFullRecord] opens the patient's full record.
+/// [onViewFullRecord] opens the patient's full record; [onAddConsultationNote]
+/// opens the form to write consultation notes.
 class PatientDetailsScreen extends StatefulWidget {
   const PatientDetailsScreen({
     super.key,
     required this.patient,
     required this.onBack,
     required this.onViewFullRecord,
+    required this.onAddConsultationNote,
   });
 
   /// The patient that was tapped in the list.
   final Patient patient;
   final VoidCallback onBack;
   final VoidCallback onViewFullRecord;
+  final VoidCallback onAddConsultationNote;
 
   @override
   State<PatientDetailsScreen> createState() => _PatientDetailsScreenState();
@@ -115,6 +119,11 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   /// because it comes from the Patient we already have.
   Widget _buildProfile() {
     final patient = widget.patient;
+    // "Female - 21 years old", leaving out whatever the profile does not have.
+    final details = [
+      if (patient.sex != null && patient.sex!.isNotEmpty) patient.sex!,
+      if (patient.age != null) '${patient.age} years old',
+    ].join(' - ');
     return Column(
       children: [
         // Large avatar circle
@@ -134,14 +143,16 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.navy),
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          '${patient.sex} - ${patient.age} years old',
-          style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
-        Text(
-          patient.phone,
-          style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
+        if (details.isNotEmpty)
+          Text(
+            details,
+            style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          ),
+        if (patient.phone != null && patient.phone!.isNotEmpty)
+          Text(
+            patient.phone!,
+            style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          ),
       ],
     );
   }
@@ -183,10 +194,19 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           PatientInfoCard(
             icon: Icons.calendar_today_outlined,
             label: 'Last Visit',
-            value: formatLongDate(widget.patient.lastVisit),
+            value: widget.patient.lastVisit == null
+                ? 'No visits yet'
+                : formatLongDate(widget.patient.lastVisit!),
           ),
           const SizedBox(height: AppSpacing.lg),
           H360Button(label: 'View Full Record', onPressed: widget.onViewFullRecord),
+          gap,
+          H360Button(
+            label: 'Add Consultation Notes',
+            icon: Icons.note_add_outlined,
+            inverted: true,
+            onPressed: widget.onAddConsultationNote,
+          ),
         ];
     }
   }
