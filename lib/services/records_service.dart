@@ -1,3 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 import '../models/consultation_detail.dart';
 import '../models/health_record.dart';
 import '../models/lab_result_detail.dart';
@@ -10,225 +14,232 @@ class RecordsException implements Exception {
   final String message;
 }
 
-/// Loads the patient's records for the Records tab.
+/// Loads a patient's records (consultations and lab results) from Firestore.
 ///
-/// MOCK for now: it waits a little (to show the loading state) and returns
-/// sample data. When the backend is ready, replace only the body of
-/// [fetchRecords]; the screen does not need to change.
+/// Collections (see FIRESTORE_PLAN.md):
+/// - `consultations/{id}`: patientId, doctorName, department, type, date,
+///   diagnosis, treatment (and notes).
+/// - `labResults/{id}`: patientId, name, date, status, enteredBy,
+///   overallResult, doctorNotes and a `values` list.
+///
+/// Every list is read with `where('patientId', isEqualTo: uid)` for the
+/// signed-in patient, and sorted here in the app (so no Firestore index is
+/// needed). The screens do not change: they only call these methods.
 class RecordsService {
   RecordsService._();
   static final RecordsService instance = RecordsService._();
 
-  /// Returns all records, newest first.
-  ///
-  /// Reuses the demo switch from patient Home (long-press the avatar) so the
-  /// empty and error states can be shown during the presentation.
-  Future<List<HealthRecord>> fetchRecords() async {
-    // Simulated network delay, so the skeleton is visible.
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
-    switch (DashboardService.instance.scenario) {
-      case DemoScenario.error:
-        throw const RecordsException(
-          "We couldn't load your records. Check your connection and try again.",
-        );
-      case DemoScenario.empty:
-        return const <HealthRecord>[];
-      case DemoScenario.normal:
-        final records = <HealthRecord>[
-          HealthRecord(
-            id: 'consult-001',
-            type: RecordType.consultation,
-            title: 'General Consultation',
-            subtitle: 'Dr. Maria Santos',
-            date: DateTime(2026, 9, 20),
-          ),
-          HealthRecord(
-            id: 'lab-001',
-            type: RecordType.labResult,
-            title: 'Laboratory Results',
-            subtitle: 'Complete Blood Count',
-            date: DateTime(2026, 9, 8),
-          ),
-          HealthRecord(
-            id: 'lab-002',
-            type: RecordType.labResult,
-            title: 'Laboratory Results',
-            subtitle: 'Lipid Profile',
-            date: DateTime(2026, 8, 28),
-          ),
-          HealthRecord(
-            id: 'consult-002',
-            type: RecordType.consultation,
-            title: 'General Consultation',
-            subtitle: 'Dr. John Doe',
-            date: DateTime(2026, 8, 12),
-          ),
-        ];
-        // Newest first, so the list order never depends on the data order.
-        records.sort((a, b) => b.date.compareTo(a.date));
-        return records;
-    }
+  /// Returns all records of the signed-in patient, newest first.
+  ///
+  /// Reuses the demo switch from Home (long-press the avatar) so the empty and
+  /// error states can still be shown during the presentation.
+  Future<List<HealthRecord>> fetchRecords() async {
+    _demoThrowsIfError("We couldn't load your records. Check your connection and try again.");
+    if (_demoIsEmpty()) return const <HealthRecord>[];
+    final uid = _signedInUid();
+
+    return _guard(() async {
+      final results = await Future.wait([
+        _consultationRecords(uid),
+        _labRecords(uid),
+      ]);
+      final records = [...results[0], ...results[1]];
+      records.sort((a, b) => b.date.compareTo(a.date));
+      return records;
+    });
   }
 
   /// Returns only the consultations, newest first (for the Consultations screen).
   Future<List<HealthRecord>> fetchConsultations() async {
-    final all = await fetchRecords();
-    return all.where((r) => r.type == RecordType.consultation).toList();
+    _demoThrowsIfError("We couldn't load your records. Check your connection and try again.");
+    if (_demoIsEmpty()) return const <HealthRecord>[];
+    final uid = _signedInUid();
+    return _guard(() => _consultationRecords(uid));
   }
 
   /// Returns only the lab results, newest first (for the Lab Results screen).
   Future<List<HealthRecord>> fetchLabResults() async {
-    final all = await fetchRecords();
-    return all.where((r) => r.type == RecordType.labResult).toList();
+    _demoThrowsIfError("We couldn't load your records. Check your connection and try again.");
+    if (_demoIsEmpty()) return const <HealthRecord>[];
+    final uid = _signedInUid();
+    return _guard(() => _labRecords(uid));
   }
 
   /// Returns the full medical record of one consultation (for the popup).
   ///
-  /// Mock data for now. Throws [RecordsException] in the Error demo scenario,
-  /// or if no consultation has that [id].
+  /// Throws [RecordsException] if the document does not exist or cannot be read.
   Future<ConsultationDetail> fetchConsultationDetail(String id) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    _demoThrowsIfError("We couldn't load this medical record. Check your connection and try again.");
 
-    if (DashboardService.instance.scenario == DemoScenario.error) {
-      throw const RecordsException(
-        "We couldn't load this medical record. Check your connection and try again.",
+    return _guard(() async {
+      final snap = await _db.collection('consultations').doc(id).get();
+      final data = snap.data();
+      if (!snap.exists || data == null) {
+        throw const RecordsException('This medical record could not be found.');
+      }
+      final date = _toDate(data['date']);
+      if (date == null) {
+        throw const RecordsException('This medical record is incomplete.');
+      }
+
+      return ConsultationDetail(
+        id: snap.id,
+        doctorName: _text(data['doctorName'], 'Not recorded'),
+        department: _text(data['department'], 'General Consultation'),
+        type: _text(data['type'], 'Consultation'),
+        date: date,
+        // The plan has a single `notes` field, so it is the fallback for the diagnosis.
+        diagnosis: _text(data['diagnosis'], _text(data['notes'], 'No diagnosis recorded.')),
+        treatment: _text(data['treatment'], 'No recommendations recorded.'),
       );
-    }
-
-    final details = <String, ConsultationDetail>{
-      'consult-001': ConsultationDetail(
-        id: 'consult-001',
-        doctorName: 'Dr. Maria Santos',
-        department: 'General Consultation',
-        type: 'Consultation',
-        date: DateTime(2026, 9, 20),
-        diagnosis: 'Patient reported cough, sore throat, and mild fever.',
-        treatment: 'Rest, increase fluid intake, and take prescribed medication as directed.',
-      ),
-      'consult-002': ConsultationDetail(
-        id: 'consult-002',
-        doctorName: 'Dr. John Doe',
-        department: 'General Consultation',
-        type: 'Consultation',
-        date: DateTime(2026, 8, 12),
-        diagnosis: 'Patient reported persistent headache and fatigue for three days.',
-        treatment: 'Get enough sleep, drink plenty of water, and return if symptoms last more than a week.',
-      ),
-    };
-
-    final detail = details[id];
-    if (detail == null) {
-      throw const RecordsException('This medical record could not be found.');
-    }
-    return detail;
+    });
   }
 
   /// Returns the full lab result (values, notes) for the popup.
   ///
-  /// Mock data for now. 'lab-001' is all normal (as in the prototype);
-  /// 'lab-002' has a High and a Low value, to demo the abnormal highlighting.
-  /// Throws [RecordsException] in the Error demo scenario or for an unknown [id].
+  /// Used by the patient's Records and by the doctor's View Lab Results.
+  /// Throws [RecordsException] if the document does not exist or cannot be read.
   Future<LabResultDetail> fetchLabResultDetail(String id) async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    _demoThrowsIfError("We couldn't load this lab result. Check your connection and try again.");
 
-    if (DashboardService.instance.scenario == DemoScenario.error) {
-      throw const RecordsException(
-        "We couldn't load this lab result. Check your connection and try again.",
+    return _guard(() async {
+      final snap = await _db.collection('labResults').doc(id).get();
+      final data = snap.data();
+      if (!snap.exists || data == null) {
+        throw const RecordsException('This lab result could not be found.');
+      }
+      final date = _toDate(data['date']);
+      if (date == null) {
+        throw const RecordsException('This lab result is incomplete.');
+      }
+
+      // The values are a list of maps (name, value, unit, range, flag).
+      final rawValues = data['values'];
+      final values = <LabValue>[
+        if (rawValues is List)
+          for (final item in rawValues)
+            if (item is Map) LabValue.fromMap(Map<String, dynamic>.from(item)),
+      ];
+
+      return LabResultDetail(
+        id: snap.id,
+        testName: _text(data['name'], 'Lab Result'),
+        patientName: await _patientName(data['patientId']),
+        requestedBy: _text(data['enteredBy'], 'Not recorded'),
+        status: _text(data['status'], 'Complete'),
+        date: date,
+        results: values,
+        overallResult: _text(data['overallResult'], 'No summary recorded.'),
+        doctorNotes: _text(data['doctorNotes'], 'No notes recorded.'),
       );
-    }
+    });
+  }
 
-    final details = <String, LabResultDetail>{
-      'lab-001': LabResultDetail(
-        id: 'lab-001',
-        testName: 'CBC - Complete Blood Count',
-        patientName: 'Jahna Erika Lagne',
-        requestedBy: 'Dr. John Doe',
-        status: 'Complete',
-        date: DateTime(2026, 9, 8),
-        results: const [
-          LabValue(name: 'Hemoglobin', value: 14.2, unit: 'g/dL', min: 13.0, max: 17.0),
-          LabValue(name: 'Hematocrit', value: 42, unit: '%', min: 40, max: 52, decimals: 0),
-          LabValue(name: 'WBC Count', value: 7.5, unit: '×10⁹/L', min: 4.0, max: 11.0),
-          LabValue(name: 'RBC Count', value: 4.8, unit: '×10¹²/L', min: 4.5, max: 5.9),
-          LabValue(name: 'Platelets', value: 250, unit: '×10⁹/L', min: 150, max: 450, decimals: 0),
-        ],
-        overallResult: 'Results are within the normal reference range.',
-        doctorNotes: 'No significant abnormalities noted.',
-      ),
-      'lab-002': LabResultDetail(
-        id: 'lab-002',
-        testName: 'Lipid Profile',
-        patientName: 'Jahna Erika Lagne',
-        requestedBy: 'Dr. Maria Santos',
-        status: 'Complete',
-        date: DateTime(2026, 8, 28),
-        results: const [
-          LabValue(name: 'Total Cholesterol', value: 215, unit: 'mg/dL', min: 125, max: 200, decimals: 0),
-          LabValue(name: 'LDL Cholesterol', value: 140, unit: 'mg/dL', min: 0, max: 100, decimals: 0),
-          LabValue(name: 'HDL Cholesterol', value: 35, unit: 'mg/dL', min: 40, max: 100, decimals: 0),
-          LabValue(name: 'Triglycerides', value: 130, unit: 'mg/dL', min: 0, max: 150, decimals: 0),
-        ],
-        overallResult: 'Total and LDL cholesterol are above the reference range; HDL is below it.',
-        doctorNotes: 'Reduce fatty foods, exercise regularly, and repeat the test in 3 months.',
-      ),
-      // 'lab-003', 'lab-201' and 'lab-401' are opened from the doctor's
-      // Patient Lab Results list (View Lab Results popup).
-      'lab-003': LabResultDetail(
-        id: 'lab-003',
-        testName: 'Urinalysis',
-        patientName: 'Jahna Erika Lagne',
-        requestedBy: 'Dr. John Doe',
-        status: 'Complete',
-        date: DateTime(2026, 8, 12),
-        results: const [
-          LabValue(name: 'pH', value: 6.0, unit: '', min: 4.5, max: 8.0),
-          LabValue(name: 'Specific Gravity', value: 1.015, unit: '', min: 1.005, max: 1.030, decimals: 3),
-          LabValue(name: 'WBC (urine)', value: 2, unit: '/HPF', min: 0, max: 5, decimals: 0),
-          LabValue(name: 'RBC (urine)', value: 1, unit: '/HPF', min: 0, max: 3, decimals: 0),
-        ],
-        overallResult: 'Results are within the normal reference range.',
-        doctorNotes: 'No signs of infection.',
-      ),
-      'lab-201': LabResultDetail(
-        id: 'lab-201',
-        testName: 'Lipid Profile',
-        patientName: 'Juan Dae',
-        requestedBy: 'Dr. Maria Santos',
-        status: 'Complete',
-        date: DateTime(2025, 5, 15),
-        results: const [
-          LabValue(name: 'Total Cholesterol', value: 230, unit: 'mg/dL', min: 125, max: 200, decimals: 0),
-          LabValue(name: 'LDL Cholesterol', value: 150, unit: 'mg/dL', min: 0, max: 100, decimals: 0),
-          LabValue(name: 'HDL Cholesterol', value: 45, unit: 'mg/dL', min: 40, max: 100, decimals: 0),
-          LabValue(name: 'Triglycerides', value: 160, unit: 'mg/dL', min: 0, max: 150, decimals: 0),
-        ],
-        overallResult: 'Total cholesterol, LDL and triglycerides are above the reference range.',
-        doctorNotes: 'Follow a low-fat diet and repeat the test in 3 months.',
-      ),
-      'lab-401': LabResultDetail(
-        id: 'lab-401',
-        testName: 'CBC - Complete Blood Count',
-        patientName: 'Carlos Reyes',
-        requestedBy: 'Dr. Maria Santos',
-        status: 'Complete',
-        date: DateTime(2025, 3, 3),
-        results: const [
-          LabValue(name: 'Hemoglobin', value: 15.1, unit: 'g/dL', min: 13.0, max: 17.0),
-          LabValue(name: 'Hematocrit', value: 45, unit: '%', min: 40, max: 52, decimals: 0),
-          LabValue(name: 'WBC Count', value: 6.8, unit: '×10⁹/L', min: 4.0, max: 11.0),
-          LabValue(name: 'RBC Count', value: 5.2, unit: '×10¹²/L', min: 4.5, max: 5.9),
-          LabValue(name: 'Platelets', value: 270, unit: '×10⁹/L', min: 150, max: 450, decimals: 0),
-        ],
-        overallResult: 'Results are within the normal reference range.',
-        doctorNotes: 'No significant abnormalities noted.',
-      ),
-    };
+  // ---------------------------------------------------------------- helpers
 
-    final detail = details[id];
-    if (detail == null) {
-      throw const RecordsException('This lab result could not be found.');
+  /// The consultations of one patient as list cards (sorted newest first).
+  Future<List<HealthRecord>> _consultationRecords(String uid) async {
+    final snap = await _db.collection('consultations').where('patientId', isEqualTo: uid).get();
+    final records = <HealthRecord>[];
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final date = _toDate(data['date']);
+      if (date == null) continue; // skip a document that has no date
+      records.add(HealthRecord(
+        id: doc.id,
+        type: RecordType.consultation,
+        title: _text(data['department'], 'General Consultation'),
+        subtitle: _text(data['doctorName'], 'Doctor'),
+        date: date,
+      ));
     }
-    return detail;
+    records.sort((a, b) => b.date.compareTo(a.date));
+    return records;
+  }
+
+  /// The lab results of one patient as list cards (sorted newest first).
+  Future<List<HealthRecord>> _labRecords(String uid) async {
+    final snap = await _db.collection('labResults').where('patientId', isEqualTo: uid).get();
+    final records = <HealthRecord>[];
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final date = _toDate(data['date']);
+      if (date == null) continue; // skip a document that has no date
+      records.add(HealthRecord(
+        id: doc.id,
+        type: RecordType.labResult,
+        title: 'Laboratory Results',
+        subtitle: _text(data['name'], 'Lab Result'),
+        date: date,
+      ));
+    }
+    records.sort((a, b) => b.date.compareTo(a.date));
+    return records;
+  }
+
+  /// The patient's full name from `users/{uid}`, or "Patient" if not found.
+  Future<String> _patientName(Object? patientId) async {
+    if (patientId is! String || patientId.isEmpty) return 'Patient';
+    final snap = await _db.collection('users').doc(patientId).get();
+    return _text(snap.data()?['fullName'], 'Patient');
+  }
+
+  /// The signed-in user's uid. Throws if nobody is signed in.
+  String _signedInUid() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw const RecordsException('Please sign in again to see your records.');
+    }
+    return user.uid;
+  }
+
+  /// Runs a Firestore call and turns Firebase errors into a [RecordsException]
+  /// with a friendly message, so the screens show their normal error state.
+  Future<T> _guard<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } on FirebaseException catch (e) {
+      throw RecordsException(_messageFor(e));
+    }
+  }
+
+  /// A friendly message for a Firebase error code.
+  String _messageFor(FirebaseException e) {
+    switch (e.code) {
+      case 'permission-denied':
+        return "You don't have permission to view these records.";
+      case 'unavailable':
+        return 'No connection right now. Check your internet and try again.';
+      case 'failed-precondition':
+        return 'This list needs a Firestore index. Open the browser console (F12) and click the link in the error.';
+      default:
+        return "We couldn't load your records. Please try again.";
+    }
+  }
+
+  /// A Firestore Timestamp (or DateTime or ISO text) as a DateTime, or null.
+  DateTime? _toDate(Object? value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
+  /// [value] as trimmed text, or [fallback] if it is missing or empty.
+  String _text(Object? value, String fallback) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  /// True in the "Empty" demo scenario (long-press the avatar on Home).
+  bool _demoIsEmpty() => DashboardService.instance.scenario == DemoScenario.empty;
+
+  /// Throws in the "Error" demo scenario, so the error state can be demoed.
+  void _demoThrowsIfError(String message) {
+    if (DashboardService.instance.scenario == DemoScenario.error) {
+      throw RecordsException(message);
+    }
   }
 }

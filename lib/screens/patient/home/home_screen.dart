@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../services/dashboard_service.dart';
 import '../../../models/dashboard_data.dart';
+import '../../../models/user_role.dart';
 import '../../../models/vital_sign.dart';
+import '../../../services/dashboard_service.dart';
+import '../../../services/profile_service.dart';
 import '../../../widgets/demo_scenario_sheet.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/section_header.dart';
@@ -20,14 +22,9 @@ import 'widgets/vital_tile.dart';
 enum _LoadStatus { loading, ready, error }
 
 /// Patient Home / Dashboard.
-///
-/// Handles the three async states the rubric asks for:
-/// loading (skeleton), error (retry) and empty (call to action).
-/// Pull down to refresh. Long-press the avatar for the demo menu.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onNavigate, required this.onOpenAssistant});
 
-  /// Switches the bottom-nav tab (0 Home, 1 Appointment, 2 Prescription, 3 Records, 4 Profile).
   final ValueChanged<int> onNavigate;
   final VoidCallback onOpenAssistant;
 
@@ -38,6 +35,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   _LoadStatus _status = _LoadStatus.loading;
   DashboardData? _data;
+  String? _userFirstName;
   String _error = '';
 
   @override
@@ -46,14 +44,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _load();
   }
 
-  /// Fetches the dashboard. [showSkeleton] is false for pull-to-refresh.
+  /// Fetches the dashboard and signed-in user's name.
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final data = await DashboardService.instance.fetchDashboard();
+      final results = await Future.wait([
+        DashboardService.instance.fetchDashboard(),
+        ProfileService.instance.load(UserRole.patient),
+      ]);
       if (!mounted) return;
+      final data = results[0] as DashboardData;
+      final profile = results[1] as dynamic;
+      final fullName = (profile.fullName as String).trim();
+      final firstName = fullName.isEmpty
+          ? data.patientFirstName
+          : fullName.split(RegExp(r'\s+')).first;
+
       setState(() {
         _data = data;
+        _userFirstName = firstName;
         _status = _LoadStatus.ready;
       });
     } on DashboardException catch (e) {
@@ -65,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Opens the detail sheet for one vital; refreshes the tile after a new reading.
   void _openVital(VitalSign vital) {
     showVitalDetailSheet(
       context,
@@ -83,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (current == null) return;
     final willBeTaken = !current.doses.firstWhere((d) => d.id == id).taken;
     setState(() => _data = current.withDoseToggled(id));
-    DashboardService.instance.setDoseTaken(id, willBeTaken); // persists locally
+    DashboardService.instance.setDoseTaken(id, willBeTaken);
   }
 
   void _openDemoMenu() => showDemoScenarioSheet(context, _load);
@@ -125,9 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       case _LoadStatus.ready:
         final data = _data!;
+        final displayName = _userFirstName ?? data.patientFirstName;
+
         if (data.isEmpty) {
           return [
-            _header(data.patientFirstName),
+            _header(displayName),
             EmptyState(
               icon: Icons.favorite_border_rounded,
               title: 'Your health space is ready',
@@ -139,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         return [
-          FadeSlideIn(child: _header(data.patientFirstName)),
+          FadeSlideIn(child: _header(displayName)),
           gap,
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),

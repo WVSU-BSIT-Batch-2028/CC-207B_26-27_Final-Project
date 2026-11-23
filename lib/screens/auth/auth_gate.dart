@@ -1,21 +1,47 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../models/user_role.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/state_views.dart';
 import '../doctor/doctor_shell.dart';
 import '../patient/patient_shell.dart';
 import 'login_screen.dart';
 
 /// Listens to Firebase Auth state and routes users to LoginScreen, PatientShell, or DoctorShell.
-class AuthGate extends StatelessWidget {
+/// Caches the Firestore role lookup per UID so widget rebuilds do not waste reads.
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authService = AuthService();
+  State<AuthGate> createState() => _AuthGateState();
+}
 
+class _AuthGateState extends State<AuthGate> {
+  final _authService = AuthService();
+  String? _cachedUid;
+  Future<UserRole>? _roleFuture;
+
+  Future<UserRole> _getOrFetchRole(String uid) {
+    if (_cachedUid != uid || _roleFuture == null) {
+      _cachedUid = uid;
+      _roleFuture = _authService.getUserRole(uid);
+    }
+    return _roleFuture!;
+  }
+
+  void _retryRoleFetch(String uid) {
+    setState(() {
+      _cachedUid = uid;
+      _roleFuture = _authService.getUserRole(uid);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: authService.authStateChanges,
+      stream: _authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -25,11 +51,13 @@ class AuthGate extends StatelessWidget {
 
         final user = snapshot.data;
         if (user == null) {
+          _cachedUid = null;
+          _roleFuture = null;
           return const LoginScreen();
         }
 
         return FutureBuilder<UserRole>(
-          future: authService.getUserRole(user.uid),
+          future: _getOrFetchRole(user.uid),
           builder: (context, roleSnapshot) {
             if (roleSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -37,8 +65,37 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            final role = roleSnapshot.data ?? UserRole.patient;
-            return role == UserRole.doctor
+            if (roleSnapshot.hasError || !roleSnapshot.hasData) {
+              final message = roleSnapshot.error?.toString() ??
+                  'Unable to verify your account role.';
+              return Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ErrorState(
+                          message: message,
+                          onRetry: () => _retryRoleFetch(user.uid),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        TextButton.icon(
+                          onPressed: () => _authService.signOut(),
+                          icon: const Icon(Icons.logout_rounded),
+                          label: const Text('Sign Out'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return roleSnapshot.data == UserRole.doctor
                 ? const DoctorShell()
                 : const PatientShell();
           },
