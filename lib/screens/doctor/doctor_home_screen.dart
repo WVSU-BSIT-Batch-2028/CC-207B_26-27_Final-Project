@@ -18,6 +18,7 @@ import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
 import 'widgets/appointment_row.dart';
 import 'widgets/overview_tile.dart';
+import 'doctor_prescriptions_screen.dart';
 
 enum _LoadStatus { loading, ready, error }
 
@@ -247,8 +248,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                         value: '${d.prescriptions}',
                         label: 'Prescription',
                         color: AppColors.sleep,
-                        onTap: () => showComingSoonSheet(context, title: 'Prescriptions'),
-                      ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const DoctorPrescriptionsScreen(),
+                            ),
+                          );
+                        },
+                      )
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(

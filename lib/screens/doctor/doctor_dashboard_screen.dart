@@ -10,6 +10,7 @@ import '../../widgets/fade_slide_in.dart';
 import '../../widgets/h360_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
+import 'doctor_prescriptions_screen.dart';
 
 /// Doctor "Dashboard" page from the prototype: six shortcuts + Recent Activity.
 /// Opened from the drawer (Menu > Dashboard) or "Full dashboard" on Home.
@@ -88,10 +89,16 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     _ActionTile(icon: Icons.event_note_rounded, label: 'Appointments', onTap: () => _goTab(1)),
                     _ActionTile(icon: Icons.groups_rounded, label: 'Patients', onTap: () => _goTab(2)),
                     _ActionTile(
-                      icon: Icons.medication_rounded,
-                      label: 'Prescriptions',
-                      onTap: () => showComingSoonSheet(context, title: 'Prescriptions'),
-                    ),
+                        icon: Icons.medication_rounded,
+                        label: 'Prescriptions',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const DoctorPrescriptionsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     _ActionTile(
                       icon: Icons.folder_shared_rounded,
                       label: 'Medical Records',
