@@ -11,6 +11,7 @@ class CustomerApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'MediTech',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: ref.watch(customerRouterProvider),
     );

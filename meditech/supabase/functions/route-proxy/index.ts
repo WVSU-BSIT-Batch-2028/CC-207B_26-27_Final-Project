@@ -24,6 +24,77 @@ function haversineDistanceMeters(
     return R * c;
 }
 
+function looksLikeTurn(text: string): boolean {
+    const lower = text.toLowerCase();
+    return ["turn", "left", "right", "u-turn", "roundabout", "merge", "ramp", "exit", "fork", "bear", "sharp", "straight", "arrive"]
+        .some((k) => lower.includes(k));
+}
+
+function turnPhrase(modifier: string, fallback = "Continue"): string {
+    switch (modifier) {
+        case "uturn": return "Make a U-turn";
+        case "sharp right": return "Turn sharp right";
+        case "right": return "Turn right";
+        case "slight right": return "Slight right";
+        case "straight": return "Go straight";
+        case "slight left": return "Slight left";
+        case "left": return "Turn left";
+        case "sharp left": return "Turn sharp left";
+        default: return fallback;
+    }
+}
+
+function osrmStepInstruction(step: {
+    maneuver?: { type?: string; modifier?: string; instruction?: string };
+    name?: string;
+}): string {
+    const m = step.maneuver;
+    const road = (step.name ?? "").trim();
+    const onto = road ? ` onto ${road}` : "";
+    const existing = m?.instruction?.trim();
+    if (existing && looksLikeTurn(existing)) return existing;
+
+    const type = m?.type ?? "";
+    const modifier = m?.modifier ?? "";
+
+    switch (type) {
+        case "depart":
+            return road ? `Start on ${road}` : turnPhrase(modifier, "Head toward your route");
+        case "arrive":
+            return "You have arrived at your destination";
+        case "turn":
+        case "end of road":
+            return `${turnPhrase(modifier)}${onto}`;
+        case "fork":
+            if (modifier.includes("left")) return `Keep left at the fork${onto}`;
+            if (modifier.includes("right")) return `Keep right at the fork${onto}`;
+            return `Keep straight at the fork${onto}`;
+        case "merge":
+            return `Merge${modifier.includes("left") ? " to the left" : modifier.includes("right") ? " to the right" : ""}${onto}`.trim();
+        case "on ramp":
+            return `Take the ramp${onto}`;
+        case "off ramp":
+            return `Take the exit${onto}`;
+        case "roundabout":
+        case "rotary":
+        case "roundabout turn":
+            if (modifier.includes("left")) return `At the roundabout, take the exit on the left${onto}`;
+            if (modifier.includes("right")) return `At the roundabout, take the exit on the right${onto}`;
+            return `Enter the roundabout${onto}`;
+        case "exit roundabout":
+        case "exit rotary":
+            return `Exit the roundabout${onto}`;
+        case "new name":
+        case "continue":
+        case "notification":
+            if (modifier && modifier !== "straight") return `${turnPhrase(modifier)}${onto}`;
+            return road ? `Go straight on ${road}` : "Go straight";
+        default:
+            if (existing) return existing;
+            return road ? `Go straight on ${road}` : "Continue";
+    }
+}
+
 // Proxies route requests to OpenRouteService with offline fallback
 Deno.serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
@@ -76,8 +147,11 @@ Deno.serve(async (req: Request) => {
                                 distance?: number;
                                 name?: string;
                             };
+                            const instruction = (step.instruction ?? "").trim();
                             return {
-                                instruction: step.instruction ?? "Continue",
+                                instruction: instruction && looksLikeTurn(instruction)
+                                    ? instruction
+                                    : (step.name ? `Go straight on ${step.name}` : "Go straight"),
                                 distance_meters: Math.round(step.distance ?? 0),
                                 road_name: step.name ?? "",
                             };
@@ -97,7 +171,79 @@ Deno.serve(async (req: Request) => {
             }
         }
 
-        // Local fallback when key is not set or remote service is unreachable
+        const osrmCoords = `${startLng},${startLat};${endLng},${endLat}`;
+        const osrmQuery = "?overview=full&geometries=geojson&steps=true&annotations=false";
+        const osrmUrls = profile === "foot-walking"
+            ? [
+                `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${osrmCoords}${osrmQuery}`,
+                `https://router.project-osrm.org/route/v1/foot/${osrmCoords}${osrmQuery}`,
+            ]
+            : profile === "cycling-regular"
+            ? [
+                `https://routing.openstreetmap.de/routed-bike/route/v1/bike/${osrmCoords}${osrmQuery}`,
+                `https://router.project-osrm.org/route/v1/bike/${osrmCoords}${osrmQuery}`,
+            ]
+            : [
+                `https://routing.openstreetmap.de/routed-car/route/v1/driving/${osrmCoords}${osrmQuery}`,
+                `https://router.project-osrm.org/route/v1/driving/${osrmCoords}${osrmQuery}`,
+            ];
+
+        try {
+            let osrmResponse: Response | null = null;
+            for (const osrmUrl of osrmUrls) {
+                const attempt = await fetch(osrmUrl, {
+                    headers: { Accept: "application/json" },
+                });
+                if (attempt.ok) {
+                    osrmResponse = attempt;
+                    break;
+                }
+            }
+            if (!osrmResponse) {
+                throw new Error("OSRM unreachable");
+            }
+            if (osrmResponse.ok) {
+                const osrmData = await osrmResponse.json();
+                const route = osrmData.routes?.[0];
+                if (route?.geometry?.coordinates) {
+                    const steps = (route.legs ?? []).flatMap(
+                        (leg: { steps?: unknown[] }) =>
+                            (leg.steps ?? []).map((raw) => {
+                                const step = raw as {
+                                    maneuver?: {
+                                        type?: string;
+                                        modifier?: string;
+                                        instruction?: string;
+                                    };
+                                    name?: string;
+                                    distance?: number;
+                                };
+                                const instruction = osrmStepInstruction(step);
+                                return {
+                                    instruction,
+                                    distance_meters: Math.round(step.distance ?? 0),
+                                    road_name: step.name ?? "",
+                                    maneuver: step.maneuver ?? null,
+                                };
+                            }),
+                    );
+                    return new Response(
+                        JSON.stringify({
+                            coordinates: route.geometry.coordinates,
+                            distance_meters: Math.round(route.distance ?? 0),
+                            duration_seconds: Math.round(route.duration ?? 0),
+                            steps,
+                            provider: "osrm",
+                        }),
+                        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+                    );
+                }
+            }
+        } catch {
+            // Try estimated fallback below.
+        }
+
+        // Estimated fallback when all road routers are unreachable
         const straightMeters = Math.round(
             haversineDistanceMeters(startLat, startLng, endLat, endLng),
         );
@@ -121,9 +267,11 @@ Deno.serve(async (req: Request) => {
         ];
 
         const fallbackSteps = [
-            { instruction: "Head toward destination", distance_meters: Math.round(distanceMeters * 0.25), road_name: "" },
-            { instruction: "Continue along city streets", distance_meters: Math.round(distanceMeters * 0.45), road_name: "" },
-            { instruction: "Approach the pharmacy", distance_meters: Math.round(distanceMeters * 0.3), road_name: "" },
+            { instruction: "Head toward destination", distance_meters: Math.round(distanceMeters * 0.2), road_name: "" },
+            { instruction: "Turn right onto the main road", distance_meters: Math.round(distanceMeters * 0.25), road_name: "" },
+            { instruction: "Go straight", distance_meters: Math.round(distanceMeters * 0.25), road_name: "" },
+            { instruction: "Turn left toward the pharmacy", distance_meters: Math.round(distanceMeters * 0.15), road_name: "" },
+            { instruction: "Arrive at the pharmacy", distance_meters: Math.round(distanceMeters * 0.15), road_name: "" },
         ];
 
         return new Response(

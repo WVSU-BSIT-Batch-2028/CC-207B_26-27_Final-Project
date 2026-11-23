@@ -210,8 +210,11 @@ class _BasketPill extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(cartItemCountProvider);
-    final total = ref.watch(cartProvider).value?.formattedSubtotal ?? '₱0.00';
+    final signedIn = ref.watch(sessionProvider) != null;
+    final count = signedIn ? ref.watch(cartItemCountProvider) : 0;
+    final total = signedIn
+        ? (ref.watch(cartProvider).value?.formattedSubtotal ?? '₱0.00')
+        : '₱0.00';
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

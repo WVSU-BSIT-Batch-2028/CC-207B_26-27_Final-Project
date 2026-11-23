@@ -112,6 +112,19 @@ class PharmacyHours {
   }
 }
 
+// Returns the opening-hours row for the current weekday, if any.
+PharmacyHours? pharmacyHoursForToday(
+  List<PharmacyHours> hours, [
+  DateTime? now,
+]) {
+  if (hours.isEmpty) return null;
+  final weekday = (now ?? DateTime.now()).weekday % 7;
+  for (final row in hours) {
+    if (row.weekday == weekday) return row;
+  }
+  return null;
+}
+
 // Unknown hours stay listed as open. A recorded closed day shows as closed.
 bool pharmacyIsOpenNow(List<PharmacyHours>? hours, [DateTime? now]) {
   final clock = now ?? DateTime.now();

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
+import 'session_providers.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return SupabaseNotificationService();
@@ -10,9 +11,14 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 class NotificationListNotifier extends AsyncNotifier<List<AppNotification>> {
   @override
   Future<List<AppNotification>> build() async {
+    if (ref.watch(sessionProvider) == null) {
+      return const [];
+    }
     final service = ref.read(notificationServiceProvider);
     final channel = service.watchMine(() {
-      if (ref.mounted) ref.invalidateSelf();
+      if (!ref.mounted) return;
+      if (ref.read(sessionProvider) == null) return;
+      ref.invalidateSelf();
     });
     if (channel != null) {
       ref.onDispose(channel.unsubscribe);
@@ -52,6 +58,7 @@ final notificationListProvider =
 
 // How many of the loaded notifications are still unread
 final unreadNotificationCountProvider = Provider<int>((ref) {
+  if (ref.watch(sessionProvider) == null) return 0;
   final list = ref.watch(notificationListProvider);
   return list.maybeWhen(
     data: (items) => items.where((item) => item.isUnread).length,

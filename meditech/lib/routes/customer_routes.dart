@@ -14,8 +14,11 @@ import '../screens/customer/medicine/medicine_details_screen.dart';
 import '../screens/customer/pharmacy/pharmacy_details_screen.dart';
 import '../screens/customer/pharmacy/directions_screen.dart';
 import '../screens/customer/pharmacy/pharmacy_map_screen.dart';
+import '../screens/customer/profile/edit_profile_screen.dart';
+import '../screens/customer/profile/notification_preferences_screen.dart';
 import '../screens/customer/profile/privacy_notice_screen.dart';
 import '../screens/customer/profile/profile_screen.dart';
+import '../screens/customer/profile/saved_addresses_screen.dart';
 import '../screens/customer/reservations/reservation_details_screen.dart';
 import '../screens/customer/reservations/reservation_submitted_screen.dart';
 import '../screens/customer/sign_up/account_created_screen.dart';
@@ -25,8 +28,12 @@ import '../models/osm_listing.dart';
 import '../screens/customer/pharmacy/osm_listing_details_screen.dart';
 import '../screens/shared/change_password_screen.dart';
 import '../screens/shared/notification_list_screen.dart';
+import '../models/customer_profile.dart';
 import '../providers/session_providers.dart';
 import 'password_redirect.dart';
+
+/// Full-screen customer flows pushed above [CustomerFrame] at `/home`.
+final customerRootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'customerRoot');
 
 // Pages a customer can open
 final customerRouterProvider = Provider<GoRouter>((ref) {
@@ -34,6 +41,7 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
+    navigatorKey: customerRootNavigatorKey,
     refreshListenable: refresh,
     redirect: (context, state) {
       return redirectForPasswordChange(
@@ -81,6 +89,24 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        parentNavigatorKey: customerRootNavigatorKey,
+        builder: (context, state) => EditProfileScreen(
+          initialProfile:
+              state.extra is CustomerProfile ? state.extra as CustomerProfile : null,
+        ),
+      ),
+      GoRoute(
+        path: '/profile/addresses',
+        parentNavigatorKey: customerRootNavigatorKey,
+        builder: (context, state) => const SavedAddressesScreen(),
+      ),
+      GoRoute(
+        path: '/profile/notification-preferences',
+        parentNavigatorKey: customerRootNavigatorKey,
+        builder: (context, state) => const NotificationPreferencesScreen(),
       ),
       GoRoute(
         path: '/assistant',

@@ -248,44 +248,52 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
                                 ),
                                 child: Divider(),
                               ),
-                              const Text(
-                                'Opening hours',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              ...hours.map(
-                                (row) => Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: AppSpacing.xs,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                              Builder(
+                                builder: (context) {
+                                  final today =
+                                      pharmacyHoursForToday(hours);
+                                  if (today == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        row.dayLabel,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: AppColors.textMuted,
+                                      const Text(
+                                        'Opening Hours',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.text,
                                         ),
                                       ),
-                                      Text(
-                                        row.scheduleLabel,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: row.isClosed
-                                              ? AppColors.danger
-                                              : AppColors.text,
-                                        ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            today.dayLabel,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.textMuted,
+                                            ),
+                                          ),
+                                          Text(
+                                            today.scheduleLabel,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: today.isClosed
+                                                  ? AppColors.danger
+                                                  : AppColors.text,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ],
                           ],

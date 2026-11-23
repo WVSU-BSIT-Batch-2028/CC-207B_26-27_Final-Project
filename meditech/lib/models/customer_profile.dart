@@ -7,6 +7,7 @@ class CustomerProfile {
   final String email;
   final String birthdate;
   final String consentVersion;
+  final String? avatarPath;
 
   const CustomerProfile({
     required this.firstName,
@@ -16,12 +17,21 @@ class CustomerProfile {
     required this.email,
     required this.birthdate,
     required this.consentVersion,
+    this.avatarPath,
   });
 
   String get fullName {
     final middle = middleName;
     if (middle == null || middle.isEmpty) return '$firstName $lastName';
     return '$firstName $middle $lastName';
+  }
+
+  String get displayMobile {
+    final digits = mobile.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 11 && digits.startsWith('09')) {
+      return '+63 ${digits.substring(1, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}';
+    }
+    return mobile;
   }
 
   factory CustomerProfile.fromJson(Map<String, dynamic> json) {
@@ -34,6 +44,29 @@ class CustomerProfile {
       email: json['email'] as String,
       birthdate: json['birthdate'].toString(),
       consentVersion: json['consent_version'] as String,
+      avatarPath: json['avatar_path'] as String?,
+    );
+  }
+
+  CustomerProfile copyWith({
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? mobile,
+    String? email,
+    String? birthdate,
+    String? consentVersion,
+    String? avatarPath,
+  }) {
+    return CustomerProfile(
+      firstName: firstName ?? this.firstName,
+      middleName: middleName ?? this.middleName,
+      lastName: lastName ?? this.lastName,
+      mobile: mobile ?? this.mobile,
+      email: email ?? this.email,
+      birthdate: birthdate ?? this.birthdate,
+      consentVersion: consentVersion ?? this.consentVersion,
+      avatarPath: avatarPath ?? this.avatarPath,
     );
   }
 }

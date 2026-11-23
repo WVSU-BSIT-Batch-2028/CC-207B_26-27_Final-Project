@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
+import '../../../providers/session_providers.dart';
 import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
@@ -295,6 +296,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final filter = ref.watch(medicineSearchFilterProvider);
     final resultsAsync = ref.watch(medicineSearchResultsProvider);
     final recent = ref.watch(recentSearchesProvider);
+    final showBasket = ref.watch(sessionProvider) != null;
 
     return Material(
       color: Colors.white,
@@ -366,8 +368,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: AsyncView<List<MedicineSearchResult>>(
               value: resultsAsync,
-              isEmpty: (items) => items.isEmpty && recent.isEmpty,
-              emptyMessage: 'No matching medicines found.',
               onRetry: () => ref.invalidate(medicineSearchResultsProvider),
               builder: (items) {
                 return ListView(
@@ -377,7 +377,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     AppSpacing.lg,
                     customerBottomChromeScrollPadding(
                       context,
-                      showBasket: true,
+                      showBasket: showBasket,
                     ),
                   ),
                   children: [
@@ -433,7 +433,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
-                      spacing: AppSpacing.sm,
+                      spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xs,
                       children: [
                         AppChip(
