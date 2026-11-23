@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../core/utils/validators.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
 
@@ -40,6 +44,10 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       // AuthGate automatically switches to PatientShell or DoctorShell on success.
+    } on AuthException catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.message);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.toString());
@@ -55,17 +63,22 @@ class _LoginScreenState extends State<LoginScreen> {
     final resetEmailController = TextEditingController(
       text: _emailController.text.trim(),
     );
+    final dialogFormKey = GlobalKey<FormState>();
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Reset Password'),
-        content: TextField(
-          controller: resetEmailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email Address',
-            hintText: 'Enter your registered email',
+        content: Form(
+          key: dialogFormKey,
+          child: TextFormField(
+            controller: resetEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: AppTheme.inputDecoration(
+              label: 'Email Address',
+              hint: 'Enter your registered email',
+            ),
+            validator: Validators.email,
           ),
         ),
         actions: [
@@ -75,8 +88,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           FilledButton(
             onPressed: () async {
+              if (!(dialogFormKey.currentState?.validate() ?? false)) return;
               final email = resetEmailController.text.trim();
-              if (email.isEmpty || !email.contains('@')) return;
               Navigator.pop(dialogContext);
               try {
                 await _authService.sendPasswordReset(email);
@@ -87,10 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   );
                 }
-              } catch (e) {
+              } on AuthException catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
+                    SnackBar(content: Text(e.message)),
                   );
                 }
               }
@@ -111,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Form(
@@ -129,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Welcome to Health360',
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: AppColors.navy,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -136,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Sign in to access your health portal',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: AppColors.textMuted,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -147,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Text(
                           _errorMessage!,
@@ -163,19 +177,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      decoration: AppTheme.inputDecoration(
+                        label: 'Email',
+                        hint: 'name@example.com',
+                      ).copyWith(
+                        prefixIcon: const Icon(Icons.email_outlined),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        if (!value.contains('@')) {
-                          return 'Please enter a valid email address';
-                        }
-                        return null;
-                      },
+                      validator: Validators.email,
                     ),
                     const SizedBox(height: 16),
 
@@ -184,8 +193,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _handleLogin(),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
+                      decoration: AppTheme.inputDecoration(
+                        label: 'Password',
+                      ).copyWith(
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -200,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
+                          return 'Please enter your password.';
                         }
                         return null;
                       },
@@ -219,7 +229,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     FilledButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(

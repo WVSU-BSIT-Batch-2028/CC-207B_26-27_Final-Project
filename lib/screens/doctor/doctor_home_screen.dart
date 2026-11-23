@@ -4,13 +4,15 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/date_format.dart';
 import '../../models/doctor_dashboard_data.dart';
+import '../../models/user_role.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/doctor_service.dart';
+import '../../services/profile_service.dart';
 import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/demo_scenario_sheet.dart';
 import '../../widgets/fade_slide_in.dart';
-import '../../widgets/h360_card.dart';
 import '../../widgets/h360_button.dart';
+import '../../widgets/h360_card.dart';
 import '../../widgets/hero_panel.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
@@ -20,12 +22,9 @@ import 'widgets/overview_tile.dart';
 enum _LoadStatus { loading, ready, error }
 
 /// Doctor landing page: today's schedule + quick overview.
-/// Handles loading (skeleton), error (retry) and empty states.
-/// Long-press the avatar for the demo data switch.
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key, required this.onNavigate, required this.onOpenDashboard});
 
-  /// Switches the bottom-nav tab (0 Home, 1 Appointments, 2 Patients, 3 Profile).
   final ValueChanged<int> onNavigate;
   final VoidCallback onOpenDashboard;
 
@@ -36,6 +35,7 @@ class DoctorHomeScreen extends StatefulWidget {
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   _LoadStatus _status = _LoadStatus.loading;
   DoctorDashboardData? _data;
+  String? _doctorDisplayName;
   String _error = '';
 
   @override
@@ -47,10 +47,23 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     try {
-      final data = await DoctorService.instance.fetchDashboard();
+      final results = await Future.wait([
+        DoctorService.instance.fetchDashboard(),
+        ProfileService.instance.load(UserRole.doctor),
+      ]);
       if (!mounted) return;
+      final data = results[0] as DoctorDashboardData;
+      final profile = results[1] as dynamic;
+      final clean = (profile.fullName as String)
+          .replaceFirst(RegExp(r'^Dr\.?\s*', caseSensitive: false), '')
+          .trim();
+      final shortName = clean.isEmpty
+          ? data.doctorShortName
+          : 'Dr. ${clean.split(RegExp(r'\s+')).last}';
+
       setState(() {
         _data = data;
+        _doctorDisplayName = shortName;
         _status = _LoadStatus.ready;
       });
     } on DashboardException catch (e) {
@@ -135,9 +148,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       case _LoadStatus.ready:
         final d = _data!;
         final hasAppointments = d.todayAppointments > 0;
+        final displayName = _doctorDisplayName ?? d.doctorShortName;
 
         return [
-          FadeSlideIn(child: _header(d.doctorShortName)),
+          FadeSlideIn(child: _header(displayName)),
           gap,
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),
@@ -251,7 +265,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               ],
             ),
           ),
-          // Today's appointments with Confirmed / Pending / Cancelled labels
           SectionHeader(
             title: "Today's Appointments",
             subtitle: d.appointments.isEmpty ? null : 'Showing ${d.appointments.length} of ${d.todayAppointments}',
