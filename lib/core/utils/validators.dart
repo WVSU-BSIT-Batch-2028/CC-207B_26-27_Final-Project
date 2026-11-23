@@ -13,6 +13,34 @@ class Validators {
     return null;
   }
 
+  static String? email(String? value) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) return 'Please enter your email address.';
+    if (!RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(text)) {
+      return 'Please enter a valid email address.';
+    }
+    return null;
+  }
+
+  /// Requires at least 8 characters, 1 uppercase letter, 1 lowercase letter, and 1 number.
+  static String? password(String? value) {
+    final text = value ?? '';
+    if (text.isEmpty) return 'Please enter a password.';
+    if (text.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(text)) {
+      return 'Include at least one uppercase letter.';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(text)) {
+      return 'Include at least one lowercase letter.';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(text)) {
+      return 'Include at least one number.';
+    }
+    return null;
+  }
+
   /// Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.
   static String? mobile(String? value, {bool isRequired = false}) {
     final text = (value ?? '').replaceAll(RegExp(r'[\s-]'), '');

@@ -1,11 +1,19 @@
+import 'dart:async' as async;
+
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/notification_item.dart';
 import '../models/user_profile.dart';
 import '../models/user_role.dart';
+import 'auth_service.dart';
 
-/// Saves personal information and notification toggles on the device.
-/// (Local data persistence; swap for Firebase / MySQL later.)
+/// Saves personal information and notification toggles.
+/// Reads the signed-in user's name/email from Firebase Auth & Firestore `users/{uid}`.
+typedef NotificationPrefsMap = Map<String, bool>;
+
 class ProfileService {
   ProfileService._();
   static final ProfileService instance = ProfileService._();
@@ -29,14 +37,44 @@ class ProfileService {
 
   String _key(UserRole role, String field) => '${role.name}_profile_$field';
 
-  Future<UserProfile> load(UserRole role) async {
+  async.Future<UserProfile> load(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     final d = UserProfile.defaultsFor(role);
+
+    String resolvedName = d.fullName;
+    String resolvedEmail = d.email;
+
+    if (Firebase.apps.isNotEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        resolvedEmail = user.email ?? resolvedEmail;
+        if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+          resolvedName = user.displayName!.trim();
+        }
+        try {
+          final data = await AuthService().getUserProfile(user.uid);
+          final fsName = data?['fullName'] as String?;
+          final fsEmail = data?['email'] as String?;
+          if (fsName != null && fsName.trim().isNotEmpty) {
+            resolvedName = fsName.trim();
+          }
+          if (fsEmail != null && fsEmail.trim().isNotEmpty) {
+            resolvedEmail = fsEmail.trim();
+          }
+        } catch (_) {
+          // Fall back to FirebaseAuth displayName/email if Firestore is offline.
+        }
+      }
+    }
+
     String read(String field, String fallback) =>
         prefs.getString(_key(role, field)) ?? fallback;
+
     return UserProfile(
-      fullName: read('fullName', d.fullName),
-      email: d.email,
+      fullName: Firebase.apps.isNotEmpty && FirebaseAuth.instance.currentUser != null
+          ? resolvedName
+          : read('fullName', resolvedName),
+      email: resolvedEmail,
       mobile: read('mobile', d.mobile),
       birthDate: read('birthDate', d.birthDate),
       gender: read('gender', d.gender),
@@ -44,20 +82,30 @@ class ProfileService {
     );
   }
 
-  /// Simulates a short network round-trip so the Save button shows loading.
-  Future<void> save(UserRole role, UserProfile profile) async {
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+  /// Saves personal information locally and updates `users/{uid}` in Firestore when signed in.
+  async.Future<void> save(UserRole role, UserProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key(role, 'fullName'), profile.fullName);
     await prefs.setString(_key(role, 'mobile'), profile.mobile);
     await prefs.setString(_key(role, 'birthDate'), profile.birthDate);
     await prefs.setString(_key(role, 'gender'), profile.gender);
     await prefs.setString(_key(role, 'address'), profile.address);
+
+    if (Firebase.apps.isNotEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updateDisplayName(profile.fullName);
+        await fs.FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+          {'fullName': profile.fullName},
+          fs.SetOptions(merge: true),
+        );
+      }
+    }
   }
 
   /// MOCK notification history (newest first). Which items were read is saved
   /// on the device. Replace the sample list with the real backend later.
-  Future<List<NotificationItem>> loadNotificationHistory(UserRole role) async {
+  async.Future<List<NotificationItem>> loadNotificationHistory(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     final readIds = (prefs.getStringList('${role.name}_notif_read') ?? const <String>[]).toSet();
     final now = DateTime.now();
@@ -84,14 +132,14 @@ class ProfileService {
     return [for (final i in items) i.copyWith(read: readIds.contains(i.id))];
   }
 
-  Future<void> markNotificationsRead(UserRole role, Iterable<String> ids) async {
+  async.Future<void> markNotificationsRead(UserRole role, Iterable<String> ids) async {
     final prefs = await SharedPreferences.getInstance();
     final key = '${role.name}_notif_read';
     final all = (prefs.getStringList(key) ?? const <String>[]).toSet()..addAll(ids);
     await prefs.setStringList(key, all.toList());
   }
 
-  Future<Map<String, bool>> loadNotificationPrefs(UserRole role) async {
+  async.Future<NotificationPrefsMap> loadNotificationPrefs(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     return {
       for (final o in notificationOptions(role))
@@ -99,7 +147,7 @@ class ProfileService {
     };
   }
 
-  Future<void> setNotificationPref(UserRole role, String key, bool value) async {
+  async.Future<void> setNotificationPref(UserRole role, String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('${role.name}_notif_$key', value);
   }

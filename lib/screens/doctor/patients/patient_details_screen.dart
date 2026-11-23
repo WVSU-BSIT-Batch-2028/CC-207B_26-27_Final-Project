@@ -16,20 +16,27 @@ import 'widgets/patient_info_card.dart';
 enum _LoadStatus { loading, ready, error }
 
 /// Doctor Patient Details.
+///
+/// [onBack] returns to the Patients list.
+/// [onViewFullRecord] opens the patient's full record.
+/// [onAddConsultationNote] opens the consultation notes form.
 class PatientDetailsScreen extends StatefulWidget {
   const PatientDetailsScreen({
     super.key,
     required this.patient,
     required this.onBack,
     required this.onViewFullRecord,
+    required this.onAddConsultationNote,
   });
 
   final Patient patient;
   final VoidCallback onBack;
   final VoidCallback onViewFullRecord;
+  final VoidCallback onAddConsultationNote;
 
   @override
-  State<PatientDetailsScreen> createState() => _PatientDetailsScreenState();
+  State<PatientDetailsScreen> createState() =>
+      _PatientDetailsScreenState();
 }
 
 class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
@@ -51,7 +58,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
     try {
       final detail =
-          await PatientsService.instance.fetchPatientDetail(widget.patient.id);
+          await PatientsService.instance.fetchPatientDetail(
+        widget.patient.id,
+      );
 
       if (!mounted) return;
 
@@ -105,12 +114,15 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   Widget _buildProfile() {
     final patient = widget.patient;
 
-    final demographics = patient.sex != null && patient.age != null
-        ? '${patient.sex} - ${patient.age} years old'
-        : patient.sex ??
-            (patient.age != null
-                ? '${patient.age} years old'
-                : 'Demographics not provided');
+    final demographics =
+        patient.sex != null && patient.sex!.isNotEmpty &&
+                patient.age != null
+            ? '${patient.sex} - ${patient.age} years old'
+            : patient.sex != null && patient.sex!.isNotEmpty
+                ? patient.sex!
+                : patient.age != null
+                    ? '${patient.age} years old'
+                    : 'Demographics not provided';
 
     return Column(
       children: [
@@ -149,7 +161,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           ),
         ),
         Text(
-          patient.phone ?? 'Contact number not provided',
+          patient.phone != null && patient.phone!.isNotEmpty
+              ? patient.phone!
+              : 'Contact number not provided',
           style: TextStyle(
             fontSize: 15,
             color: AppColors.textPrimary,
@@ -202,12 +216,21 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           PatientInfoCard(
             icon: Icons.calendar_today_outlined,
             label: 'Last Visit',
-            value: formatLongDate(widget.patient.lastVisit),
+            value: widget.patient.lastVisit == null
+                ? 'No visits yet'
+                : formatLongDate(widget.patient.lastVisit!),
           ),
           const SizedBox(height: AppSpacing.lg),
           H360Button(
             label: 'View Full Record',
             onPressed: widget.onViewFullRecord,
+          ),
+          gap,
+          H360Button(
+            label: 'Add Consultation Notes',
+            icon: Icons.note_add_outlined,
+            inverted: true,
+            onPressed: widget.onAddConsultationNote,
           ),
         ];
     }

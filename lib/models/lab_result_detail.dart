@@ -11,15 +11,35 @@ enum LabFlag {
 }
 
 /// One measured value in a lab result, e.g. Hemoglobin 14.2 g/dL.
+///
+/// In Firestore each value is a map inside the lab result's `values` list:
+/// name, value, unit, range (text such as "13.0-17.0") and flag ("normal",
+/// "low" or "high").
 class LabValue {
   const LabValue({
     required this.name,
     required this.value,
     required this.unit,
-    required this.min,
-    required this.max,
-    this.decimals = 1,
+    required this.rangeText,
+    required this.flag,
   });
+
+  /// Builds a value from one map of the `values` list.
+  ///
+  /// If the map has no usable `flag`, it is worked out from the range text
+  /// when that can be read (e.g. "13.0-17.0"), otherwise the value is normal.
+  factory LabValue.fromMap(Map<String, dynamic> map) {
+    final raw = map['value'];
+    final value = raw is num ? raw.toDouble() : (double.tryParse('$raw') ?? 0);
+    final range = (map['range'] ?? '').toString();
+    return LabValue(
+      name: (map['name'] ?? 'Test').toString(),
+      value: value,
+      unit: (map['unit'] ?? '').toString(),
+      rangeText: range,
+      flag: _parseFlag(map['flag'], range, value),
+    );
+  }
 
   /// e.g. "Hemoglobin"
   final String name;
@@ -30,29 +50,35 @@ class LabValue {
   /// e.g. "g/dL". Can be empty.
   final String unit;
 
-  /// Lower and upper end of the normal reference range.
-  final double min;
-  final double max;
+  /// Normal reference range as text, e.g. "13.0-17.0".
+  final String rangeText;
 
-  /// How many decimals to show for the value and the range.
-  final int decimals;
-
-  /// Low, high or normal, worked out by comparing [value] with the range.
-  LabFlag get flag {
-    if (value < min) return LabFlag.low;
-    if (value > max) return LabFlag.high;
-    return LabFlag.normal;
-  }
+  /// Low, high or normal.
+  final LabFlag flag;
 
   /// e.g. "14.2 g/dL" ("42%" has no space before the percent sign).
   String get resultText {
-    final number = value.toStringAsFixed(decimals);
+    final number = value == value.roundToDouble() ? value.toInt().toString() : value.toString();
     if (unit.isEmpty) return number;
     return unit == '%' ? '$number%' : '$number $unit';
   }
 
-  /// e.g. "13.0–17.0"
-  String get rangeText => '${min.toStringAsFixed(decimals)}–${max.toStringAsFixed(decimals)}';
+  /// Reads the flag text; falls back to comparing [value] with the range.
+  static LabFlag _parseFlag(Object? raw, String range, double value) {
+    final text = raw?.toString().trim().toLowerCase();
+    if (text == 'high' || text == 'h') return LabFlag.high;
+    if (text == 'low' || text == 'l') return LabFlag.low;
+    if (text == 'normal' || text == 'n') return LabFlag.normal;
+
+    final match = RegExp(r'^\s*(-?\d+(?:\.\d+)?)\s*[-\u2013]\s*(-?\d+(?:\.\d+)?)\s*$').firstMatch(range);
+    if (match != null) {
+      final min = double.parse(match.group(1)!);
+      final max = double.parse(match.group(2)!);
+      if (value < min) return LabFlag.low;
+      if (value > max) return LabFlag.high;
+    }
+    return LabFlag.normal;
+  }
 }
 
 /// The full lab result shown in the "Lab Results" popup (Lab Result Details).

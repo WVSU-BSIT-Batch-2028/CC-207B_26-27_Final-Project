@@ -1,3 +1,4 @@
+
 import 'appointment_status.dart';
 
 /// Represents the outcome of an appointment after its scheduled date.
@@ -32,7 +33,7 @@ class AppointmentChangeRequest {
     this.status = ChangeRequestStatus.pending,
   });
 
-  /// Firebase UID of the requested doctor.
+  /// Firebase UID of the doctor the patient wants to move to (`users/{uid}`).
   final String? doctorId;
 
   final String doctorName;

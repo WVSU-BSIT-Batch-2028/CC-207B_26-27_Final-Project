@@ -76,9 +76,9 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
       if (!mounted) return;
 
       final matchingDoctor = doctors.where(
-        (doctor) =>
-            doctor.id == widget.appointment.doctorId ||
-            doctor.name == widget.appointment.doctorName,
+        (doctor) => widget.appointment.doctorId != null
+            ? doctor.id == widget.appointment.doctorId
+            : doctor.name == widget.appointment.doctorName,
       );
 
       setState(() {
@@ -179,7 +179,6 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
 
         // Firebase UID of the selected doctor.
         doctorId: doctor.id,
-
         doctorName: doctor.name,
         specialty: doctor.specialty,
         dateTime: _appointmentDateTime,

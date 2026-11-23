@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -58,7 +59,7 @@ class PatientCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  patient.condition ?? 'No condition recorded',
+                  patient.condition,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -66,7 +67,9 @@ class PatientCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Last visit: ${formatLongDate(patient.lastVisit)}',
+                  patient.lastVisit == null
+                      ? 'No visits yet'
+                      : 'Last visit: ${formatLongDate(patient.lastVisit!)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textMuted,

@@ -113,6 +113,8 @@ class AppointmentService {
       if (role == UserRole.patient) {
         query = query.where('patientId', isEqualTo: uid);
       } else if (role == UserRole.doctor) {
+        // A doctor only sees the appointments assigned to them.
+        // Required by the Firestore security rules.
         query = query.where('doctorId', isEqualTo: uid);
       } else {
         throw const AppointmentException(

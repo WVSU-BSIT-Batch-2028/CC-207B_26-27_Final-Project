@@ -35,8 +35,10 @@ class _DoctorProfile {
 
 /// Provides the doctors a patient can book.
 ///
-/// Retrieves real doctor accounts from Firestore and restores
+/// Retrieves registered doctor accounts from Firestore and restores
 /// the original Health360 information for the five known doctors.
+/// The Firebase document ID is retained as the doctor's UID so that
+/// appointments can be assigned to the correct doctor.
 class BookingDoctorService {
   BookingDoctorService._();
 
@@ -86,7 +88,10 @@ class BookingDoctorService {
     ),
   };
 
-  /// Retrieves registered doctors from Firestore.
+  /// Retrieves the doctors available for appointment booking.
+  ///
+  /// The demo scenario allows the team to test empty and error states
+  /// without needing to change the Firestore data.
   Future<List<Doctor>> fetchDoctors() async {
     switch (DashboardService.instance.scenario) {
       case DemoScenario.error:
@@ -124,7 +129,7 @@ class BookingDoctorService {
 
   /// Builds a Doctor from a Firebase users document.
   ///
-  /// Known doctors use their original hardcoded profile details.
+  /// Known doctors use their original Health360 profile details.
   /// Other registered doctors use their Firestore profile information.
   @visibleForTesting
   Doctor doctorFrom(String uid, Map<String, dynamic> data) {
@@ -142,19 +147,13 @@ class BookingDoctorService {
     return Doctor(
       // Actual Firebase UID is retained for appointment ownership.
       id: uid,
-
       name: profile?.name ?? _text(data['fullName'], 'Doctor'),
-
       specialty: specialty,
-
       category:
           profile?.category ?? _text(data['category'], _categoryFor(specialty)),
-
       nextAvailable: profile?.nextAvailable ?? 'Pick a date and time',
-
       consultationType: profile?.consultationType ??
           _text(data['consultationType'], 'Clinic Visit'),
-
       consultationFee:
           profile?.consultationFee ?? (fee is num ? fee.toDouble() : 500.0),
     );

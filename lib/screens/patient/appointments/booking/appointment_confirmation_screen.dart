@@ -71,7 +71,6 @@ class _AppointmentConfirmationScreenState
 
         // Firebase UID of the selected doctor.
         doctorId: widget.doctor.id,
-
         doctorName: widget.doctor.name,
         specialty: widget.doctor.specialty,
         dateTime: widget.appointmentDateTime,
