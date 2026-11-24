@@ -34,6 +34,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
+  String? _birthdateError;
   String? _formError;
 
   @override
@@ -82,10 +83,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     super.dispose();
   }
 
+  bool _isUnder18(DateTime birthdate) {
+    final today = DateTime.now();
+    final eighteenth = DateTime(
+      birthdate.year + 18,
+      birthdate.month,
+      birthdate.day,
+    );
+    return eighteenth.isAfter(today);
+  }
+
   bool get _canSubmit {
     if (_busy) return false;
     if (!_agreed) return false;
     if (_birthdate == null) return false;
+    if (_isUnder18(_birthdate!)) return false;
     if (_firstName.text.trim().isEmpty ||
         _lastName.text.trim().isEmpty ||
         _mobile.text.trim().isEmpty ||
@@ -104,6 +116,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
     if (_birthdate == null) {
       return 'Select your birthdate to continue.';
+    }
+    if (_isUnder18(_birthdate!)) {
+      return 'You must be 18 years old or above to register.';
     }
     if (_firstName.text.trim().isEmpty ||
         _lastName.text.trim().isEmpty ||
@@ -424,7 +439,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       firstDate: DateTime(1900),
       lastDate: today,
     );
-    if (picked != null) setState(() => _birthdate = picked);
+    if (picked != null) {
+      setState(() {
+        _birthdate = picked;
+        _birthdateError = _isUnder18(picked)
+            ? 'You must be 18 years old or above to register.'
+            : null;
+      });
+    }
   }
 
   @override
@@ -510,11 +532,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 OutlinedButton(
                   onPressed: _pickBirthdate,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: _birthdate == null
-                        ? AppColors.textMuted
-                        : AppColors.text,
+                    foregroundColor: _birthdateError != null
+                        ? AppColors.danger
+                        : _birthdate == null
+                            ? AppColors.textMuted
+                            : AppColors.text,
                     side: BorderSide(
-                      color: _birthdate == null ? AppColors.border : AppColors.primary,
+                      color: _birthdateError != null
+                          ? AppColors.danger
+                          : _birthdate == null
+                              ? AppColors.border
+                              : AppColors.primary,
                     ),
                   ),
                   child: Align(
@@ -522,6 +550,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     child: Text(birthdateLabel),
                   ),
                 ),
+                if (_birthdateError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _birthdateError!,
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 AppPasswordField(
                   label: 'Password',

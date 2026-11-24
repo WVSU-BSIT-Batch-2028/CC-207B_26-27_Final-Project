@@ -481,40 +481,43 @@ class _PharmacyCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: () {
-                final branch = pharmacyAsync.value;
-                final args = DirectionsArgs(
-                  pharmacyName: reservation.pharmacyName,
-                  branchName: reservation.branchName,
-                  address: reservation.branchAddress,
-                  destination: LatLng(
-                    (branch != null && branch.latitude != 0)
-                        ? branch.latitude
-                        : 10.7202,
-                    (branch != null && branch.longitude != 0)
-                        ? branch.longitude
-                        : 122.5621,
-                  ),
-                );
-                if (GoRouter.maybeOf(context) != null) {
-                  context.push('/directions', extra: args);
-                  return;
-                }
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => DirectionsScreen(
-                      pharmacyName: args.pharmacyName,
-                      branchName: args.branchName,
-                      address: args.address,
-                      destination: args.destination,
+            if (reservation.status == ReservationStatus.confirmed ||
+                reservation.status == ReservationStatus.readyForPickup ||
+                reservation.status == ReservationStatus.completed)
+              OutlinedButton.icon(
+                onPressed: () {
+                  final branch = pharmacyAsync.value;
+                  final args = DirectionsArgs(
+                    pharmacyName: reservation.pharmacyName,
+                    branchName: reservation.branchName,
+                    address: reservation.branchAddress,
+                    destination: LatLng(
+                      (branch != null && branch.latitude != 0)
+                          ? branch.latitude
+                          : 10.7202,
+                      (branch != null && branch.longitude != 0)
+                          ? branch.longitude
+                          : 122.5621,
                     ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.directions_outlined),
-              label: const Text('Get directions'),
-            ),
+                  );
+                  if (GoRouter.maybeOf(context) != null) {
+                    context.push('/directions', extra: args);
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DirectionsScreen(
+                        pharmacyName: args.pharmacyName,
+                        branchName: args.branchName,
+                        address: args.address,
+                        destination: args.destination,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.directions_outlined),
+                label: const Text('Get directions'),
+              ),
           ],
         ),
       ),

@@ -47,7 +47,7 @@ void main() {
   testWidgets('privacy notice is shown', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: PrivacyNoticeScreen()));
 
-    expect(find.text('MediTech privacy notice v1'), findsOneWidget);
+    expect(find.text('MediTech Privacy Notice'), findsOneWidget);
   });
 }
 

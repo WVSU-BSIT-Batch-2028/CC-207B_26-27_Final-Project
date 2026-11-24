@@ -95,21 +95,6 @@ class MedicineDetailsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'Search medicine...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
               AppSpacing.sm,
               AppSpacing.lg,
               AppSpacing.md,

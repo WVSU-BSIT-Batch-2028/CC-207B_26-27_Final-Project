@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../../../models/cart.dart';
 import '../../../providers/customer_nav_provider.dart';
-import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
-import '../pharmacy/directions_screen.dart';
 
 // Values carried to the confirmation route after Continue to Reservation
 class ReservationSubmittedArgs {
@@ -134,40 +131,6 @@ class _ReservationSubmittedScreenState
         ),
       );
     }
-  }
-
-  void _openDirections() {
-    final branch = ref.read(pharmacyDetailProvider(widget.branchId)).value;
-    final address = widget.branchAddress.isNotEmpty
-        ? widget.branchAddress
-        : (widget.items.isNotEmpty ? widget.items.first.branchAddress : '');
-    final args = DirectionsArgs(
-      pharmacyName: widget.pharmacyName,
-      branchName: widget.branchName,
-      address: address,
-      destination: LatLng(
-        (branch != null && branch.latitude != 0)
-            ? branch.latitude
-            : 10.7202,
-        (branch != null && branch.longitude != 0)
-            ? branch.longitude
-            : 122.5621,
-      ),
-    );
-    if (GoRouter.maybeOf(context) != null) {
-      context.push('/directions', extra: args);
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DirectionsScreen(
-          pharmacyName: args.pharmacyName,
-          branchName: args.branchName,
-          address: args.address,
-          destination: args.destination,
-        ),
-      ),
-    );
   }
 
   @override
@@ -354,9 +317,21 @@ class _ReservationSubmittedScreenState
             ),
             const SizedBox(height: AppSpacing.sm),
             FilledButton.icon(
-              onPressed: _openDirections,
-              icon: const Icon(Icons.directions_outlined),
-              label: const Text('Get directions'),
+              onPressed: () {
+                ref.read(customerTabProvider.notifier).select(0);
+                context.go('/home');
+              },
+              icon: const Icon(Icons.home_outlined),
+              label: const Text('Back to Home'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: () {
+                ref.read(customerTabProvider.notifier).select(1);
+                context.go('/home');
+              },
+              icon: const Icon(Icons.search),
+              label: const Text('Search Again'),
             ),
           ],
         ),
