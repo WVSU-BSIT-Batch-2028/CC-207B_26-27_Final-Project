@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/osm_listing.dart';
@@ -6,7 +10,7 @@ class OsmListingService {
   OsmListingService({this._client});
 
   final SupabaseClient? _client;
-  
+
   SupabaseClient get _db => _client ?? Supabase.instance.client;
 
   Future<List<OsmListing>> fetchShownListings() async {
@@ -94,8 +98,56 @@ class OsmListingService {
   }
 
   Future<int> syncFromOpenStreetMap() async {
+    const query = '''
+    [out:json][timeout:25];
+    (
+      node["amenity"="pharmacy"]["name"](10.67,122.48,10.78,122.62);
+      way["amenity"="pharmacy"]["name"](10.67,122.48,10.78,122.62);
+    );
+    out center meta qt;
+    ''';
+
+    const mirrors = [
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.private.coffee/api/interpreter',
+    ];
+
+    List<dynamic>? elements;
+    for (final mirror in mirrors) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse(mirror),
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: {'data': query},
+            )
+            .timeout(const Duration(seconds: 25));
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+          final list = decoded['elements'];
+          if (list is List) {
+            elements = list;
+            break;
+          }
+        }
+      } catch (_) {
+        // Try next mirror
+      }
+    }
+
+    if (elements == null) {
+      throw Exception(
+        'OpenStreetMap is slow or busy. Wait a minute and tap Sync OSM again.',
+      );
+    }
+
     try {
-      final res = await _db.functions.invoke('osm-sync');
+      final res = await _db.functions.invoke(
+        'osm-sync',
+        body: {'elements': elements},
+      );
       final data = res.data;
       if (data is Map && data['synced'] is num) {
         return (data['synced'] as num).toInt();
