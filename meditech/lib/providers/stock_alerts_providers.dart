@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/stock_alert_item.dart';
 import '../services/stock_alerts_service.dart';
+import 'inventory_providers.dart';
 import 'session_providers.dart';
 
 // Provider for the StockAlertsService
@@ -20,7 +21,9 @@ class SelectedAlertTabNotifier extends Notifier<StockAlertType> {
 final selectedAlertTabProvider =
     NotifierProvider<SelectedAlertTabNotifier, StockAlertType>(SelectedAlertTabNotifier.new);
 
-// Asynchronously loads all categorized stock alerts
+// Asynchronously loads all categorized stock alerts.
+// Automatically recomputes whenever inventoryProvider updates or reloads,
+// providing instant realtime reactivity without needing a manual page refresh.
 final stockAlertsProvider =
     FutureProvider.autoDispose<Map<StockAlertType, List<StockAlertItem>>>((ref) async {
   restoreSessionIfNeeded(
@@ -28,6 +31,14 @@ final stockAlertsProvider =
     setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
   );
   ref.watch(sessionProvider);
+
+  // Watch inventoryProvider so any local or realtime inventory change
+  // immediately recalculates stock alerts across all tabs and badges.
+  final inventoryAsync = ref.watch(inventoryProvider);
+  if (inventoryAsync.hasValue) {
+    return StockAlertsService.computeAlertsFromInventory(inventoryAsync.value!);
+  }
+
   final service = ref.watch(stockAlertsServiceProvider);
   return service.loadStockAlerts();
 });

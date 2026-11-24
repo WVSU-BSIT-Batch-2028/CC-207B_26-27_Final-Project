@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../providers/pharmacy_staff_providers.dart';
 import '../common/profile_photo_avatar.dart';
@@ -8,34 +9,44 @@ import '../theme/app_spacing.dart';
 class PharmacySettingsSectionCard extends StatelessWidget {
   const PharmacySettingsSectionCard({
     super.key,
-    required this.title,
+    this.title,
     required this.children,
   });
 
-  final String title;
+  final String? title;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A1A2E22),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
+          if (title != null && title!.isNotEmpty) ...[
+            Text(
+              title!,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                fontStyle: FontStyle.normal,
+                color: const Color(0xFF1A2E22),
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: 16),
+          ],
           ...children,
         ],
       ),

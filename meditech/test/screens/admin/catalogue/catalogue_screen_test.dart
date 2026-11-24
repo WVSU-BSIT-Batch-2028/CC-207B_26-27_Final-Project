@@ -59,7 +59,7 @@ void main() {
     expect(find.text('Showing 1–1 of 1 medicine'), findsOneWidget);
   });
 
-  // Draft entries read as "Pending review" on the card, tab, and badge
+  // Draft entries read as "Pending review" on the status tab and row badge
   testWidgets('draft entries show as Pending review', (tester) async {
     await pumpCatalogue(tester, [
       med('1'),

@@ -1,12 +1,14 @@
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../services/inventory_import_service.dart';
 import '../../../../widgets/theme/app_colors.dart';
 import 'inventory_import_review_screen.dart';
 
-// Ph-28: Inventory import upload. Navigation and service behavior are unchanged.
+// Ph-28: Inventory import upload modal matching Figma wireframe.
 class InventoryImportUploadScreen extends StatefulWidget {
   InventoryImportUploadScreen({super.key, InventoryImportService? service})
       : service = service ?? InventoryImportService();
@@ -75,22 +77,17 @@ class _InventoryImportUploadScreenState
 
       if (!mounted || file == null) return;
 
-      final extension = file.extension?.toLowerCase();
+      final extension = (file.extension?.toLowerCase().isNotEmpty == true)
+          ? file.extension!.toLowerCase()
+          : file.name.trim().toLowerCase().split('.').last;
 
       if (extension != 'csv' && extension != 'xlsx') {
         setState(() => _errorMessage = 'Please select a CSV or XLSX file.');
         return;
       }
 
-      final fileSize = file.lengthSync() ?? await file.length();
-
-      if (fileSize == null) {
-        setState(
-          () => _errorMessage =
-              'Unable to determine the selected file size.',
-        );
-        return;
-      }
+      final bytes = await file.readAsBytes();
+      final fileSize = bytes.length;
 
       if (fileSize > _maxFileSize) {
         setState(
@@ -103,8 +100,6 @@ class _InventoryImportUploadScreenState
         setState(() => _errorMessage = 'The selected file is empty.');
         return;
       }
-
-      final bytes = await file.readAsBytes();
 
       if (!mounted) return;
 
@@ -126,18 +121,17 @@ class _InventoryImportUploadScreenState
         throw Exception('The import service did not return a batch ID.');
       }
 
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => InventoryImportReviewScreen(
-            batchId: batchId,
-            service: widget.service,
-          ),
+      final nav = Navigator.of(context);
+      nav.pop();
+      await showDialog<void>(
+        context: nav.context,
+        barrierDismissible: false,
+        barrierColor: Colors.black54,
+        builder: (_) => InventoryImportReviewScreen(
+          batchId: batchId,
+          service: widget.service,
         ),
       );
-
-      if (mounted) {
-        setState(() => _selectedFileName = null);
-      }
     } catch (error) {
       if (mounted) {
         setState(() => _errorMessage = error.toString());
@@ -159,242 +153,252 @@ class _InventoryImportUploadScreenState
   Widget build(BuildContext context) {
     final busy = _isDownloading || _isUploading;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.border),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.text),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: const Text(
-          'Import Inventory',
-          style: TextStyle(
-            color: AppColors.text,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 920),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFD8E8DE), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.14),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: constraints.maxWidth < 600 ? 16 : 32,
-              vertical: constraints.maxWidth < 600 ? 20 : 36,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(
-                    constraints.maxWidth < 600 ? 18 : 28,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Modal Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(26, 22, 22, 18),
+                child: _ImportModalHeader(
+                  activeStep: 1,
+                  subtitle: 'Upload a file from your POS export',
+                  onClose: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE5EBE7)),
+
+              // Modal Body
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 34,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.045),
-                        blurRadius: 22,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _ImportHeader(activeStep: 1),
-                      const SizedBox(height: 30),
-                      const Text(
-                        'Export a stock report from your POS and use the '
-                        'MediTech template. You will review every row before '
-                        'anything changes in your inventory.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: const Text(
-                          'Template columns: medicine (brand and strength), '
-                          'stock_quantity, price_per_unit, '
-                          'low_stock_threshold (optional), '
-                          'nearest_expiry_date (optional, YYYY-MM-DD)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.5,
-                            color: AppColors.text,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: busy ? null : _downloadTemplate,
-                        icon: _isDownloading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.download_outlined,
-                                size: 18,
-                              ),
-                        label: Text(
-                          _isDownloading
-                              ? 'Downloading...'
-                              : 'Download template (.xlsx)',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(
-                            color: AppColors.primary,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      _UploadDropZone(
-                        fileName: _selectedFileName,
-                        uploading: _isUploading,
-                        onTap: busy ? null : _selectAndUploadFile,
-                      ),
-                      const SizedBox(height: 12),
-                      const Center(
-                        child: Text(
-                          'CSV or XLSX · Up to 2 MB · Up to 1,000 rows',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ),
-                      if (_isUploading) ...[
-                        const SizedBox(height: 18),
-                        const LinearProgressIndicator(
-                          color: AppColors.primary,
-                          backgroundColor: AppColors.primaryLight,
-                        ),
-                        const SizedBox(height: 8),
-                        const Center(
-                          child: Text(
-                            'Processing file. Inventory will not change '
-                            'until you publish.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Export a stock report from your POS and paste it into the MediTech template. You\'ll review every row before anything changes in your inventory.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              height: 1.5,
+                              color: const Color(0xFF4B5563),
                             ),
                           ),
-                        ),
-                      ],
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 18),
-                        _UploadError(message: _errorMessage!),
-                      ],
-                    ],
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F6F3),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: RichText(
+                              text: TextSpan(
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  height: 1.5,
+                                  color: const Color(0xFF4B5563),
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'Template columns: ',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF1A2E22),
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text:
+                                        'medicine (brand and strength), stock_quantity, price_per_unit, low_stock_threshold (optional), nearest_expiry_date (optional, YYYY-MM-DD)',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 36,
+                            child: OutlinedButton(
+                              onPressed: busy ? null : _downloadTemplate,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF2E6B46),
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(
+                                  color: Color(0xFF2E6B46),
+                                  width: 1.2,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                _isDownloading
+                                    ? 'Downloading...'
+                                    : 'Download template (.xlsx)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2E6B46),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _DashedUploadDropZone(
+                            fileName: _selectedFileName,
+                            uploading: _isUploading,
+                            onTap: busy ? null : _selectAndUploadFile,
+                          ),
+                          if (_isUploading) ...[
+                            const SizedBox(height: 16),
+                            const LinearProgressIndicator(
+                              color: Color(0xFF2E6B46),
+                              backgroundColor: Color(0xFFE6F0E9),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                'Processing file. Inventory will not change until you publish.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 16),
+                            _UploadError(message: _errorMessage!),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ImportHeader extends StatelessWidget {
-  const _ImportHeader({required this.activeStep});
+class _ImportModalHeader extends StatelessWidget {
+  const _ImportModalHeader({
+    required this.activeStep,
+    required this.subtitle,
+    required this.onClose,
+  });
 
   final int activeStep;
+  final String subtitle;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
                 'Import CSV or Excel',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A2E22),
                 ),
               ),
-            ),
-            Icon(
-              Icons.upload_file_outlined,
-              color: AppColors.primary,
-              size: 25,
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        const Text(
-          'Upload a file from your POS export',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.textMuted,
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            _StepPill(
-              number: 1,
-              label: 'Upload',
-              active: activeStep == 1,
+        const SizedBox(width: 12),
+        _StepBadge(
+          number: 1,
+          label: 'Upload',
+          active: activeStep == 1,
+        ),
+        const SizedBox(width: 6),
+        _StepBadge(
+          number: 2,
+          label: 'Review and edit',
+          active: activeStep == 2,
+        ),
+        const SizedBox(width: 6),
+        _StepBadge(
+          number: 3,
+          label: 'Publish',
+          active: activeStep == 3,
+        ),
+        const SizedBox(width: 12),
+        InkWell(
+          onTap: onClose,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF3F5F2),
+              shape: BoxShape.circle,
             ),
-            const _StepConnector(),
-            _StepPill(
-              number: 2,
-              label: 'Review and edit',
-              active: activeStep == 2,
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.close,
+              size: 16,
+              color: Color(0xFF1A2E22),
             ),
-            const _StepConnector(),
-            _StepPill(
-              number: 3,
-              label: 'Publish',
-              active: activeStep == 3,
-            ),
-          ],
+          ),
         ),
       ],
     );
   }
 }
 
-class _StepPill extends StatelessWidget {
-  const _StepPill({
+class _StepBadge extends StatelessWidget {
+  const _StepBadge({
     required this.number,
     required this.label,
     required this.active,
@@ -407,43 +411,25 @@ class _StepPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: active ? AppColors.primary : AppColors.background,
-        borderRadius: BorderRadius.circular(20),
+        color: active ? const Color(0xFF2E6B46) : const Color(0xFFF1F4F1),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
         '$number $label',
-        style: TextStyle(
+        style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: active ? Colors.white : AppColors.textMuted,
+          color: active ? Colors.white : const Color(0xFF4B5563),
         ),
       ),
     );
   }
 }
 
-class _StepConnector extends StatelessWidget {
-  const _StepConnector();
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 1,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        color: AppColors.border,
-      ),
-    );
-  }
-}
-
-class _UploadDropZone extends StatelessWidget {
-  const _UploadDropZone({
+class _DashedUploadDropZone extends StatelessWidget {
+  const _DashedUploadDropZone({
     required this.fileName,
     required this.uploading,
     required this.onTap,
@@ -457,66 +443,111 @@ class _UploadDropZone extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasFile = fileName != null;
 
-    return Material(
-      color: hasFile
-          ? AppColors.primaryLight
-          : const Color(0xFFF3F8F4),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 150),
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.primary,
-              width: 1.4,
+    return CustomPaint(
+      foregroundPainter: _DashedRectPainter(
+        color: const Color(0xFF2E6B46),
+        strokeWidth: 1.3,
+        radius: 14,
+        dashWidth: 6,
+        dashSpace: 4,
+      ),
+      child: Material(
+        color: const Color(0xFFF4F8F4),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 165),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  hasFile
+                      ? Icons.description_outlined
+                      : Icons.file_upload_outlined,
+                  size: 28,
+                  color: const Color(0xFF2E6B46),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  uploading
+                      ? 'Uploading and processing...'
+                      : hasFile
+                          ? fileName!
+                          : 'Choose CSV or Excel file',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF2E6B46),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasFile
+                      ? 'Tap to choose a different file'
+                      : '.csv or .xlsx · up to 2 MB · up to 1,000 rows',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                hasFile
-                    ? Icons.description_outlined
-                    : Icons.file_upload_outlined,
-                size: 34,
-                color: AppColors.primary,
-              ),
-              const SizedBox(height: 9),
-              Text(
-                uploading
-                    ? 'Uploading and processing...'
-                    : hasFile
-                        ? fileName!
-                        : 'Choose CSV or Excel file',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                hasFile
-                    ? 'Tap to choose a different file'
-                    : '.csv or .xlsx · up to 2 MB · up to 1,000 rows',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
           ),
         ),
       ),
     );
   }
+}
+
+class _DashedRectPainter extends CustomPainter {
+  _DashedRectPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.radius,
+    required this.dashWidth,
+    required this.dashSpace,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double radius;
+  final double dashWidth;
+  final double dashSpace;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final next = math.min(distance + dashWidth, metric.length);
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRectPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.strokeWidth != strokeWidth ||
+      oldDelegate.radius != radius;
 }
 
 class _UploadError extends StatelessWidget {
@@ -550,7 +581,7 @@ class _UploadError extends StatelessWidget {
               message,
               style: const TextStyle(
                 color: AppColors.danger,
-                fontSize: 13,
+                fontSize: 12.5,
               ),
             ),
           ),

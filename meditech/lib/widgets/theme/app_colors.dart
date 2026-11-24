@@ -13,7 +13,7 @@ class AppColors {
   // Borders and dividers
   static const border = Color(0xFFDDE3DE);
   // Main text
-  static const text = Color(0xFF1B2420);
+  static const text = Color(0xFF1A2E22);
   // Secondary text
   static const textMuted = Color(0xFF5F6B65);
   // Destructive actions: reject, cancel, deactivate

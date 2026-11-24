@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/inventory_item.dart';
 import '../../../providers/inventory_providers.dart';
+import '../../../providers/stock_alerts_providers.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -175,6 +176,7 @@ class _EditInventoryDrawerState
           );
 
       ref.invalidate(inventoryProvider);
+      ref.invalidate(stockAlertsProvider);
 
       if (!mounted) return;
 
