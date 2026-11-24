@@ -98,23 +98,30 @@ class _PharmaciesScreenState extends ConsumerState<PharmaciesScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
-        child: RadioGroup<String>(
-          groupValue: _filter,
-          onChanged: (v) => Navigator.pop(context, v),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
-                child: Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
+              child: Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ),
+            RadioGroup<String>(
+              groupValue: _filter,
+              onChanged: (v) {
+                if (v != null) Navigator.pop(context, v);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (label, value) in _filterOptions)
+                    RadioListTile<String>(
+                      value: value,
+                      title: Text(label),
+                    ),
+                ],
               ),
-              for (final (label, value) in _filterOptions)
-                RadioListTile<String>(
-                  value: value,
-                  title: Text(label),
-                ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

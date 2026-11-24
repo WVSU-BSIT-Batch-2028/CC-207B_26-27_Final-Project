@@ -59,7 +59,7 @@ void main() {
     expect(find.text('Confirm reservation'), findsOneWidget);
     expect(find.text('Reject'), findsOneWidget);
     expect(find.text('Uploaded prescription'), findsOneWidget);
-    expect(find.text('View full size'), findsOneWidget);
+    expect(find.text('View Full Size'), findsOneWidget);
     expect(find.text('Total reported amount'), findsOneWidget);
     expect(find.text('₱252.00'), findsWidgets);
   });

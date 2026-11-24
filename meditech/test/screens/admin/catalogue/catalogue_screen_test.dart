@@ -54,6 +54,7 @@ void main() {
     expect(find.text('Keflex'), findsOneWidget);
     expect(find.text('500 mg Capsule'), findsOneWidget);
     expect(find.text('Prescription Drug (Rx)'), findsOneWidget);
+    expect(find.text('Open details'), findsNothing); // in hidden popup menu only
     expect(find.text('View'), findsOneWidget);
     expect(find.text('Showing 1–1 of 1 medicine'), findsOneWidget);
   });
@@ -66,8 +67,8 @@ void main() {
     ]);
 
     expect(find.text('Draft'), findsNothing);
-    expect(find.text('Pending review (1)'), findsOneWidget); // status tab
-    expect(find.text('Pending review'), findsOneWidget); // row badge
+    expect(find.text('Pending review (1)'), findsOneWidget); // status tab chip
+    expect(find.text('Pending review'), findsOneWidget);     // row badge only
     expect(find.text('All (2)'), findsOneWidget);
   });
 
