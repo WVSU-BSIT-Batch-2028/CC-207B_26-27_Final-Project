@@ -19,14 +19,22 @@ class TabletControls {
         backgroundColor: background,
         foregroundColor: foreground,
         side: BorderSide(color: border),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       );
 
   static ButtonStyle actionFilled({Color? background}) => FilledButton.styleFrom(
         minimumSize: const Size(64, actionHeight),
         backgroundColor: background,
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       );
 
@@ -40,7 +48,11 @@ class TabletControls {
         backgroundColor: background,
         foregroundColor: foreground,
         side: BorderSide(color: border),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       );
 
@@ -48,7 +60,11 @@ class TabletControls {
         minimumSize: const Size.fromHeight(actionHeight),
         foregroundColor: AppColors.danger,
         side: const BorderSide(color: AppColors.danger),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.none,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       );
 
