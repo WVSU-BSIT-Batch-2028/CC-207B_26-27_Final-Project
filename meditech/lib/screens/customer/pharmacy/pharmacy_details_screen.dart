@@ -117,6 +117,7 @@ class _PharmacyDetailsScreenState extends ConsumerState<PharmacyDetailsScreen> {
       appBar: AppBar(
         title: CustomerLocationAppBarTitle(
           heading: title,
+          icon: Icons.local_pharmacy_outlined,
           headingStyle: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,

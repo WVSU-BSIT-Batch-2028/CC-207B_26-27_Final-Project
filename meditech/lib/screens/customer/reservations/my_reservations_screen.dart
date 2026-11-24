@@ -95,7 +95,10 @@ class _MyReservationsScreenState extends ConsumerState<MyReservationsScreen> {
             AppSpacing.lg,
             AppSpacing.sm,
           ),
-          child: CustomerLocationAppBarTitle(heading: 'My reservations'),
+          child: CustomerLocationAppBarTitle(
+            heading: 'My Reservations',
+            icon: Icons.receipt_long_outlined,
+          ),
         ),
         // Status filter chips bar
         SingleChildScrollView(

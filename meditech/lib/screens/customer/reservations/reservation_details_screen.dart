@@ -48,6 +48,7 @@ class ReservationDetailsScreen extends ConsumerWidget {
         ),
         title: const CustomerLocationAppBarTitle(
           heading: 'Reservation Details',
+          icon: Icons.receipt_long_outlined,
         ),
         actions: [
           IconButton(

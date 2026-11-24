@@ -86,6 +86,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         titleSpacing: 0,
         title: const CustomerLocationAppBarTitle(
           heading: 'MediTech Assistant',
+          icon: Icons.smart_toy_outlined,
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),

@@ -82,6 +82,7 @@ class MedicineDetailsScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         title: CustomerLocationAppBarTitle(
           heading: medicine.brandName,
+          icon: Icons.medication_outlined,
         ),
       ),
       bottomNavigationBar: CustomerBottomChrome(

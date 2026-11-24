@@ -140,6 +140,7 @@ class _ReservationSubmittedScreenState
         automaticallyImplyLeading: false,
         title: const CustomerLocationAppBarTitle(
           heading: 'Reservation Submitted',
+          icon: Icons.check_circle_outline,
         ),
       ),
       body: SafeArea(

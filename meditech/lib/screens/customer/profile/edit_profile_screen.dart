@@ -149,7 +149,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               : null;
       if (error != null) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Edit Profile')),
+          appBar: AppBar(title: const _AppBarTitle(
+            icon: Icons.edit_outlined,
+            title: 'Edit Profile',
+            subtitle: 'Update your personal details',
+          )),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -179,7 +183,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
 
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Profile')),
+        appBar: AppBar(title: const _AppBarTitle(
+          icon: Icons.edit_outlined,
+          title: 'Edit Profile',
+          subtitle: 'Update your personal details',
+        )),
         body: const Center(child: Text('Sign in to edit your profile.')),
       );
     }
@@ -189,7 +197,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         : DateFormat.yMMMMd().format(_birthdate!);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: const _AppBarTitle(
+        icon: Icons.edit_outlined,
+        title: 'Edit Profile',
+        subtitle: 'Update your personal details',
+      )),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -253,6 +265,58 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Reusable two-line AppBar title with icon used across profile sub-screens
+class _AppBarTitle extends StatelessWidget {
+  const _AppBarTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textMuted,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -10,10 +10,14 @@ class CustomerLocationAppBarTitle extends ConsumerWidget {
     super.key,
     this.heading,
     this.headingStyle,
+    this.icon,
   });
 
   final String? heading;
   final TextStyle? headingStyle;
+
+  /// Optional leading icon shown beside the heading for visual context.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,16 +27,27 @@ class CustomerLocationAppBarTitle extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (headingText != null && headingText.isNotEmpty) ...[
-          Text(
-            headingText,
-            style: headingStyle ??
-                const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  headingText,
+                  style: headingStyle ??
+                      const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
           const SizedBox(height: 2),
         ],

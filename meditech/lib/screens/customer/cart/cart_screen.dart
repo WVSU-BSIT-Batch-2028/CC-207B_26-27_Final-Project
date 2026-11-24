@@ -236,7 +236,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       bottomNavigationBar: const CustomerBottomChrome(),
       appBar: AppBar(
         title: CustomerLocationAppBarTitle(
-          heading: hasItems ? null : 'Your Cart',
+          heading: hasItems ? 'Your Cart' : 'Your Cart',
+          icon: Icons.shopping_bag_outlined,
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
