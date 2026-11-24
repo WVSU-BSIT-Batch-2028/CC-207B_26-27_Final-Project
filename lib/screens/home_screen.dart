@@ -1,22 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../foodwise_theme.dart';
 import '../models/food.dart';
 import '../services/auth_service.dart';
 import '../services/strapi_service.dart';
 import 'welcome_screen.dart';
 
-// ============================================================
-// FOODWISE THEME COLORS
-// Keep these colors consistent with foodwise_theme.dart.
-// ============================================================
-const Color orange = Color(0xFFE96B10);
-const Color deepOrange = Color(0xFFD95708);
-const Color lightOrange = Color(0xFFFFE7D1);
-const Color paleOrange = Color(0xFFFFF1E5);
-const Color cream = Color(0xFFFFF8F1);
-const Color charcoal = Color(0xFF30251F);
-const Color muted = Color(0xFF88786E);
-const Color borderColor = Color(0xFFF0DFD2);
+
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -109,13 +99,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: charcoal,
+            color: FoodWiseColors.charcoal,
           ),
         ),
         content: const Text(
           'Are you sure you want to sign out of your FoodWise account?',
           textAlign: TextAlign.center,
-          style: TextStyle(color: muted, height: 1.5),
+          style: TextStyle(color: FoodWiseColors. muted, height: 1.5),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
@@ -123,12 +113,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text(
               'Cancel',
-              style: TextStyle(color: muted),
+              style: TextStyle(color: FoodWiseColors.muted),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: orange,
+              backgroundColor: FoodWiseColors.orange,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -205,7 +195,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor:	FoodWiseColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -216,7 +206,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(color: orange),
+                      child: CircularProgressIndicator(color: FoodWiseColors.orange),
                     );
                   }
 
@@ -261,7 +251,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             height: 44,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [orange, Color(0xFFFFA64D)],
+                colors: [	FoodWiseColors.orange, Color(0xFFFFA64D)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -282,7 +272,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 style: TextStyle(
                   fontSize: 23,
                   fontWeight: FontWeight.w900,
-                  color: charcoal,
+                  color: FoodWiseColors.charcoal,
                   letterSpacing: -0.7,
                 ),
               ),
@@ -290,7 +280,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 'GOOD FOOD, SMART CHOICES',
                 style: TextStyle(
                   fontSize: 8,
-                  color: muted,
+                  color: FoodWiseColors.muted,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.1,
                 ),
@@ -302,8 +292,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             onPressed: confirmLogout,
             tooltip: 'Sign Out',
             style: IconButton.styleFrom(
-              backgroundColor: paleOrange,
-              foregroundColor: orange,
+              backgroundColor: FoodWiseColors.paleOrange,
+              foregroundColor: FoodWiseColors.orange,
             ),
             icon: const Icon(Icons.logout_rounded),
           ),
@@ -320,7 +310,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final filteredFoods = filterFoods(foods);
 
     return RefreshIndicator(
-      color: orange,
+      color: FoodWiseColors.orange,
       onRefresh: refreshFood,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -381,14 +371,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [deepOrange, orange, Color(0xFFFFA64D)],
+              colors: [FoodWiseColors.deepOrange, FoodWiseColors.orange, Color(0xFFFFA64D)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(26),
             boxShadow: [
               BoxShadow(
-                color: orange.withValues(alpha: 0.22),
+                color: FoodWiseColors.orange.withValues(alpha: 0.22),
                 blurRadius: 20,
                 offset: const Offset(0, 9),
               ),
@@ -497,16 +487,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: paleOrange,
+        color: FoodWiseColors.paleOrange,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: lightOrange),
+        border: Border.all(color: FoodWiseColors.lightOrange),
       ),
       child: const Row(
         children: [
           CircleAvatar(
             radius: 25,
             backgroundColor: Colors.white,
-            child: Icon(Icons.favorite_rounded, color: orange, size: 25),
+            child: Icon(Icons.favorite_rounded, color: FoodWiseColors.orange, size: 25),
           ),
           SizedBox(width: 13),
           Expanded(
@@ -516,7 +506,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 Text(
                   'Your Favorites',
                   style: TextStyle(
-                    color: charcoal,
+                    color: FoodWiseColors.charcoal,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
                   ),
@@ -524,7 +514,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 SizedBox(height: 3),
                 Text(
                   'All the meals you love in one place.',
-                  style: TextStyle(color: muted, fontSize: 11),
+                  style: TextStyle(color: FoodWiseColors.muted, fontSize: 11),
                 ),
               ],
             ),
@@ -540,10 +530,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: FoodWiseColors.border),
         boxShadow: [
           BoxShadow(
-            color: charcoal.withValues(alpha: 0.035),
+            color: FoodWiseColors.charcoal.withValues(alpha: 0.035),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -558,20 +548,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         },
         decoration: InputDecoration(
           hintText: 'What are you craving today?',
-          hintStyle: const TextStyle(color: muted, fontSize: 13),
+          hintStyle: const TextStyle(color: FoodWiseColors.muted, fontSize: 13),
           prefixIcon: const Icon(
             Icons.search_rounded,
-            color: orange,
+            color: FoodWiseColors.orange,
             size: 23,
           ),
           suffixIcon: searchQuery.isEmpty
-              ? const Icon(Icons.tune_rounded, color: muted, size: 20)
+              ? const Icon(Icons.tune_rounded, color: FoodWiseColors.muted, size: 20)
               : IconButton(
                   onPressed: () {
                     searchController.clear();
                     setState(() => searchQuery = '');
                   },
-                  icon: const Icon(Icons.close_rounded, color: muted),
+                  icon: const Icon(Icons.close_rounded, color: FoodWiseColors.muted),
                 ),
           filled: true,
           fillColor: Colors.white,
@@ -586,7 +576,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(17),
-            borderSide: const BorderSide(color: orange, width: 1.2),
+            borderSide: const BorderSide(color: FoodWiseColors.orange, width: 1.2),
           ),
         ),
       ),
@@ -606,7 +596,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 style: const TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w900,
-                  color: charcoal,
+                  color: FoodWiseColors.charcoal,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -615,7 +605,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 subtitle,
                 style: const TextStyle(
                   fontSize: 11,
-                  color: muted,
+                  color: FoodWiseColors.muted,
                 ),
               ),
             ],
@@ -623,7 +613,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         const Icon(
           Icons.restaurant_rounded,
-          color: orange,
+          color: FoodWiseColors.orange,
           size: 20,
         ),
       ],
@@ -651,15 +641,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 selectedCategory = category;
               });
             },
-            selectedColor: orange,
+            selectedColor: FoodWiseColors.orange,
             backgroundColor: Colors.white,
             labelStyle: TextStyle(
-              color: isSelected ? Colors.white : charcoal,
+              color: isSelected ? Colors.white : FoodWiseColors.charcoal,
               fontWeight: FontWeight.w800,
               fontSize: 11,
             ),
             side: BorderSide(
-              color: isSelected ? orange : borderColor,
+              color: isSelected ? FoodWiseColors.orange : FoodWiseColors.border,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(13),
@@ -705,14 +695,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       borderRadius: BorderRadius.circular(21),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => openFoodDetails(food),
+        onTap: () => openFoodDetails(food), 
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(21),
-            border: Border.all(color: borderColor),
+            border: Border.all (color: FoodWiseColors.border),
             boxShadow: [
               BoxShadow(
-                color: charcoal.withValues(alpha: 0.045),
+                color: FoodWiseColors.charcoal.withValues(alpha: 0.045),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
@@ -772,7 +762,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             isFavorite
                                 ? Icons.favorite_rounded
                                 : Icons.favorite_border_rounded,
-                            color: isFavorite ? orange : charcoal,
+                            color: isFavorite ? FoodWiseColors.orange : FoodWiseColors.charcoal,
                             size: 19,
                           ),
                         ),
@@ -806,7 +796,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: orange,
+                          color: FoodWiseColors.orange,
                           fontWeight: FontWeight.w900,
                           fontSize: 9,
                           letterSpacing: 0.7,
@@ -820,7 +810,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w900,
-                          color: charcoal,
+                          color: FoodWiseColors.charcoal,
                           height: 1.25,
                         ),
                       ),
@@ -832,7 +822,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               '₱${food.price.toStringAsFixed(2)}',
                               maxLines: 1,
                               style: const TextStyle(
-                                color: orange,
+                                color: FoodWiseColors.orange,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 15,
                               ),
@@ -842,12 +832,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             width: 29,
                             height: 29,
                             decoration: BoxDecoration(
-                              color: paleOrange,
+                              color: FoodWiseColors.paleOrange,
                               borderRadius: BorderRadius.circular(9),
                             ),
                             child: const Icon(
                               Icons.arrow_forward_rounded,
-                              color: orange,
+                              color: FoodWiseColors.orange,
                               size: 17,
                             ),
                           ),
@@ -869,11 +859,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   Widget _foodImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return Container(
-        color: lightOrange,
+        color: FoodWiseColors.lightOrange,
         child: const Center(
           child: Icon(
             Icons.restaurant_rounded,
-            color: orange,
+            color: FoodWiseColors.orange,
             size: 45,
           ),
         ),
@@ -885,11 +875,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         return Container(
-          color: lightOrange,
+          color: FoodWiseColors.background,
           child: const Center(
             child: Icon(
               Icons.image_not_supported_outlined,
-              color: orange,
+              color: FoodWiseColors.orange,
               size: 40,
             ),
           ),
@@ -908,7 +898,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: orange),
+            child: CircularProgressIndicator(color: FoodWiseColors.orange),
           );
         }
 
@@ -927,19 +917,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Colors.white, paleOrange],
+                  colors: [Colors.white, FoodWiseColors.paleOrange],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
                 borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: borderColor),
+                border: Border.all(color: FoodWiseColors.border),
               ),
               child: Column(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(7),
                     decoration: const BoxDecoration(
-                      color: lightOrange,
+                      color: FoodWiseColors.lightOrange,
                       shape: BoxShape.circle,
                     ),
                     child: const CircleAvatar(
@@ -947,7 +937,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       backgroundColor: Colors.white,
                       child: Icon(
                         Icons.person_rounded,
-                        color: orange,
+                        color: FoodWiseColors.orange,
                         size: 53,
                       ),
                     ),
@@ -959,7 +949,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
-                      color: charcoal,
+                      color: FoodWiseColors.charcoal,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -969,13 +959,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: lightOrange,
+                      color: FoodWiseColors.lightOrange,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       role.toUpperCase(),
                       style: const TextStyle(
-                        color: deepOrange,
+                        color:	FoodWiseColors.deepOrange,
                         fontWeight: FontWeight.w900,
                         fontSize: 10,
                         letterSpacing: 0.8,
@@ -991,13 +981,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(17),
-                border: Border.all(color: borderColor),
+                border: Border.all(color: FoodWiseColors.border),
               ),
               child: const Row(
                 children: [
                   Icon(
                     Icons.restaurant_menu_rounded,
-                    color: orange,
+                    color: FoodWiseColors.orange,
                     size: 23,
                   ),
                   SizedBox(width: 12),
@@ -1005,7 +995,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     child: Text(
                       'Welcome to your FoodWise student account!',
                       style: TextStyle(
-                        color: charcoal,
+                        color: FoodWiseColors.charcoal,
                         fontWeight: FontWeight.w700,
                         height: 1.4,
                       ),
@@ -1025,7 +1015,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: orange,
+                  backgroundColor: FoodWiseColors.orange,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
@@ -1051,14 +1041,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           children: [
             const Icon(
               Icons.cloud_off_rounded,
-              color: orange,
+              color: FoodWiseColors.orange,
               size: 55,
             ),
             const SizedBox(height: 14),
             const Text(
               'Unable to load food items',
               style: TextStyle(
-                color: charcoal,
+                color: FoodWiseColors.  charcoal,
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
               ),
@@ -1067,7 +1057,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             Text(
               error,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: muted, fontSize: 12),
+              style: const TextStyle(color: FoodWiseColors.muted, fontSize: 12),
             ),
             const SizedBox(height: 18),
             FilledButton(
@@ -1077,7 +1067,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 });
               },
               style: FilledButton.styleFrom(
-                backgroundColor: orange,
+                backgroundColor: FoodWiseColors.orange,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Try Again'),
@@ -1097,12 +1087,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: const BoxDecoration(
-              color: paleOrange,
+              color: FoodWiseColors.paleOrange,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.restaurant_rounded,
-              color: orange,
+              color: FoodWiseColors.orange,
               size: 42,
             ),
           ),
@@ -1111,7 +1101,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: muted,
+              color: FoodWiseColors.muted,
               fontSize: 13,
               height: 1.5,
             ),
@@ -1129,11 +1119,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: const Border(
-          top: BorderSide(color: borderColor),
+          top: BorderSide(color: FoodWiseColors.border),
         ),
         boxShadow: [
           BoxShadow(
-            color: charcoal.withValues(alpha: 0.035),
+            color: FoodWiseColors.charcoal.withValues(alpha: 0.035),
             blurRadius: 12,
             offset: const Offset(0, -3),
           ),
@@ -1150,8 +1140,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           });
         },
         backgroundColor: Colors.white,
-        selectedItemColor: orange,
-        unselectedItemColor: muted,
+        selectedItemColor: FoodWiseColors.orange,
+        unselectedItemColor: FoodWiseColors.muted,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w900,
           fontSize: 10,
@@ -1200,10 +1190,10 @@ class FoodDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: FoodWiseColors.background,
       appBar: AppBar(
-        backgroundColor: cream,
-        foregroundColor: charcoal,
+        backgroundColor: FoodWiseColors.background,
+        foregroundColor: FoodWiseColors.charcoal,
         elevation: 0,
         title: const Text(
           'Food Details',
@@ -1219,7 +1209,7 @@ class FoodDetailScreen extends StatelessWidget {
               isFavorite
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              color: orange,
+              color: FoodWiseColors.orange,
             ),
           ),
         ],
@@ -1232,11 +1222,11 @@ class FoodDetailScreen extends StatelessWidget {
             width: double.infinity,
             child: food.imageUrl == null || food.imageUrl!.isEmpty
                 ? Container(
-                    color: lightOrange,
+                    color: FoodWiseColors.lightOrange,
                     child: const Icon(
                       Icons.restaurant_rounded,
                       size: 85,
-                      color: orange,
+                      color: FoodWiseColors.orange,
                     ),
                   )
                 : Image.network(
@@ -1244,11 +1234,11 @@ class FoodDetailScreen extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: lightOrange,
+                        color: FoodWiseColors.lightOrange,
                         child: const Icon(
                           Icons.image_not_supported_outlined,
                           size: 65,
-                          color: orange,
+                          color: FoodWiseColors.orange,
                         ),
                       );
                     },
@@ -1259,7 +1249,7 @@ class FoodDetailScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.fromLTRB(22, 25, 22, 30),
               decoration: const BoxDecoration(
-                color: cream,
+                color: FoodWiseColors.background,
                 borderRadius: BorderRadius.vertical(
                   top: Radius.circular(26),
                 ),
@@ -1273,13 +1263,13 @@ class FoodDetailScreen extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: lightOrange,
+                      color: FoodWiseColors.lightOrange,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       food.categoryName.toUpperCase(),
                       style: const TextStyle(
-                        color: deepOrange,
+                        color: FoodWiseColors.deepOrange,
                         fontSize: 9,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.8,
@@ -1290,7 +1280,7 @@ class FoodDetailScreen extends StatelessWidget {
                   Text(
                     food.name,
                     style: const TextStyle(
-                      color: charcoal,
+                      color: FoodWiseColors.charcoal,
                       fontSize: 27,
                       fontWeight: FontWeight.w900,
                       height: 1.2,
@@ -1300,7 +1290,7 @@ class FoodDetailScreen extends StatelessWidget {
                   Text(
                     '₱${food.price.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      color: orange,
+                      color: FoodWiseColors.orange,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1313,7 +1303,7 @@ class FoodDetailScreen extends StatelessWidget {
                         ? 'No description available.'
                         : food.description,
                     style: const TextStyle(
-                      color: muted,
+                      color: FoodWiseColors.muted,
                       height: 1.6,
                       fontSize: 13,
                     ),
@@ -1326,15 +1316,15 @@ class FoodDetailScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor),
+                      border: Border.all(color: FoodWiseColors.border),
                     ),
                     child: Row(
                       children: [
                         const CircleAvatar(
-                          backgroundColor: paleOrange,
+                          backgroundColor: FoodWiseColors.paleOrange,
                           child: Icon(
                             Icons.storefront_rounded,
-                            color: orange,
+                            color: FoodWiseColors.paleOrange,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1345,7 +1335,7 @@ class FoodDetailScreen extends StatelessWidget {
                               Text(
                                 food.businessName,
                                 style: const TextStyle(
-                                  color: charcoal,
+                                  color: FoodWiseColors.charcoal,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1354,7 +1344,7 @@ class FoodDetailScreen extends StatelessWidget {
                                 Text(
                                   food.businessAddress,
                                   style: const TextStyle(
-                                    color: muted,
+                                    color: FoodWiseColors.muted,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -1371,13 +1361,13 @@ class FoodDetailScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor),
+                      border: Border.all(color: FoodWiseColors.border),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.local_fire_department_rounded,
-                          color: orange,
+                          color: FoodWiseColors.orange,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -1386,7 +1376,7 @@ class FoodDetailScreen extends StatelessWidget {
                                 ? 'Calories: Not available'
                                 : 'Calories: ${food.caloriesKcal!.toStringAsFixed(0)} kcal',
                             style: const TextStyle(
-                              color: charcoal,
+                              color: FoodWiseColors.charcoal,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1431,7 +1421,7 @@ class FoodDetailScreen extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        color: charcoal,
+        color:  FoodWiseColors.charcoal,
         fontWeight: FontWeight.w900,
         fontSize: 17,
       ),
