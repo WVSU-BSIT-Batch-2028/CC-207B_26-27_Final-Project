@@ -11,8 +11,8 @@
 // list depends on the medicine. When it is saved, the doctor sees the
 // confirmation popup and, after OK, goes back to the patient's prescriptions.
 //
-// WHERE THE DATA GOES: PatientsService.addPrescription saves it on the device
-// (shared_preferences), so it is still there after the app restarts.
+// WHERE THE DATA GOES: PatientsService.addPrescription saves it to Firestore
+// (`prescriptions`), the same record the patient's own screen reads.
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';

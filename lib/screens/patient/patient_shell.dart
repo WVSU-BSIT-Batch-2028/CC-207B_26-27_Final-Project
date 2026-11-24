@@ -36,10 +36,17 @@ class _PatientShellState extends State<PatientShell> {
   int _index = 0;
   int _appointmentsRefreshToken = 0;
 
+  /// Bumped every time the Prescriptions tab is opened. The tabs live in an
+  /// IndexedStack (kept alive), so without this the list would load once and
+  /// never show a prescription the doctor added later.
+  int _prescriptionsRefreshToken = 0;
+
   void _goTo(int index) {
     if (!mounted) return;
 
     setState(() {
+      // Opening the Prescriptions tab (index 2) reloads it from Firestore.
+      if (index == 2 && _index != 2) _prescriptionsRefreshToken++;
       _index = index;
     });
   }
@@ -186,7 +193,7 @@ class _PatientShellState extends State<PatientShell> {
             onBookAppointment: _openDoctorSelection,
             onJoinConsultation: _openVideoConsultation,
           ),
-          const PrescriptionsScreen(),
+          PrescriptionsScreen(key: ValueKey(_prescriptionsRefreshToken)),
           RecordsScreen(
             onBack: () => _goTo(0),
           ),

@@ -6,6 +6,7 @@ import '../../../core/utils/date_format.dart';
 import '../../../models/prescription.dart';
 import '../../../models/refill_request.dart';
 import '../../../services/prescription_service.dart';
+import '../../../widgets/drug_info_card.dart';
 import '../../../widgets/h360_button.dart';
 import '../../../widgets/prescription_info_card.dart';
 import '../../../widgets/refill_status_chip.dart';
@@ -365,6 +366,10 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
             ],
           ],
         ),
+
+        // Reference info from the US FDA drug label (optional API)
+        const SizedBox(height: AppSpacing.md),
+        DrugInfoCard(medicineName: _rx.medicineName),
 
         // Buttons
         const SizedBox(height: AppSpacing.lg),
