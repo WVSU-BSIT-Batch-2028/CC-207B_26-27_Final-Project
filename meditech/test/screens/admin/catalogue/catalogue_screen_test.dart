@@ -54,11 +54,11 @@ void main() {
     expect(find.text('Keflex'), findsOneWidget);
     expect(find.text('500 mg Capsule'), findsOneWidget);
     expect(find.text('Prescription Drug (Rx)'), findsOneWidget);
-    expect(find.text('View details'), findsOneWidget);
+    expect(find.text('View'), findsOneWidget);
     expect(find.text('Showing 1–1 of 1 medicine'), findsOneWidget);
   });
 
-  // Draft entries read as "Pending review" on the card, tab, and badge
+  // Draft entries read as "Pending review" on the status tab and row badge
   testWidgets('draft entries show as Pending review', (tester) async {
     await pumpCatalogue(tester, [
       med('1'),
@@ -67,7 +67,7 @@ void main() {
 
     expect(find.text('Draft'), findsNothing);
     expect(find.text('Pending review (1)'), findsOneWidget); // status tab
-    expect(find.text('Pending review'), findsNWidgets(2)); // stat card and row badge
+    expect(find.text('Pending review'), findsOneWidget); // row badge
     expect(find.text('All (2)'), findsOneWidget);
   });
 
