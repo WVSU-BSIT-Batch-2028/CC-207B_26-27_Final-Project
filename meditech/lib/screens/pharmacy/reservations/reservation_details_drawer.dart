@@ -4,11 +4,12 @@ import 'package:intl/intl.dart';
 
 import '../../../models/branch_reservation.dart';
 import '../../../providers/branch_reservation_providers.dart';
-import '../../../providers/session_providers.dart';
+import '../../../providers/pharmacy_staff_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/tablet/tablet_dialogs.dart';
 import '../../../widgets/theme/app_colors.dart';
+import '../../../utils/friendly_error.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 // Slide-in reservation details drawer for pharmacy tablets (Ph-14, Ph-17, Ph-18, Ph-37)
@@ -37,6 +38,11 @@ class _ReservationDetailsDrawerState
   void dispose() {
     _codeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showActionError(Object error, String action) async {
+    if (!mounted) return;
+    await showFriendlyErrorDialog(context, error, action: action);
   }
 
   String _formatTimestamp(DateTime dt) {
@@ -77,11 +83,7 @@ class _ReservationDetailsDrawerState
             .confirm(res.id);
         ref.invalidate(selectedReservationDetailProvider);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to confirm: $e')),
-          );
-        }
+        await _showActionError(e, 'confirm this reservation');
       } finally {
         if (mounted) setState(() => _isBusy = false);
       }
@@ -109,11 +111,7 @@ class _ReservationDetailsDrawerState
             .reject(res.id, reason);
         ref.invalidate(selectedReservationDetailProvider);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to reject: $e')),
-          );
-        }
+        await _showActionError(e, 'reject this reservation');
       } finally {
         if (mounted) setState(() => _isBusy = false);
       }
@@ -140,11 +138,7 @@ class _ReservationDetailsDrawerState
             .cancel(res.id, reason);
         ref.invalidate(selectedReservationDetailProvider);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to cancel: $e')),
-          );
-        }
+        await _showActionError(e, 'cancel this reservation');
       } finally {
         if (mounted) setState(() => _isBusy = false);
       }
@@ -193,11 +187,7 @@ class _ReservationDetailsDrawerState
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Code check failed: $e')),
-        );
-      }
+      await _showActionError(e, 'verify the pickup code');
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -299,11 +289,7 @@ class _ReservationDetailsDrawerState
         },
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load prescription: $e')),
-        );
-      }
+      await _showActionError(e, 'load the prescription');
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -312,8 +298,10 @@ class _ReservationDetailsDrawerState
   @override
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(selectedReservationDetailProvider);
-    final session = ref.watch(sessionProvider);
-    final userRole = session?.role ?? 'pharmacist';
+    final staffProfile = ref.watch(pharmacyStaffProfileProvider).value;
+    final canLicenseActions =
+        ref.watch(pharmacyCanLicenseReservationsProvider);
+    final canCancel = staffProfile?.canCancelReservation ?? false;
 
     return Container(
       width: 440,
@@ -342,9 +330,8 @@ class _ReservationDetailsDrawerState
             return available < item.quantity;
           });
 
-          // Check if current user is unlicensed staff when releasing Rx items (Ph-37)
-          final isUnlicensedStaff =
-              userRole == 'staff' && reservation.hasRx;
+          final cannotReleaseRx =
+              reservation.hasRx && !canLicenseActions;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -402,6 +389,16 @@ class _ReservationDetailsDrawerState
                     children: [
                       // Action Section (Pending, Confirmed, Ready)
                       if (reservation.isPending) ...[
+                        if (!canLicenseActions) ...[
+                          _LicenseRequiredBanner(
+                            message: reservation.hasRx
+                                ? 'Confirming or rejecting needs a verified pharmacist license. '
+                                    'Rx items also require a pharmacist to review the prescription.'
+                                : 'Confirming or rejecting needs a verified pharmacist license. '
+                                    'Ask the pharmacist on duty or sign in as a verified pharmacist.',
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
                         // Insufficient stock warning banner (Ph-17)
                         if (hasInsufficientStock) ...[
                           Container(
@@ -428,7 +425,9 @@ class _ReservationDetailsDrawerState
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: (_isBusy || hasInsufficientStock)
+                                onPressed: (_isBusy ||
+                                        hasInsufficientStock ||
+                                        !canLicenseActions)
                                     ? null
                                     : () => _handleConfirm(reservation),
                                 style: ElevatedButton.styleFrom(
@@ -445,7 +444,7 @@ class _ReservationDetailsDrawerState
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _isBusy
+                                onPressed: (_isBusy || !canLicenseActions)
                                     ? null
                                     : () => _handleReject(reservation),
                                 style: OutlinedButton.styleFrom(
@@ -475,6 +474,11 @@ class _ReservationDetailsDrawerState
                                         .markReady(reservation.id);
                                     ref.invalidate(
                                         selectedReservationDetailProvider);
+                                  } catch (e) {
+                                    await _showActionError(
+                                      e,
+                                      'mark this reservation ready',
+                                    );
                                   } finally {
                                     if (mounted) setState(() => _isBusy = false);
                                   }
@@ -491,7 +495,7 @@ class _ReservationDetailsDrawerState
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         OutlinedButton(
-                          onPressed: _isBusy
+                          onPressed: (_isBusy || !canCancel)
                               ? null
                               : () => _handleCancel(reservation),
                           style: OutlinedButton.styleFrom(
@@ -504,35 +508,12 @@ class _ReservationDetailsDrawerState
                         const SizedBox(height: AppSpacing.lg),
                       ] else if (reservation.isReady) ...[
                         // Verify pickup code section (Ph-18, Ph-19, Ph-37)
-                        if (isUnlicensedStaff) ...[
-                          Container(
-                            padding: const EdgeInsets.all(AppSpacing.sm),
-                            decoration: BoxDecoration(
-                              color: AppColors.warningLight,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.warning),
-                            ),
-                            child: const Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.lock_outline,
-                                  size: 18,
-                                  color: AppColors.warning,
-                                ),
-                                SizedBox(width: AppSpacing.xs),
-                                Expanded(
-                                  child: Text(
-                                    'This reservation has prescription (Rx) medicines. Only a verified licensed pharmacist can release it. Ask the pharmacist on duty.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.warning,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        if (cannotReleaseRx) ...[
+                          const _LicenseRequiredBanner(
+                            message:
+                                'This reservation has prescription (Rx) medicines. '
+                                'Only a verified licensed pharmacist can release them. '
+                                'Ask the pharmacist on duty.',
                           ),
                         ] else ...[
                           const Text(
@@ -598,7 +579,7 @@ class _ReservationDetailsDrawerState
 
                         const SizedBox(height: AppSpacing.sm),
                         OutlinedButton(
-                          onPressed: _isBusy
+                          onPressed: (_isBusy || !canCancel)
                               ? null
                               : () => _handleCancel(reservation),
                           style: OutlinedButton.styleFrom(
@@ -897,4 +878,43 @@ class _ReservationDetailsDrawerState
     'cancelled': 'Cancelled',
     'expired': 'Expired',
   };
+}
+
+class _LicenseRequiredBanner extends StatelessWidget {
+  const _LicenseRequiredBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warningLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warning),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.lock_outline,
+            size: 18,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.warning,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

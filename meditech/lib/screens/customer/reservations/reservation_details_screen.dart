@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../models/reservation.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../services/cart_service.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -32,7 +35,20 @@ class ReservationDetailsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reservation Details'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+              return;
+            }
+            ref.read(customerTabProvider.notifier).select(2);
+            context.go('/home');
+          },
+        ),
+        title: const CustomerLocationAppBarTitle(
+          heading: 'Reservation Details',
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -78,6 +94,10 @@ class ReservationDetailsScreen extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.md),
                 _TimelineCard(reservation: reservation),
+                if (reservation.status == ReservationStatus.pending) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _CancelReservationCard(reservationId: reservation.id),
+                ],
                 if (_canReorder(reservation.status)) ...[
                   const SizedBox(height: AppSpacing.md),
                   _ReorderCard(reservation: reservation),
@@ -464,21 +484,30 @@ class _PharmacyCard extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () {
                 final branch = pharmacyAsync.value;
-                final destination = LatLng(
-                  (branch != null && branch.latitude != 0)
-                      ? branch.latitude
-                      : 10.7202,
-                  (branch != null && branch.longitude != 0)
-                      ? branch.longitude
-                      : 122.5621,
+                final args = DirectionsArgs(
+                  pharmacyName: reservation.pharmacyName,
+                  branchName: reservation.branchName,
+                  address: reservation.branchAddress,
+                  destination: LatLng(
+                    (branch != null && branch.latitude != 0)
+                        ? branch.latitude
+                        : 10.7202,
+                    (branch != null && branch.longitude != 0)
+                        ? branch.longitude
+                        : 122.5621,
+                  ),
                 );
+                if (GoRouter.maybeOf(context) != null) {
+                  context.push('/directions', extra: args);
+                  return;
+                }
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => DirectionsScreen(
-                      pharmacyName: reservation.pharmacyName,
-                      branchName: reservation.branchName,
-                      address: reservation.branchAddress,
-                      destination: destination,
+                      pharmacyName: args.pharmacyName,
+                      branchName: args.branchName,
+                      address: args.address,
+                      destination: args.destination,
                     ),
                   ),
                 );
@@ -776,6 +805,97 @@ class _TimelineCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CancelReservationCard extends ConsumerStatefulWidget {
+  const _CancelReservationCard({required this.reservationId});
+
+  final String reservationId;
+
+  @override
+  ConsumerState<_CancelReservationCard> createState() =>
+      _CancelReservationCardState();
+}
+
+class _CancelReservationCardState extends ConsumerState<_CancelReservationCard> {
+  bool _busy = false;
+
+  Future<void> _cancel() async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel reservation?'),
+        content: const Text(
+          'The pharmacy will no longer prepare this reservation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep reservation'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancel reservation'),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(myReservationsProvider.notifier)
+          .cancelMyReservation(widget.reservationId);
+      if (!mounted) return;
+      ref.invalidate(reservationDetailProvider(widget.reservationId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reservation cancelled.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyCustomerCancelError(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: _busy ? null : _cancel,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.danger,
+        side: const BorderSide(color: AppColors.danger),
+      ),
+      icon: _busy
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.cancel_outlined),
+      label: const Text('Cancel reservation'),
+    );
+  }
+}
+
+String _friendlyCustomerCancelError(Object error) {
+  final message = error.toString().toLowerCase();
+  if (message.contains('customer_cancel_reservation') &&
+      message.contains('schema cache')) {
+    return 'Cancel is not available on the server yet. Try again in a minute after a refresh.';
+  }
+  if (message.contains('only pending reservations')) {
+    return 'This reservation can no longer be cancelled.';
+  }
+  return 'Could not cancel reservation. Try again.';
 }
 
 bool _canReorder(ReservationStatus status) {

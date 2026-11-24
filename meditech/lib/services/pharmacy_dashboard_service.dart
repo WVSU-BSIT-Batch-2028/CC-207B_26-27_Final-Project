@@ -13,9 +13,140 @@ class PharmacyDashboardService {
   Future<List<Map<String, dynamic>>> loadReservations() async {
     final result = await _client
         .from('reservations')
-        .select('id, reference_no, status, submitted_at, total_amount');
+        .select(
+          'id, reference_no, status, submitted_at, total_amount, '
+          'confirmed_at, expires_at',
+        );
 
     return List<Map<String, dynamic>>.from(result);
+  }
+
+  /// Pending reservations for the dashboard list (oldest first, max 5).
+  Future<List<Map<String, dynamic>>> loadPendingRequests() async {
+    List<dynamic> result;
+    try {
+      result = await _client
+          .from('reservations')
+          .select('''
+          id,
+          reference_no,
+          has_rx,
+          submitted_at,
+          accounts!customer_id (
+            customer_profiles (first_name, last_name)
+          ),
+          reservation_items (
+            line_no, brand_name, quantity
+          )
+        ''')
+          .eq('status', 'pending')
+          .order('submitted_at', ascending: true)
+          .limit(5);
+    } on PostgrestException {
+      result = await _client
+          .from('reservations')
+          .select('''
+          id,
+          reference_no,
+          has_rx,
+          submitted_at,
+          reservation_items (
+            line_no, brand_name, quantity
+          )
+        ''')
+          .eq('status', 'pending')
+          .order('submitted_at', ascending: true)
+          .limit(5);
+    }
+
+    return result.map((row) {
+      final map = Map<String, dynamic>.from(row as Map<String, dynamic>);
+      var profile = map['customer_profiles'] as Map<String, dynamic>?;
+      profile ??= (map['accounts'] as Map<String, dynamic>?)?['customer_profiles']
+          as Map<String, dynamic>?;
+      if (profile != null) {
+        final f = profile['first_name'] as String? ?? '';
+        final l = profile['last_name'] as String? ?? '';
+        map['customer_name'] = '$f $l'.trim();
+      } else {
+        map['customer_name'] = 'Customer';
+      }
+      final items = (map['reservation_items'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      items.sort(
+        (a, b) =>
+            ((a['line_no'] as num?) ?? 0).compareTo((b['line_no'] as num?) ?? 0),
+      );
+      if (items.isNotEmpty) {
+        final first = items.first;
+        final brand = first['brand_name'] as String? ?? 'Medicine';
+        final qty = (first['quantity'] as num?)?.toInt() ?? 0;
+        map['line_summary'] = '$brand × $qty';
+      } else {
+        map['line_summary'] = 'Items pending';
+      }
+      return map;
+    }).toList();
+  }
+
+  /// Short subtitles under each reservation stat card.
+  Map<String, String> reservationStatSubtitles(
+    List<Map<String, dynamic>> reservations,
+  ) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+
+    var confirmedYesterday = 0;
+    var readyNearingDeadline = 0;
+    var completed = 0;
+    var closed = 0;
+
+    for (final row in reservations) {
+      final status = row['status'] as String? ?? '';
+      if (status == 'confirmed') {
+        final at = DateTime.tryParse(row['confirmed_at']?.toString() ?? '');
+        if (at != null &&
+            !at.isBefore(yesterdayStart) &&
+            at.isBefore(todayStart)) {
+          confirmedYesterday++;
+        }
+      }
+      if (status == 'ready_for_pickup') {
+        final expires =
+            DateTime.tryParse(row['expires_at']?.toString() ?? '');
+        if (expires != null && expires.difference(now).inHours <= 48) {
+          readyNearingDeadline++;
+        }
+      }
+      if (status == 'completed') {
+        completed++;
+      }
+      if (status == 'rejected' ||
+          status == 'cancelled' ||
+          status == 'expired') {
+        closed++;
+      }
+    }
+
+    final fulfillmentDenom = completed + closed;
+    final fulfillmentPct = fulfillmentDenom == 0
+        ? 0
+        : ((completed / fulfillmentDenom) * 100).round();
+
+    return {
+      'pending': 'Needs attention',
+      'confirmed': confirmedYesterday == 0
+          ? 'No new confirmations yesterday'
+          : '+$confirmedYesterday from yesterday',
+      'ready_for_pickup': readyNearingDeadline == 0
+          ? 'On track'
+          : '$readyNearingDeadline nearing deadline',
+      'completed': fulfillmentPct == 0
+          ? 'No completed pickups yet'
+          : '$fulfillmentPct% fulfillment',
+    };
   }
 
   /// Loads the inventory data visible to the signed-in pharmacy branch.
@@ -142,6 +273,17 @@ class PharmacyDashboardService {
     };
   }
 
+  /// Inventory rows shown on the dashboard (mockup subset).
+  Map<String, int> inventorySnapshotForDashboard(Map<String, int> full) {
+    return {
+      'active_listings': full['active_listings'] ?? 0,
+      'low_stock': full['low_stock'] ?? 0,
+      'marked_out_of_stock': full['marked_out_of_stock'] ?? 0,
+      'unavailable': full['unavailable'] ?? 0,
+      'unconfirmed': full['unconfirmed'] ?? 0,
+    };
+  }
+
   int _asInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -153,15 +295,21 @@ class PharmacyDashboardService {
     final results = await Future.wait([
       loadReservations(),
       loadInventory(),
+      loadPendingRequests(),
     ]);
 
     final reservations = results[0];
     final inventory = results[1];
+    final pendingRequests = results[2];
+    final snapshot = inventorySnapshot(inventory);
 
     return {
       'reservation_counts': countReservations(reservations),
-      'oldest_pending': oldestPendingReservations(reservations),
-      'inventory_snapshot': inventorySnapshot(inventory),
+      'reservation_subtitles': reservationStatSubtitles(reservations),
+      'oldest_pending': pendingRequests.isNotEmpty
+          ? pendingRequests
+          : oldestPendingReservations(reservations),
+      'inventory_snapshot': inventorySnapshotForDashboard(snapshot),
     };
   }
 }

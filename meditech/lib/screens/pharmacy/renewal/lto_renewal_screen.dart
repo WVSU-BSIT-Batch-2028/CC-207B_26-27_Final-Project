@@ -274,7 +274,7 @@ class _RenewalFormState extends ConsumerState<_RenewalForm> {
         const Text('Send your renewed License to Operate',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpacing.xs),
-        const Text('The administrator checks it on the FDA portal, then brings your pharmacy back online.',
+        const Text('The administrator verifies it against the official registry, then brings your pharmacy back online.',
             style: TextStyle(color: AppColors.textMuted)),
         const SizedBox(height: AppSpacing.md),
 

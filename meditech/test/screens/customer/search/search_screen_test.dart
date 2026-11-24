@@ -73,8 +73,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Biogesic'), findsOneWidget);
-    expect(find.text('Paracetamol'), findsOneWidget);
-    expect(find.text('From ₱4.25 / tablet'), findsOneWidget);
+    expect(find.textContaining('Paracetamol'), findsOneWidget);
+    expect(find.textContaining('From ₱4.25 / tablet'), findsOneWidget);
     expect(find.text('Amoxil'), findsOneWidget);
     expect(find.text('Rx required'), findsOneWidget);
   });

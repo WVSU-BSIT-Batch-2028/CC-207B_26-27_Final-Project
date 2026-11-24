@@ -5,14 +5,18 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/application_details.dart';
 import '../../../providers/admin_pharmacy_providers.dart';
+import '../../../services/admin_pharmacy_service.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/tablet/tablet_controls.dart';
+import '../../../widgets/tablet/tablet_dialogs.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
-import 'pharmacies_screen.dart';
-import 'verification_panel.dart';
 import 'branch_status_panel.dart';
+import 'pharmacy_admin_format.dart';
+import 'pharmacies_screen.dart';
+import 'application_review_card.dart';
 
-// Right-side panel showing one application (wireframes A-05, A-07)
+// Right-side panel for one pharmacy (wireframes A-05, A-07, A-09)
 class ApplicationDrawer extends ConsumerWidget {
   const ApplicationDrawer({
     super.key,
@@ -27,11 +31,18 @@ class ApplicationDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final details = ref.watch(applicationDetailsProvider(branchId));
 
-    return Material(
-      color: AppColors.surface,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      clipBehavior: Clip.antiAlias,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(left: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(-4, 0),
+          ),
+        ],
+      ),
       child: AsyncView<ApplicationDetails?>(
         value: details,
         onRetry: () => ref.invalidate(applicationDetailsProvider(branchId)),
@@ -43,110 +54,178 @@ class ApplicationDrawer extends ConsumerWidget {
   }
 }
 
-class _DrawerContent extends ConsumerWidget {
+class _DrawerContent extends ConsumerStatefulWidget {
   const _DrawerContent({required this.details, required this.onClose});
 
   final ApplicationDetails details;
   final VoidCallback onClose;
 
-  static const _days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  @override
+  ConsumerState<_DrawerContent> createState() => _DrawerContentState();
+}
 
-  // "08:00:00" → "8:00 AM"
-  String _time(String? value) {
-    if (value == null) return '-';
-    final parts = value.split(':');
-    final t = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
-    return DateFormat.jm().format(t);
-  }
+class _DrawerContentState extends ConsumerState<_DrawerContent> {
+  bool _sendingReminder = false;
 
-  // Open a document: photos in a viewer, PDFs in the browser
-  Future<void> _open(
-    BuildContext context,
-    WidgetRef ref,
-    DocumentInfo doc,
-  ) async {
+  ApplicationDetails get d => widget.details;
+
+  Future<void> _openDoc(DocumentInfo doc) async {
     try {
-      final link = await ref
-          .read(adminPharmacyServiceProvider)
-          .documentLink(doc.path);
-      if (!context.mounted) return;
+      final link = await ref.read(adminPharmacyServiceProvider).documentLink(doc.path);
+      if (!mounted) return;
       if (doc.isImage) {
-        await showDialog<void>(
-          context: context,
-          builder: (_) => Dialog(
-            child: InteractiveViewer(
-              child: Image.network(link, fit: BoxFit.contain),
-            ),
-          ),
-        );
+        final title = switch (doc.kind) {
+          'lto' => 'FDA License to Operate',
+          'storefront' => 'Storefront photo',
+          _ => 'Uploaded document',
+        };
+        await showTabletImageViewer(context: context, imageUrl: link, title: title);
       } else {
         await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
       }
     } catch (_) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open this document. Please try again.'),
-          ),
+          const SnackBar(content: Text('Could not open this document. Please try again.')),
         );
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final d = details;
-    final date = DateFormat('MMM d, yyyy');
-    final expired = d.ltoExpiry.isBefore(DateUtils.dateOnly(DateTime.now()));
+  Future<void> _sendReminder() async {
+    setState(() => _sendingReminder = true);
+    try {
+      await ref.read(adminPharmacyServiceProvider).sendLtoReminder(d.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reminder sent to the owner.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AdminPharmacyService.friendlyError(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sendingReminder = false);
+    }
+  }
 
-    // A titled group of label-value rows
-    Widget section(String title, List<(String, String)> rows) => Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _labeledRows(List<(String, String)> rows) => Column(
         children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final (label, value) in rows)
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: 120,
+                    width: 92,
                     child: Text(
-                      label,
-                      style: const TextStyle(color: AppColors.textMuted),
+                      rows[i].$1,
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                     ),
                   ),
-                  Expanded(child: Text(value)),
+                  Expanded(
+                    child: Text(rows[i].$2, style: const TextStyle(fontSize: 14, height: 1.35)),
+                  ),
                 ],
               ),
             ),
+          ],
+        ],
+      );
+
+  Widget _infoSection(String title, List<(String, String)> rows) => Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _labeledRows(rows),
+          ],
+        ),
+      );
+
+  Widget _fdaLicenseCard({
+    required String ltoNumber,
+    required DateTime ltoExpiry,
+    required bool expired,
+    required int daysLeft,
+    required DateFormat date,
+    DateTime? lastChecked,
+  }) {
+    final expiresValue = expired
+        ? '${date.format(ltoExpiry)} (expired)'
+        : daysLeft <= 60
+            ? 'Expires in $daysLeft days'
+            : date.format(ltoExpiry);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'FDA License to Operate',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _labeledRows([
+            ('LTO number', ltoNumber),
+            ('Expires', expiresValue),
+            if (lastChecked != null) ('Last verified', date.format(lastChecked)),
+          ]),
         ],
       ),
     );
+  }
+
+  bool _showLtoReminder(DateTime today) {
+    if (d.status != 'active') return false;
+    final expiry = DateUtils.dateOnly(d.ltoExpiry);
+    final now = DateUtils.dateOnly(today);
+    if (expiry.isBefore(now)) return true;
+    return expiry.difference(now).inDays <= 30;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final date = DateFormat('MMM d, yyyy');
+    final checks = ref.watch(branchChecksProvider(d.id));
+    final lastCheck = checks.asData?.value.isNotEmpty == true ? checks.asData!.value.first : null;
+    final expired = d.ltoExpiry.isBefore(DateUtils.dateOnly(today));
+    final daysLeft = DateUtils.dateOnly(d.ltoExpiry).difference(DateUtils.dateOnly(today)).inDays;
 
     return Column(
       children: [
-        // Header
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
-            AppSpacing.md,
+            AppSpacing.lg,
             AppSpacing.sm,
             AppSpacing.md,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -154,132 +233,139 @@ class _DrawerContent extends ConsumerWidget {
                   children: [
                     Text(
                       d.pharmacyName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                     ),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${d.branchName} · ${d.displayId}',
+                      '${d.displayId} · ${d.branchName}',
                       style: const TextStyle(color: AppColors.textMuted),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    branchStatusBadge(d.status),
                   ],
                 ),
               ),
-              branchStatusBadge(d.status),
               IconButton(
                 tooltip: 'Close',
-                onPressed: onClose,
+                onPressed: widget.onClose,
                 icon: const Icon(Icons.close),
               ),
             ],
           ),
         ),
-        const Divider(),
-
-        // Details
+        const Divider(height: 1),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.lg,
+            ),
             children: [
-              // Warning if a similar pharmacy exists nearby
-              if (d.possibleDuplicate)
+              if (_showLtoReminder(today)) ...[
                 Container(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: AppColors.warningLight,
                     borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
                   ),
-                  child: const Text(
-                    'Possible duplicate: a pharmacy with a similar name is registered nearby. '
-                    'Check before approving.',
-                    style: TextStyle(color: AppColors.warning),
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final stacked = box.maxWidth < 300;
+                      final textBlock = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            expired
+                                ? 'LTO expired on ${date.format(d.ltoExpiry)}.'
+                                : 'LTO expires in $daysLeft days (${date.format(d.ltoExpiry)}).',
+                            style: const TextStyle(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w700,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          const Text(
+                            'Send the owner a reminder to renew it.',
+                            style: TextStyle(color: AppColors.text, height: 1.35),
+                          ),
+                        ],
+                      );
+                      final reminderBtn = OutlinedButton(
+                        onPressed: _sendingReminder ? null : _sendReminder,
+                        style: TabletControls.actionOutlined(
+                          foreground: AppColors.text,
+                          border: AppColors.border,
+                          background: Colors.white,
+                        ).copyWith(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: _sendingReminder
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Send reminder'),
+                      );
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            textBlock,
+                            const SizedBox(height: AppSpacing.md),
+                            Align(alignment: Alignment.centerRight, child: reminderBtn),
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: textBlock),
+                          const SizedBox(width: AppSpacing.sm),
+                          reminderBtn,
+                        ],
+                      );
+                    },
                   ),
                 ),
-              if (d.rejectionReason != null)
-                section('Rejection reason', [('Reason', d.rejectionReason!)]),
-              section('Pharmacy', [
-                ('Address', d.address),
-                ('Contact', d.contactNumber),
-                ('Email', d.email),
-                (
-                  'Location',
-                  '${d.latitude.toStringAsFixed(6)}, ${d.longitude.toStringAsFixed(6)}',
-                ),
-                ('Submitted', date.format(d.submittedAt)),
-              ]),
-              section('FDA License to Operate', [
-                ('LTO number', d.ltoNumber),
-                (
-                  'Expires',
-                  expired
-                      ? '${date.format(d.ltoExpiry)} (expired)'
-                      : date.format(d.ltoExpiry),
-                ),
-              ]),
-              section('Opening hours', [
-                for (final i in [1, 2, 3, 4, 5, 6, 0])
-                  for (final h in d.hours.where((h) => h.weekday == i))
-                    (
-                      _days[i],
-                      h.isClosed
-                          ? 'Closed'
-                          : '${_time(h.opensAt)} – ${_time(h.closesAt)}',
-                    ),
-              ]),
-              if (d.owner != null)
-                section('Owner account', [
-                  ('Name', d.owner!.name),
-                  ('Mobile', d.owner!.mobile ?? '-'),
-                  ('Email', d.owner!.email ?? '-'),
-                  ('Username', d.owner!.username ?? '-'),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+
+              if (d.status == 'active' || d.status == 'inactive') ...[
+                BranchStatusPanel(details: d, showIntro: false),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+
+              if (d.status == 'pending_approval')
+                ApplicationReviewCard(details: d, onOpenDocument: _openDoc)
+              else
+                _infoSection('Branch information', [
+                  ('Address', d.address),
+                  ('Contact', d.contactNumber),
+                  ('Email', d.email),
+                  ('Hours', summarizeBranchHours(d.hours)),
+                  ('Pharmacist', d.owner?.name ?? '—'),
                 ]),
 
-              // Documents, opened with short-lived links
-              const Text(
-                'DOCUMENTS',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                  letterSpacing: 0.5,
+              if (d.status != 'pending_approval')
+                _fdaLicenseCard(
+                  ltoNumber: d.ltoNumber,
+                  ltoExpiry: d.ltoExpiry,
+                  expired: expired,
+                  daysLeft: daysLeft,
+                  date: date,
+                  lastChecked: lastCheck?.checkedAt,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (d.documents.isEmpty)
-                const Text(
-                  'No documents uploaded.',
-                  style: TextStyle(color: AppColors.textMuted),
-                ),
-              for (final doc in d.documents)
-                Card(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: ListTile(
-                    leading: Icon(
-                      doc.isImage
-                          ? Icons.image_outlined
-                          : Icons.picture_as_pdf_outlined,
-                    ),
-                    title: Text(switch (doc.kind) {
-                      'lto' => 'License to Operate',
-                      'storefront' => 'Storefront photo',
-                      _ => 'Renewed LTO',
-                    }),
-                    subtitle: Text(
-                      '${(doc.sizeBytes / 1024).toStringAsFixed(0)} KB',
-                    ),
-                    trailing: const Icon(Icons.open_in_new),
-                    onTap: () => _open(context, ref, doc),
-                  ),
-                ),
-              const SizedBox(height: AppSpacing.lg),
+              if (d.status != 'pending_approval') const SizedBox(height: AppSpacing.lg),
 
-              // FDA check, history, and the decision
-              VerificationPanel(details: d),
-              // Deactivate or activate (live or offline pharmacies only)
-              if (d.status == 'active' || d.status == 'inactive')
-                BranchStatusPanel(details: d),
+              if (d.rejectionReason != null)
+                _infoSection('Rejection reason', [('Reason', d.rejectionReason!)]),
             ],
           ),
         ),

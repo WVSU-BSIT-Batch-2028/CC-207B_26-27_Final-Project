@@ -32,6 +32,8 @@ class AppChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FilterChip(
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
       label: Text(label),
       selected: selected,
       onSelected: onSelected,
@@ -54,8 +56,8 @@ class AppChip extends StatelessWidget {
       checkmarkColor: AppColors.primary,
       showCheckmark: false,
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        horizontal: 10,
+        vertical: 2,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.pill),

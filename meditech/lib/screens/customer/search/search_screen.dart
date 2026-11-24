@@ -6,12 +6,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
+import '../../../providers/session_providers.dart';
 import '../../../widgets/common/app_chip.dart';
-import '../../../widgets/common/customer_location_title.dart';
+import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
+import '../../../widgets/common/basket_bar.dart';
+import '../../../utils/public_media_urls.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
 import '../medicine/medicine_details_screen.dart';
@@ -121,7 +124,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       case 'price':
         return 'Sort: Price';
       case 'distance':
-        return 'Sort: Distance';
+        return 'Sort: Nearest';
       case 'relevance':
       default:
         return 'Sort: Relevance';
@@ -294,6 +297,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final filter = ref.watch(medicineSearchFilterProvider);
     final resultsAsync = ref.watch(medicineSearchResultsProvider);
     final recent = ref.watch(recentSearchesProvider);
+    final showBasket = ref.watch(sessionProvider) != null;
 
     return Material(
       color: Colors.white,
@@ -316,12 +320,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   icon: const Icon(Icons.arrow_back),
                 ),
                 const Expanded(
-                  child: CustomerLocationTitle(
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
+                  child: CustomerLocationAppBarTitle(),
                 ),
               ],
             ),
@@ -370,16 +369,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: AsyncView<List<MedicineSearchResult>>(
               value: resultsAsync,
-              isEmpty: (items) => items.isEmpty && recent.isEmpty,
-              emptyMessage: 'No matching medicines found.',
               onRetry: () => ref.invalidate(medicineSearchResultsProvider),
               builder: (items) {
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(medicineSearchResultsProvider);
+                    await ref.read(medicineSearchResultsProvider.future);
+                  },
+                  child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.sm,
                     AppSpacing.lg,
-                    120,
+                    customerBottomChromeScrollPadding(
+                      context,
+                      showBasket: showBasket,
+                    ),
                   ),
                   children: [
                     if (recent.isNotEmpty) ...[
@@ -410,7 +416,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             color: AppColors.textMuted,
                             size: 20,
                           ),
-                          title: Text(term),
+                          title: Text(
+                            term,
+                            softWrap: true,
+                            maxLines: 3,
+                          ),
                           onTap: () {
                             _searchController.text = term;
                             _onQueryChanged(term);
@@ -421,6 +431,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ],
                     const Text(
                       'In Stock at Nearby Pharmacies',
+                      softWrap: true,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -429,7 +440,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
-                      spacing: AppSpacing.sm,
+                      spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xs,
                       children: [
                         AppChip(
@@ -471,6 +482,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         ),
                       ],
                   ],
+                ),
                 );
               },
             ),
@@ -502,6 +514,7 @@ class _StockMedicineCard extends StatelessWidget {
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -509,7 +522,7 @@ class _StockMedicineCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   color: AppColors.primaryLight,
-                  child: const Icon(Icons.medication, color: AppColors.primary),
+                  child: _MedicineSearchThumb(imagePath: medicine.imagePath),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -519,56 +532,35 @@ class _StockMedicineCard extends StatelessWidget {
                   children: [
                     Text(
                       medicine.brandName,
+                      softWrap: true,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                         color: AppColors.text,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          medicine.genericName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            ' • ${medicine.strength} • ${medicine.dosageForm}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${medicine.genericName} • ${medicine.strength} • ${medicine.dosageForm}',
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                        height: 1.35,
+                      ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          medicine.formattedLowestPrice,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            ' • ${medicine.pharmacyCount} ${medicine.pharmacyCount == 1 ? 'pharmacy' : 'pharmacies'}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      '${medicine.formattedLowestPrice} • '
+                      '${medicine.pharmacyCount} '
+                      '${medicine.pharmacyCount == 1 ? 'pharmacy' : 'pharmacies'}',
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                        height: 1.35,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Wrap(
@@ -588,20 +580,44 @@ class _StockMedicineCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.xs),
               IconButton(
                 tooltip: 'View ${medicine.brandName}',
                 onPressed: onTap,
+                visualDensity: VisualDensity.compact,
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
+                  minimumSize: const Size(40, 40),
+                  padding: EdgeInsets.zero,
                 ),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.chevron_right, size: 24),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MedicineSearchThumb extends StatelessWidget {
+  const _MedicineSearchThumb({this.imagePath});
+
+  final String? imagePath;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = medicineImagePublicUrl(imagePath);
+    if (url == null) {
+      return const Icon(Icons.medication, color: AppColors.primary);
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: 56,
+      height: 56,
+      errorBuilder: (_, _, _) => const Icon(Icons.medication, color: AppColors.primary),
     );
   }
 }

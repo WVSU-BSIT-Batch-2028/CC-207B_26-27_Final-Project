@@ -29,7 +29,17 @@ class _PharmacyMapScreenState extends ConsumerState<PharmacyMapScreen> {
   static const _iloilo = LatLng(10.7202, 122.5621);
   final _map = MapController();
   String? _selectedId;
+  PharmacyDetail? _selectedBranch;
+  OsmListing? _selectedOsm;
   bool _focused = false;
+
+  void _clearSelection() {
+    setState(() {
+      _selectedId = null;
+      _selectedBranch = null;
+      _selectedOsm = null;
+    });
+  }
 
   void _openDetails(PharmacyDetail pharmacy) {
     final name = Uri.encodeComponent(pharmacy.pharmacyName);
@@ -63,13 +73,21 @@ class _PharmacyMapScreenState extends ConsumerState<PharmacyMapScreen> {
   }
 
   void _focusPharmacy(PharmacyDetail pharmacy) {
-    setState(() => _selectedId = pharmacy.branchId);
+    setState(() {
+      _selectedId = pharmacy.branchId;
+      _selectedBranch = pharmacy;
+      _selectedOsm = null;
+    });
     if (pharmacy.latitude == 0 && pharmacy.longitude == 0) return;
     _map.move(LatLng(pharmacy.latitude, pharmacy.longitude), 15);
   }
 
   void _focusOsmListing(OsmListing listing) {
-    setState(() => _selectedId = listing.id);
+    setState(() {
+      _selectedId = listing.id;
+      _selectedOsm = listing;
+      _selectedBranch = null;
+    });
     if (listing.latitude == 0 && listing.longitude == 0) return;
     _map.move(LatLng(listing.latitude, listing.longitude), 15);
   }
@@ -241,49 +259,108 @@ class _PharmacyMapScreenState extends ConsumerState<PharmacyMapScreen> {
                               ),
                             ),
                           ),
-                          const Text(
-                            'Browse All Stores',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          for (var i = 0; i < branches.length; i++) ...[
-                            if (i > 0) const SizedBox(height: AppSpacing.sm),
-                            BrowseStoreCard(
-                              name: branches[i].pharmacyName,
-                              addressLine: branches[i].distanceKm == null
-                                  ? branches[i].address
-                                  : '${branches[i].address} • ${branches[i].distanceKm!.toStringAsFixed(1)} km',
-                              isOpen: pharmacyIsOpenNow(
-                                hours?[branches[i].branchId],
-                              ),
-                              onTap: () => _openDetails(branches[i]),
-                            ),
-                          ],
-                          if (osmListings.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.lg),
+                          if (_selectedBranch != null) ...[
                             const Text(
-                              'More pharmacies nearby',
+                              'Selected pharmacy',
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            BrowseStoreCard(
+                              name: _selectedBranch!.pharmacyName,
+                              addressLine: _selectedBranch!.distanceKm == null
+                                  ? _selectedBranch!.address
+                                  : '${_selectedBranch!.address} • ${_selectedBranch!.distanceKm!.toStringAsFixed(1)} km',
+                              isOpen: pharmacyIsOpenNow(
+                                hours?[_selectedBranch!.branchId],
+                              ),
+                              onTap: () => _openDetails(_selectedBranch!),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextButton(
+                              onPressed: _clearSelection,
+                              child: const Text('Show all stores'),
+                            ),
+                          ] else if (_selectedOsm != null) ...[
+                            const Text(
+                              'Selected pharmacy',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            BrowseStoreCard(
+                              name: _selectedOsm!.name,
+                              addressLine: _selectedOsm!.address.isNotEmpty
+                                  ? _selectedOsm!.address
+                                  : 'Location from OpenStreetMap',
+                              isRegistered: false,
+                              onTap: () => _openOsmDetails(_selectedOsm!),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextButton(
+                              onPressed: _clearSelection,
+                              child: const Text('Show all stores'),
+                            ),
+                          ] else ...[
+                            const Text(
+                              'Browse All Stores',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            const Text(
+                              'Tap a map pin to see one store at a time.',
+                              style: TextStyle(
+                                fontSize: 13,
                                 color: AppColors.textMuted,
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.sm),
-                            for (var i = 0; i < osmListings.length; i++) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            for (var i = 0; i < branches.length; i++) ...[
                               if (i > 0) const SizedBox(height: AppSpacing.sm),
                               BrowseStoreCard(
-                                name: osmListings[i].name,
-                                addressLine: osmListings[i].address.isNotEmpty
-                                    ? osmListings[i].address
-                                    : 'Location from OpenStreetMap',
-                                isRegistered: false,
-                                onTap: () => _openOsmDetails(osmListings[i]),
+                                name: branches[i].pharmacyName,
+                                addressLine: branches[i].distanceKm == null
+                                    ? branches[i].address
+                                    : '${branches[i].address} • ${branches[i].distanceKm!.toStringAsFixed(1)} km',
+                                isOpen: pharmacyIsOpenNow(
+                                  hours?[branches[i].branchId],
+                                ),
+                                onTap: () => _openDetails(branches[i]),
                               ),
+                            ],
+                            if (osmListings.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              const Text(
+                                'More pharmacies nearby',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              for (var i = 0; i < osmListings.length; i++) ...[
+                                if (i > 0)
+                                  const SizedBox(height: AppSpacing.sm),
+                                BrowseStoreCard(
+                                  name: osmListings[i].name,
+                                  addressLine: osmListings[i].address.isNotEmpty
+                                      ? osmListings[i].address
+                                      : 'Location from OpenStreetMap',
+                                  isRegistered: false,
+                                  onTap: () => _openOsmDetails(osmListings[i]),
+                                ),
+                              ],
                             ],
                           ],
                         ],

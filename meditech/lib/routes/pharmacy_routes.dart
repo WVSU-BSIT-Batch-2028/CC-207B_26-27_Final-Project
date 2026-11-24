@@ -4,10 +4,17 @@ import 'package:go_router/go_router.dart';
 import '../providers/session_providers.dart';
 import '../screens/pharmacy/activity_log/activity_log_screen.dart';
 import '../screens/pharmacy/employees/employees_screen.dart';
+import '../screens/pharmacy/inventory/inventory_screen.dart';
+import '../screens/pharmacy/pharmacy_dashboard_route.dart';
 import '../screens/pharmacy/pharmacy_shell_screen.dart';
 import '../screens/pharmacy/registration/application_status_screen.dart';
 import '../screens/pharmacy/registration/registration_screen.dart';
+import '../screens/pharmacy/branch_settings/branch_settings_screen.dart';
+import '../screens/pharmacy/profile/pharmacy_edit_profile_screen.dart';
+import '../screens/pharmacy/profile/pharmacy_profile_screen.dart';
+import '../screens/pharmacy/reservations/reservations_screen.dart';
 import '../screens/pharmacy/sign_in/pharmacy_sign_in_screen.dart';
+import '../screens/pharmacy/stock_alerts/stock_alerts_screen.dart';
 import '../screens/shared/change_password_screen.dart';
 import '../screens/shared/notification_list_screen.dart';
 import '../screens/shared/suspended_owner_screen.dart';
@@ -31,24 +38,44 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
         path: '/',
         builder: (context, state) => const PharmacySignInScreen(),
       ),
-      GoRoute(
-        path: '/dashboard',
-        builder: (context, state) =>
-            const PharmacyShellScreen(section: 'dashboard'),
-      ),
-      GoRoute(
-        path: '/reservations',
-        builder: (context, state) =>
-            const PharmacyShellScreen(section: 'reservations'),
-      ),
-      GoRoute(
-        path: '/inventory',
-        builder: (context, state) =>
-            const PharmacyShellScreen(section: 'inventory'),
-      ),
-      GoRoute(
-        path: '/employees',
-        builder: (context, state) => const EmployeesScreen(),
+      ShellRoute(
+        builder: (context, state, child) => PharmacyShellScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/dashboard',
+            builder: (context, state) => const PharmacyDashboardRoute(),
+          ),
+          GoRoute(
+            path: '/reservations',
+            builder: (context, state) => const ReservationsScreen(),
+          ),
+          GoRoute(
+            path: '/inventory',
+            builder: (context, state) => const InventoryScreen(),
+          ),
+          GoRoute(
+            path: '/stock-alerts',
+            builder: (context, state) => const StockAlertsScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const PharmacyProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) => const PharmacyEditProfileScreen(),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const BranchSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/employees',
+            builder: (context, state) => const EmployeesScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/register',

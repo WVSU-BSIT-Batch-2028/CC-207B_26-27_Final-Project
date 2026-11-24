@@ -7,7 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../models/catalogue_medicine.dart';
 import '../../../models/drug_registration.dart';
 import '../../../providers/catalogue_providers.dart';
+import '../../../providers/official_link_providers.dart';
 import '../../../services/catalogue_service.dart';
+import '../../../utils/pick_profile_image.dart';
+import '../../../utils/public_media_urls.dart';
 import '../../../utils/validators.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -51,6 +54,10 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
   String? _result;
   bool _busy = false;
   bool _filled = false;
+  String? _imagePath;
+  Uint8List? _pendingImageBytes;
+  String? _pendingImageFileName;
+  int _imageVersion = 0;
 
   CatalogueMedicine? get m => widget.medicine;
   CatalogueService get _service => ref.read(catalogueServiceProvider);
@@ -60,12 +67,41 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
     super.initState();
     // Start from what the table already knows
     if (m != null) {
+      _regNumber.text = m!.registrationNumber ?? '';
       _generic.text = m!.genericName;
       _brand.text = m!.brandName;
       _strength.text = m!.strength;
       _pack.text = m!.packDescription ?? '';
       _isRx = m!.isRx;
+      _imagePath = m!.imagePath;
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant MedicineDrawer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.medicine?.id != widget.medicine?.id) {
+      _filled = false;
+      _pendingImageBytes = null;
+      _pendingImageFileName = null;
+    }
+  }
+
+  String _mimeFromFileName(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  Future<void> _pickPackImage() async {
+    final picked = await pickProfileImageBytes(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _pendingImageBytes = picked.bytes;
+      _pendingImageFileName = picked.fileName;
+      _imageVersion++;
+    });
   }
 
   @override
@@ -122,11 +158,14 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
     if (!(_form.currentState?.validate() ?? false)) return;
     String? regId = m?.registrationId;
     String? medId = m?.id;
+    final pendingImage = _pendingImageBytes;
+    final pendingImageName = _pendingImageFileName;
 
     final ok = await _run(() async {
+      regId ??= await _service.registrationIdByNumber(_regNumber.text);
       regId = await _service.saveRegistration({
         'id': regId,
-        'registration_number': _regNumber.text,
+        'registration_number': _regNumber.text.trim(),
         'generic_name': _generic.text,
         'brand_name': _brand.text,
         'strength': _strength.text,
@@ -140,21 +179,58 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
         'brand_name': _brand.text,
         'unit_sold_id': _unitId,
         'pack_description': _pack.text,
+        if (_imagePath != null && pendingImage == null) 'image_path': _imagePath,
       });
     }, 'Medicine saved.');
 
-    if (ok) {
-      _refresh(regId);
-      ref.read(selectedMedicineProvider.notifier).select(medId);
+    if (!ok || medId == null) return;
+    final savedMedId = medId!;
+
+    if (pendingImage != null) {
+      try {
+        final path = await _service.uploadMedicineImage(
+          medicineId: savedMedId,
+          bytes: pendingImage,
+          mimeType: _mimeFromFileName(pendingImageName ?? 'upload.jpg'),
+        );
+        await _service.saveMedicine({
+          'id': savedMedId,
+          'registration_id': regId,
+          'brand_name': _brand.text,
+          'unit_sold_id': _unitId,
+          'pack_description': _pack.text,
+          'image_path': path,
+        });
+        if (mounted) {
+          setState(() {
+            _imagePath = path;
+            _pendingImageBytes = null;
+            _pendingImageFileName = null;
+            _imageVersion++;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          _tell('Medicine saved, but pack image failed: ${CatalogueService.friendlyError(e)}');
+        }
+      }
     }
+
+    if (mounted) setState(() {});
+    _refresh(regId);
+    ref.read(selectedMedicineProvider.notifier).select(savedMedId);
   }
 
-  // Open the official FDA portal in the browser
   Future<void> _openPortal() async {
+    final portal = await ref.read(fdaVerificationPortalProvider.future);
+    if (portal == null) {
+      _tell('No verification portal is configured in the database yet.');
+      return;
+    }
     try {
-      await launchUrl(Uri.parse(await _service.fdaPortalUrl()), mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(portal.url), mode: LaunchMode.externalApplication);
     } catch (_) {
-      _tell('Could not open the FDA portal.');
+      _tell('Could not open ${portal.label}.');
     }
   }
 
@@ -222,10 +298,18 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
 
     return Material(
       color: AppColors.surface,
-      elevation: 4,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      clipBehavior: Clip.antiAlias,
-      child: DefaultTabController(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: const Border(left: BorderSide(color: AppColors.border)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(-4, 0),
+            ),
+          ],
+        ),
+        child: DefaultTabController(
         length: 2,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           _header(),
@@ -259,6 +343,7 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
             ),
           ],
         ]),
+        ),
       ),
     );
   }
@@ -268,11 +353,11 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.sm, AppSpacing.md),
       child: Row(children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(AppRadius.md)),
-          child: Icon(m == null ? Icons.add : Icons.medication_outlined, color: AppColors.primary),
+        _PackImageThumb(
+          imagePath: _imagePath,
+          pendingBytes: _pendingImageBytes,
+          version: _imageVersion,
+          placeholder: m == null ? Icons.add : Icons.medication_outlined,
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -306,7 +391,7 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               const _SectionHeader(Icons.description_outlined, 'FDA registration'),
               AppTextField(label: 'Registration number', controller: _regNumber,
-                  hint: 'As shown on the FDA portal', validator: (v) => Validators.required(v)),
+                  hint: 'As shown on the verification site', validator: (v) => Validators.required(v)),
               sectionGap,
 
               const _SectionHeader(Icons.medication_outlined, 'Medicine information'),
@@ -370,6 +455,33 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
               ),
               gap,
               AppTextField(label: 'Pack description (optional)', controller: _pack, hint: 'e.g. Box of 100'),
+              sectionGap,
+              const _SectionHeader(Icons.image_outlined, 'Pack image'),
+              const Text(
+                'Shown to customers in search and on pharmacy inventories (JPEG, PNG, or WebP).',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              gap,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PackImageThumb(
+                    imagePath: _imagePath,
+                    pendingBytes: _pendingImageBytes,
+                    version: _imageVersion,
+                    size: 72,
+                    placeholder: Icons.medication_outlined,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _pickPackImage,
+                      icon: const Icon(Icons.upload_outlined, size: 18),
+                      label: Text(_pendingImageBytes != null || _imagePath != null ? 'Replace photo' : 'Upload photo'),
+                    ),
+                  ),
+                ],
+              ),
             ]),
           ),
         ),
@@ -407,13 +519,17 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
     final checks = ref.watch(registrationChecksProvider(registrationId));
     final matched = ref.watch(registrationMatchProvider(registrationId)).value ?? false;
     final date = DateFormat('MMM d, yyyy · h:mm a');
+    final portal = ref.watch(fdaVerificationPortalProvider).asData?.value;
+    final siteName = portal?.label ?? 'the official verification site';
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const _SectionHeader(Icons.fact_check_outlined, 'Product FDA check'),
-      const Padding(
-        padding: EdgeInsets.only(bottom: AppSpacing.md),
-        child: Text('Look up the registration number on the FDA portal, then record what you found.',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+      Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Text(
+          'Look up the registration number on $siteName, then record what you found.',
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+        ),
       ),
       Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
         OutlinedButton.icon(
@@ -424,11 +540,12 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
           icon: const Icon(Icons.copy, size: 18),
           label: const Text('Copy registration number'),
         ),
-        OutlinedButton.icon(
-          onPressed: _openPortal,
-          icon: const Icon(Icons.open_in_new, size: 18),
-          label: const Text('Verify at FDA Portal'),
-        ),
+        if (portal != null)
+          OutlinedButton.icon(
+            onPressed: _openPortal,
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: Text(portal.label),
+          ),
       ]),
       const SizedBox(height: AppSpacing.md),
       Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
@@ -514,6 +631,48 @@ class _MedicineDrawerState extends ConsumerState<MedicineDrawer> {
           ),
         ),
     ]);
+  }
+}
+
+class _PackImageThumb extends StatelessWidget {
+  const _PackImageThumb({
+    required this.imagePath,
+    required this.pendingBytes,
+    required this.version,
+    required this.placeholder,
+    this.size = 48,
+  });
+
+  final String? imagePath;
+  final Uint8List? pendingBytes;
+  final int version;
+  final IconData placeholder;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+  final url = pendingBytes == null
+        ? medicineImagePublicUrl(imagePath, cacheBust: version)
+        : null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(AppRadius.md)),
+        child: pendingBytes != null
+            ? Image.memory(pendingBytes!, fit: BoxFit.cover, width: size, height: size)
+            : url != null
+                ? Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    width: size,
+                    height: size,
+                    errorBuilder: (_, _, _) => Icon(placeholder, color: AppColors.primary),
+                  )
+                : Icon(placeholder, color: AppColors.primary),
+      ),
+    );
   }
 }
 

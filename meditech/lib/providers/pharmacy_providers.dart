@@ -25,7 +25,8 @@ final publicBranchHoursProvider =
 final pharmacyDetailProvider =
     FutureProvider.family<PharmacyDetail?, String>((ref, branchId) async {
   final service = ref.watch(pharmacyServiceProvider);
-  final filter = ref.watch(medicineSearchFilterProvider);
+  // Read once per fetch so cart/location filter updates do not reload the store.
+  final filter = ref.read(medicineSearchFilterProvider);
 
   return service.getPharmacyDetails(
     branchId: branchId,

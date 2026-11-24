@@ -21,6 +21,13 @@ class FakeRouteService extends Fake implements RouteService {
       ],
       distanceMeters: 3500,
       durationSeconds: 480,
+      steps: [
+        RouteStep(
+          instruction: 'Head onto Magsaysay Road',
+          distanceMeters: 102,
+        ),
+      ],
+      provider: 'local_fallback',
     );
   }
 }
@@ -32,7 +39,6 @@ void main() {
   setUp(() {
     fakeRouteService = FakeRouteService();
 
-    // Stub Geolocator platform channel so widget tests immediately receive "denied"
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(geolocatorChannel, (MethodCall call) async {
           switch (call.method) {
@@ -40,7 +46,7 @@ void main() {
               return true;
             case 'checkPermission':
             case 'requestPermission':
-              return 0; // LocationPermission.denied
+              return 0;
             default:
               return null;
           }
@@ -74,7 +80,7 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
       if (find.text('3.5 km').evaluate().isNotEmpty &&
-          find.text('Change').evaluate().isNotEmpty) {
+          find.text('Change start').evaluate().isNotEmpty) {
         break;
       }
     }
@@ -91,23 +97,13 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await pumpUntilRouteReady(tester);
 
-      // Verify AppBar
-      expect(find.text('Directions'), findsOneWidget);
-
-      // Verify Destination details in bottom card
       expect(find.text('Mercury Drug'), findsOneWidget);
-      expect(find.text('Molo Plaza'), findsOneWidget);
       expect(find.text('Molo Plaza, Iloilo City'), findsOneWidget);
-
-      // Verify formatted distance (3.5 km) and duration (~8 mins)
       expect(find.text('3.5 km'), findsOneWidget);
-      expect(find.text('~8 mins'), findsOneWidget);
-
-      // Verify fallback location-denied banner shows on headless/desktop test
-      expect(
-        find.text('Location denied. Using manual starting point.'),
-        findsOneWidget,
-      );
+      expect(find.text('~8 min'), findsOneWidget);
+      expect(find.text('Walk'), findsOneWidget);
+      expect(find.text('Start turn-by-turn navigation'), findsOneWidget);
+      expect(find.text('Try GPS again'), findsOneWidget);
     },
   );
 
@@ -122,8 +118,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await pumpUntilRouteReady(tester);
 
-    // Tap the 'Change' button on the permission banner
-    final changeText = find.text('Change');
+    final changeText = find.text('Change start');
     expect(changeText, findsOneWidget);
     final buttonFinder = find.ancestor(
       of: changeText,
@@ -137,7 +132,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify landmark bottom sheet appeared with preset landmarks
     expect(find.text('Select Starting Location'), findsOneWidget);
     expect(find.text('SM City Iloilo'), findsOneWidget);
     expect(find.text('Jaro Plaza'), findsOneWidget);

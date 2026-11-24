@@ -39,7 +39,7 @@ export const appGuide = {
     "Use this Assistant for listings, offers, your own reservations, and how to use the app. Ask a pharmacist or doctor for dosing or diagnosis.",
   ],
   limits: [
-    "Customers cannot cancel a reservation after it is placed.",
+    "Customers can cancel a pending reservation before the pharmacy confirms it.",
     "Only medicines shown in MediTech can be recommended.",
     "Never invent a price, availability, reservation status, reference number, or pickup code.",
   ],
@@ -84,7 +84,7 @@ export function appHelpAnswer(message: string): string {
       "4. Upload a prescription in the cart when an item needs one.",
       "5. Place the reservation, then open My Reservations to track it.",
       "6. After the pharmacy confirms, your pickup code shows on the reservation details. Bring that code to the pharmacy.",
-      "Customers can’t cancel a reservation after it is placed. Ask a pharmacist or doctor for medical advice.",
+      "Customers can cancel a pending reservation before confirmation. Ask a pharmacist or doctor for medical advice.",
     ].join("\n");
   }
   if (/recommend/.test(lower)) {

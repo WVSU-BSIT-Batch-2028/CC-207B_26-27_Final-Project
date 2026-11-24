@@ -39,16 +39,6 @@ class AdminPharmacyService {
         .createSignedUrl(path, 120);
   }
 
-  // The official FDA portal address, kept in the database
-  Future<String> fdaPortalUrl() async {
-    final row = await _client
-        .from('official_links')
-        .select('url')
-        .eq('key', 'fda_verification_portal')
-        .single();
-    return row['url'] as String;
-  }
-
   // All checks for a pharmacy, newest first
   Future<List<VerificationCheck>> checks(String branchId) async {
     final rows = await _client
@@ -105,6 +95,11 @@ class AdminPharmacyService {
   // Bring an inactive pharmacy back online
   Future<void> activate(String branchId) async {
     await _client.rpc('activate_branch', params: {'p_branch_id': branchId});
+  }
+
+  // Nudge the owner once per LTO cycle (manual send from the pharmacy drawer)
+  Future<void> sendLtoReminder(String branchId) async {
+    await _client.rpc('admin_send_lto_reminder', params: {'p_branch_id': branchId});
   }
 
   // Why a pharmacy was deactivated (admins can read pharmacies directly)

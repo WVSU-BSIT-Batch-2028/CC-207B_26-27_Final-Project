@@ -6,6 +6,7 @@ import '../screens/admin/admin_shell_screen.dart';
 import '../screens/admin/audit/audit_detail_screen.dart';
 import '../screens/admin/sign_in/admin_sign_in_screen.dart';
 import '../screens/shared/change_password_screen.dart';
+import '../screens/shared/notification_list_screen.dart';
 import 'password_redirect.dart';
 
 // Pages an administrator can open
@@ -29,6 +30,11 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/change-password',
         builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/overview',
+        builder: (context, state) =>
+            const AdminShellScreen(section: 'overview'),
       ),
       GoRoute(
         path: '/pharmacies',
@@ -58,6 +64,10 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
         path: '/listings',
         builder: (context, state) =>
             const AdminShellScreen(section: 'listings'),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationListScreen(),
       ),
     ],
   );

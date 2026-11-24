@@ -6,6 +6,7 @@ import '../../../providers/session_providers.dart';
 import '../../../utils/app_failure.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/tablet/tablet_dialogs.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 import '../../shared/notification_bell.dart';
@@ -164,12 +165,14 @@ class _PharmacySignInScreenState extends ConsumerState<PharmacySignInScreen> {
                         const SizedBox(height: AppSpacing.lg),
                         TextButton(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Sign in with your owner username. Waiting or rejected applications open the status page right after sign-in.',
-                                ),
-                              ),
+                            showTabletMessageDialog(
+                              context: context,
+                              title: 'Check your application status',
+                              isWarning: false,
+                              bullets: const [
+                                'Sign in with the owner username from your application.',
+                                'Waiting or rejected applications open the status page right after sign-in.',
+                              ],
                             );
                           },
                           child: const Text('Already applied? Check your application status'),

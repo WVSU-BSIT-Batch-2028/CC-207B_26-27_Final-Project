@@ -9,6 +9,7 @@ class PharmacyFrame extends StatelessWidget {
   final String? branchMeta;
   final String userName;
   final String userRole;
+  final String? userPhotoUrl;
   final int unreadNotifications;
   final int pendingReservationsCount;
   final int stockAlertsCount;
@@ -27,6 +28,7 @@ class PharmacyFrame extends StatelessWidget {
     this.branchMeta,
     required this.userName,
     required this.userRole,
+    this.userPhotoUrl,
     this.unreadNotifications = 0,
     this.pendingReservationsCount = 0,
     this.stockAlertsCount = 0,
@@ -75,12 +77,6 @@ class PharmacyFrame extends StatelessWidget {
         icon: Icons.badge_outlined,
         allowedRoles: ['owner'],
       ),
-      const TabletNavigationItem(
-        id: 'notifications',
-        label: 'Notifications',
-        icon: Icons.notifications_none,
-        allowedRoles: ['owner', 'pharmacist', 'staff'],
-      ),
     ];
   }
 
@@ -92,6 +88,7 @@ class PharmacyFrame extends StatelessWidget {
       branchSubtitle: branchMeta,
       userName: userName,
       userRole: userRole,
+      userPhotoUrl: userPhotoUrl,
       unreadNotifications: unreadNotifications,
       navigationItems: _buildNavigationItems(),
       selectedNavigationId: selectedNavigationId,

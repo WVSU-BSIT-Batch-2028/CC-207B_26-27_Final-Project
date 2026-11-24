@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/employee.dart';
 import '../services/employee_service.dart';
+import 'session_providers.dart';
 
 final employeeServiceProvider = Provider<EmployeeService>((ref) {
   return SupabaseEmployeeService();
@@ -13,6 +14,11 @@ final employeeServiceProvider = Provider<EmployeeService>((ref) {
 class EmployeesNotifier extends AsyncNotifier<List<Employee>> {
   @override
   FutureOr<List<Employee>> build() {
+    restoreSessionIfNeeded(
+      currentSession: ref.read(sessionProvider),
+      setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+    );
+    ref.watch(sessionProvider);
     return ref.watch(employeeServiceProvider).loadMine();
   }
 
@@ -92,6 +98,21 @@ class EmployeesNotifier extends AsyncNotifier<List<Employee>> {
           prcLicenseExpiry: prcLicenseExpiry,
           markVerified: markVerified,
           ownerConfirmed: ownerConfirmed,
+        );
+    await reload();
+  }
+
+  Future<void> updateProfile({
+    required String employeeId,
+    required String firstName,
+    String? middleName,
+    required String lastName,
+  }) async {
+    await ref.read(employeeServiceProvider).updateProfile(
+          employeeId: employeeId,
+          firstName: firstName,
+          middleName: middleName,
+          lastName: lastName,
         );
     await reload();
   }

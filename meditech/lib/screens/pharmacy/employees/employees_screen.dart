@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../models/employee.dart';
 import '../../../providers/employee_providers.dart';
-import '../../../providers/session_providers.dart';
+import '../../../providers/pharmacy_staff_providers.dart';
+import '../../../services/staff_avatar_service.dart';
 import '../../../utils/app_failure.dart';
+import '../../../utils/pick_profile_image.dart';
+import '../../../utils/staff_avatar_refresh.dart';
+import '../../../widgets/common/profile_photo_avatar.dart';
 import '../../../widgets/common/async_view.dart';
-import '../../../widgets/tablet/pharmacy_frame.dart';
 import '../../../widgets/tablet/tablet_data_table.dart';
 import '../../../widgets/tablet/tablet_details_drawer.dart';
 import '../../../widgets/tablet/tablet_dialogs.dart';
@@ -20,14 +22,7 @@ import 'employee_dialogs.dart';
 // Ph-33 & Ph-34: Branch owner views employees, adds staff, changes roles,
 // updates/verifies PRC licenses, resets passwords, and toggles account status.
 class EmployeesScreen extends ConsumerStatefulWidget {
-  final String branchName;
-  final String userName;
-
-  const EmployeesScreen({
-    super.key,
-    this.branchName = 'Pharmacy branch',
-    this.userName = 'Branch Owner',
-  });
+  const EmployeesScreen({super.key});
 
   @override
   ConsumerState<EmployeesScreen> createState() => _EmployeesScreenState();
@@ -41,26 +36,6 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
   String? _selectedId;
   bool _offline = false;
   bool _busyAction = false;
-
-  void _handleRouteSelection(String id) {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return;
-    switch (id) {
-      case 'dashboard':
-        router.go('/dashboard');
-      case 'reservations':
-        router.go('/reservations');
-      case 'inventory':
-      case 'stock_alerts':
-        router.go('/inventory');
-      case 'notifications':
-        router.push('/notifications');
-      case 'employees':
-        break;
-      default:
-        router.go('/dashboard');
-    }
-  }
 
   Future<void> _runAction(Future<void> Function() work) async {
     setState(() {
@@ -217,6 +192,48 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
     });
   }
 
+  Future<void> _uploadEmployeePhoto(Employee employee) async {
+    final picked = await pickProfileImageBytes(context);
+    if (picked == null || !mounted) return;
+    await _runAction(() async {
+      final path = await ref.read(employeeServiceProvider).uploadEmployeeAvatar(
+            employeeAccountId: employee.accountId,
+            fileName: picked.fileName,
+            bytes: picked.bytes,
+          );
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid == employee.accountId) {
+        await applyStaffAvatarRefresh(ref, storedPath: path);
+      }
+      ref.invalidate(employeesProvider);
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Employee photo updated.')),
+    );
+  }
+
+  Future<void> _editProfile(Employee employee) async {
+    final draft = await showEditEmployeeProfileDialog(
+      context,
+      employee: employee,
+    );
+    if (draft == null || !mounted) return;
+
+    await _runAction(() async {
+      await ref.read(employeesProvider.notifier).updateProfile(
+            employeeId: employee.accountId,
+            firstName: draft.firstName,
+            middleName: draft.middleName,
+            lastName: draft.lastName,
+          );
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Employee profile updated.')),
+    );
+  }
+
   Future<void> _updateLicense(Employee employee) async {
     final result = await showEmployeeLicenseDialog(context, employee: employee);
     if (result == null || !mounted) return;
@@ -279,22 +296,195 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
         ? null
         : all.where((e) => e.accountId == _selectedId).firstOrNull;
     final filterCount = (_roleFilter != null ? 1 : 0) + (_activeFilter != null ? 1 : 0);
+    final avatarRevision = ref.watch(staffAvatarRevisionProvider);
 
-    return PharmacyFrame(
-      branchName: widget.branchName,
-      userName: widget.userName,
-      userRole: ref.watch(sessionProvider)?.role ?? 'owner',
-      selectedNavigationId: 'employees',
-      onNavigationSelected: _handleRouteSelection,
-      onNotificationsTap: () => _handleRouteSelection('notifications'),
-      onLogoutTap: () async {
-        await ref.read(sessionProvider.notifier).signOut();
-        if (context.mounted) GoRouter.maybeOf(context)?.go('/');
-      },
-      rightDrawer: selected == null
-          ? null
-          : _EmployeeDetailsDrawer(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_offline) const OfflineBanner(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Employees',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: _busyAction ? null : _addEmployee,
+                              icon: const Icon(Icons.person_add_alt_1, size: 18),
+                              label: const Text('Add employee'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: AsyncView<List<Employee>>(
+                          value: asyncEmployees,
+                          isEmpty: (items) => items.isEmpty,
+                          emptyMessage: 'No employees yet. Add your first team member.',
+                          onRetry: () => ref.read(employeesProvider.notifier).reload(),
+                          builder: (items) {
+                            final filtered = _applyFilters(items);
+                            return TabletDataTable<Employee>(
+                              searchHint: 'Search...',
+                              searchQuery: _search,
+                              onSearchChanged: (v) => setState(() => _search = v),
+                              totalCount: items.length,
+                              filteredCount: filtered.length,
+                              countLabel: 'staff',
+                              activeFilterCount: filterCount,
+                              onFiltersTap: () => setState(() => _showFilters = !_showFilters),
+                              columns: const [
+                                TabletColumn(title: 'Employee', flex: 2),
+                                TabletColumn(
+                                  title: 'Username',
+                                  priority: TabletColumnPriority.medium,
+                                ),
+                                TabletColumn(title: 'Role'),
+                                TabletColumn(
+                                  title: 'PRC License',
+                                  priority: TabletColumnPriority.medium,
+                                  flex: 2,
+                                ),
+                                TabletColumn(title: 'Status'),
+                              ],
+                              items: filtered,
+                              onItemTap: (emp) => setState(() => _selectedId = emp.accountId),
+                              rowBuilder: (context, emp, index) => [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      emp.fullName,
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    Text(
+                                      emp.displayId,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(emp.username != null ? '@${emp.username}' : '—'),
+                                StatusBadge(
+                                  emp.roleLabel,
+                                  tone: emp.isOwner
+                                      ? BadgeTone.info
+                                      : emp.isPharmacist
+                                          ? BadgeTone.success
+                                          : BadgeTone.neutral,
+                                ),
+                                emp.prcLicenseNo == null
+                                    ? const Text('—')
+                                    : Wrap(
+                                        spacing: 8,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          Text(emp.prcLicenseNo!),
+                                          _licenseBadge(emp),
+                                        ],
+                                      ),
+                                StatusBadge(
+                                  emp.isActive ? 'Active' : 'Deactivated',
+                                  tone: emp.isActive ? BadgeTone.success : BadgeTone.danger,
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_showFilters)
+                  Positioned(
+                    top: 80,
+                    left: AppSpacing.lg + 160,
+                    child: TabletFilterPanel(
+                      title: 'Filter employees',
+                      activeFilterCount: filterCount,
+                      onReset: () => setState(() {
+                        _roleFilter = null;
+                        _activeFilter = null;
+                        _showFilters = false;
+                      }),
+                      onApply: () => setState(() => _showFilters = false),
+                      content: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Role',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final role in ['owner', 'pharmacist', 'staff'])
+                                ChoiceChip(
+                                  label: Text(role[0].toUpperCase() + role.substring(1)),
+                                  selected: _roleFilter == role,
+                                  onSelected: (on) => setState(
+                                    () => _roleFilter = on ? role : null,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          const Text('Account status',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              ChoiceChip(
+                                label: const Text('Active'),
+                                selected: _activeFilter == true,
+                                onSelected: (on) => setState(
+                                  () => _activeFilter = on ? true : null,
+                                ),
+                              ),
+                              ChoiceChip(
+                                label: const Text('Deactivated'),
+                                selected: _activeFilter == false,
+                                onSelected: (on) => setState(
+                                  () => _activeFilter = on ? false : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (selected != null)
+            _EmployeeDetailsDrawer(
               employee: selected,
+              photoUrl: staffAvatarPublicUrl(
+                selected.avatarPath,
+                cacheBust: avatarRevision,
+              ),
               busy: _busyAction,
               licenseBadge: _licenseBadge(selected),
               onClose: () => setState(() => _selectedId = null),
@@ -302,171 +492,10 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
               onToggleActive: () => _toggleActive(selected),
               onChangeRole: () => _changeRole(selected),
               onUpdateLicense: () => _updateLicense(selected),
+              onUploadPhoto: () => _uploadEmployeePhoto(selected),
+              onEditProfile:
+                  selected.isOwner ? null : () => _editProfile(selected),
             ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_offline) const OfflineBanner(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Employees',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: _busyAction ? null : _addEmployee,
-                  icon: const Icon(Icons.person_add_alt_1, size: 18),
-                  label: const Text('Add employee'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: AsyncView<List<Employee>>(
-              value: asyncEmployees,
-              isEmpty: (items) => items.isEmpty,
-              emptyMessage: 'No employees yet. Add your first team member.',
-              onRetry: () => ref.read(employeesProvider.notifier).reload(),
-              builder: (items) {
-                final filtered = _applyFilters(items);
-                return Stack(
-                  children: [
-                    TabletDataTable<Employee>(
-                      searchHint: 'Search...',
-                      searchQuery: _search,
-                      onSearchChanged: (v) => setState(() => _search = v),
-                      totalCount: items.length,
-                      filteredCount: filtered.length,
-                      countLabel: 'staff',
-                      activeFilterCount: filterCount,
-                      onFiltersTap: () => setState(() => _showFilters = !_showFilters),
-                      columns: const [
-                        TabletColumn(title: 'Employee', flex: 2),
-                        TabletColumn(
-                          title: 'Username',
-                          priority: TabletColumnPriority.medium,
-                        ),
-                        TabletColumn(title: 'Role'),
-                        TabletColumn(
-                          title: 'PRC License',
-                          priority: TabletColumnPriority.medium,
-                          flex: 2,
-                        ),
-                        TabletColumn(title: 'Status'),
-                      ],
-                      items: filtered,
-                      onItemTap: (emp) => setState(() => _selectedId = emp.accountId),
-                      rowBuilder: (context, emp, index) => [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              emp.fullName,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            Text(
-                              emp.displayId,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(emp.username != null ? '@${emp.username}' : '—'),
-                        StatusBadge(
-                          emp.roleLabel,
-                          tone: emp.isOwner
-                              ? BadgeTone.info
-                              : emp.isPharmacist
-                                  ? BadgeTone.success
-                                  : BadgeTone.neutral,
-                        ),
-                        emp.prcLicenseNo == null
-                            ? const Text('—')
-                            : Wrap(
-                                spacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(emp.prcLicenseNo!),
-                                  _licenseBadge(emp),
-                                ],
-                              ),
-                        StatusBadge(
-                          emp.isActive ? 'Active' : 'Deactivated',
-                          tone: emp.isActive ? BadgeTone.success : BadgeTone.danger,
-                        ),
-                      ],
-                    ),
-                    if (_showFilters)
-                      Positioned(
-                        top: 52,
-                        left: 160,
-                        child: TabletFilterPanel(
-                          title: 'Filter employees',
-                          activeFilterCount: filterCount,
-                          onReset: () => setState(() {
-                            _roleFilter = null;
-                            _activeFilter = null;
-                            _showFilters = false;
-                          }),
-                          onApply: () => setState(() => _showFilters = false),
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Role',
-                                  style: TextStyle(fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  for (final role in ['owner', 'pharmacist', 'staff'])
-                                    ChoiceChip(
-                                      label: Text(role[0].toUpperCase() + role.substring(1)),
-                                      selected: _roleFilter == role,
-                                      onSelected: (on) => setState(
-                                        () => _roleFilter = on ? role : null,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              const Text('Account status',
-                                  style: TextStyle(fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  ChoiceChip(
-                                    label: const Text('Active'),
-                                    selected: _activeFilter == true,
-                                    onSelected: (on) => setState(
-                                      () => _activeFilter = on ? true : null,
-                                    ),
-                                  ),
-                                  ChoiceChip(
-                                    label: const Text('Deactivated'),
-                                    selected: _activeFilter == false,
-                                    onSelected: (on) => setState(
-                                      () => _activeFilter = on ? false : null,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
         ],
       ),
     );
@@ -482,16 +511,22 @@ class _EmployeeDetailsDrawer extends StatelessWidget {
   final VoidCallback onToggleActive;
   final VoidCallback onChangeRole;
   final VoidCallback onUpdateLicense;
+  final VoidCallback onUploadPhoto;
+  final VoidCallback? onEditProfile;
+  final String? photoUrl;
 
   const _EmployeeDetailsDrawer({
     required this.employee,
     required this.busy,
     required this.licenseBadge,
+    required this.photoUrl,
     required this.onClose,
     required this.onResetPassword,
     required this.onToggleActive,
     required this.onChangeRole,
     required this.onUpdateLicense,
+    required this.onUploadPhoto,
+    this.onEditProfile,
   });
 
   @override
@@ -527,6 +562,33 @@ class _EmployeeDetailsDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Center(
+            child: ProfilePhotoAvatar(
+              displayName: employee.fullName,
+              photoUrl: photoUrl,
+              radius: 36,
+              onTap: busy ? null : onUploadPhoto,
+              showCameraBadge: true,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Center(
+            child: Text(
+              employee.isPharmacist
+                  ? 'Tap to set pharmacist profile photo'
+                  : 'Tap to set profile photo',
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (onEditProfile != null) ...[
+            FilledButton.icon(
+              onPressed: busy ? null : onEditProfile,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit profile'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           _DetailRow('Username', employee.username != null ? '@${employee.username}' : '—'),
           _DetailRow('Role', employee.roleLabel),
           _DetailRow('PRC license no.', employee.prcLicenseNo ?? 'None'),

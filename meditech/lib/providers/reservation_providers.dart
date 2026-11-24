@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/reservation.dart';
 import '../services/reservation_service.dart';
 import 'cart_providers.dart';
+import 'session_providers.dart';
 
 // Provides the ReservationService instance (overridable in widget tests)
 final reservationServiceProvider = Provider<ReservationService>((ref) {
@@ -16,13 +17,25 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
 
   @override
   Future<List<CustomerReservation>> build() async {
-    final service = ref.watch(reservationServiceProvider);
     ref.onDispose(_unsubscribe);
+    restoreSessionIfNeeded(
+      currentSession: ref.read(sessionProvider),
+      setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+    );
+    ref.listen(sessionProvider, (previous, next) {
+      if (next == null) _unsubscribe();
+    });
 
     final userId = _tryCurrentUserId();
-    if (userId != null) {
-      _subscribeToUpdates(userId);
+    if (userId == null) {
+      return const [];
     }
+    if (ref.watch(sessionProvider) == null &&
+        signedInAccountFromStoredSession() == null) {
+      return const [];
+    }
+    final service = ref.watch(reservationServiceProvider);
+    _subscribeToUpdates(userId);
 
     return service.getMyReservations();
   }
@@ -70,10 +83,26 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
 
   // Reloads the customer's reservations from Supabase
   Future<void> refresh() async {
+    if (!ref.mounted) return;
+    restoreSessionIfNeeded(
+      currentSession: ref.read(sessionProvider),
+      setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+    );
+    if (_tryCurrentUserId() == null) {
+      state = const AsyncData([]);
+      return;
+    }
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(reservationServiceProvider).getMyReservations(),
     );
+  }
+
+  // Cancels a pending reservation placed by the signed-in customer
+  Future<void> cancelMyReservation(String reservationId) async {
+    final service = ref.read(reservationServiceProvider);
+    await service.cancelMyReservation(reservationId);
+    await refresh();
   }
 
   // Submits the current cart as a reservation, refreshes cart & reservations
@@ -87,6 +116,19 @@ class MyReservationsNotifier extends AsyncNotifier<List<CustomerReservation>> {
       acknowledged: acknowledged,
     );
     await ref.read(cartProvider.notifier).refresh();
+    try {
+      final fresh = await service.getReservationById(result.reservationId);
+      if (fresh != null) {
+        final existing = state.value ?? const <CustomerReservation>[];
+        final merged = [
+          fresh,
+          ...existing.where((r) => r.id != fresh.id),
+        ];
+        state = AsyncData(merged);
+      }
+    } catch (_) {
+      // List refresh still runs below.
+    }
     await refresh();
     return result;
   }

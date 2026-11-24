@@ -11,6 +11,7 @@ class Employee {
   final DateTime? prcLicenseExpiry;
   final String licenseStatus;
   final bool isActive;
+  final String? avatarPath;
 
   const Employee({
     required this.accountId,
@@ -24,6 +25,7 @@ class Employee {
     this.prcLicenseExpiry,
     required this.licenseStatus,
     required this.isActive,
+    this.avatarPath,
   });
 
   String get fullName {
@@ -63,6 +65,7 @@ class Employee {
       prcLicenseExpiry: expiry == null ? null : DateTime.parse(expiry.toString()),
       licenseStatus: json['license_status'] as String? ?? 'none',
       isActive: json['is_active'] as bool? ?? true,
+      avatarPath: json['avatar_path'] as String?,
     );
   }
 }

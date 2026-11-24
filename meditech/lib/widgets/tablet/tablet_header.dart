@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../common/network_avatar_image.dart';
+
 // Top bar for tablet layout showing branch info, notifications, and user profile
 class TabletHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String userName;
   final String userRole;
+  final String? userPhotoUrl;
   final int unreadNotifications;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
@@ -16,6 +19,7 @@ class TabletHeader extends StatelessWidget {
     this.subtitle,
     required this.userName,
     required this.userRole,
+    this.userPhotoUrl,
     this.unreadNotifications = 0,
     this.onNotificationsTap,
     this.onProfileTap,
@@ -125,16 +129,31 @@ class TabletHeader extends StatelessWidget {
               child: Row(
                 children: [
                   CircleAvatar(
+                    key: ValueKey(userPhotoUrl ?? userName),
                     radius: 18,
                     backgroundColor: const Color(0xFF1E6B3E),
-                    child: Text(
-                      _getInitials(userName),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: userPhotoUrl != null
+                        ? NetworkAvatarImage(
+                            url: userPhotoUrl!,
+                            radius: 18,
+                            backgroundColor: const Color(0xFF1E6B3E),
+                            fallback: Text(
+                              _getInitials(userName),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            _getInitials(userName),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 10),
                   Column(

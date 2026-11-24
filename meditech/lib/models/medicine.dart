@@ -24,6 +24,14 @@ enum MedicineAvailability {
   bool get canReserve =>
       this == MedicineAvailability.available ||
       this == MedicineAvailability.lowStock;
+
+  // Button label on offer / inventory cards
+  String get cartActionLabel => switch (this) {
+        MedicineAvailability.available || MedicineAvailability.lowStock =>
+          'Add to Cart',
+        MedicineAvailability.unconfirmed => 'Unconfirmed',
+        MedicineAvailability.unavailable => 'Unavailable',
+      };
 }
 
 // Grouped medicine row returned by search_medicines
@@ -40,6 +48,7 @@ class MedicineSearchResult {
     required this.lowestPrice,
     required this.pharmacyCount,
     this.nearestKm,
+    this.imagePath,
   });
 
   final String medicineId;
@@ -53,6 +62,7 @@ class MedicineSearchResult {
   final double lowestPrice;
   final int pharmacyCount;
   final double? nearestKm;
+  final String? imagePath;
 
   String get formattedLowestPrice =>
       'From ₱${lowestPrice.toStringAsFixed(2)} / $unitSold';
@@ -70,6 +80,7 @@ class MedicineSearchResult {
       lowestPrice: (json['lowest_price'] as num).toDouble(),
       pharmacyCount: (json['pharmacy_count'] as num).toInt(),
       nearestKm: (json['nearest_km'] as num?)?.toDouble(),
+      imagePath: json['image_path'] as String?,
     );
   }
 }

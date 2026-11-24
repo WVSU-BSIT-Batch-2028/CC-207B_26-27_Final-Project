@@ -13,6 +13,7 @@ class PharmacyApp extends ConsumerWidget {
     return IdleSignOut(
       child: MaterialApp.router(
         title: 'MediTech Pharmacy',
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: ref.watch(pharmacyRouterProvider),
       ),

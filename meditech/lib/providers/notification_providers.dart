@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
+import 'session_providers.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return SupabaseNotificationService();
@@ -10,9 +11,14 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 class NotificationListNotifier extends AsyncNotifier<List<AppNotification>> {
   @override
   Future<List<AppNotification>> build() async {
+    if (ref.watch(sessionProvider) == null) {
+      return const [];
+    }
     final service = ref.read(notificationServiceProvider);
     final channel = service.watchMine(() {
-      if (ref.mounted) ref.invalidateSelf();
+      if (!ref.mounted) return;
+      if (ref.read(sessionProvider) == null) return;
+      ref.invalidateSelf();
     });
     if (channel != null) {
       ref.onDispose(channel.unsubscribe);
@@ -30,18 +36,29 @@ class NotificationListNotifier extends AsyncNotifier<List<AppNotification>> {
     ]);
   }
 
-  // Mark every unread row read. Deletes are blocked, so this is "clear".
+  /// Marks every unread notification for the signed-in user as read.
   Future<void> markAllRead() async {
     final current = state.value ?? [];
-    final unread = [for (final item in current) if (item.isUnread) item.id];
-    if (unread.isEmpty) return;
+    if (!current.any((item) => item.isUnread)) return;
     final service = ref.read(notificationServiceProvider);
     final readAt = DateTime.now().toUtc();
-    await Future.wait([for (final id in unread) service.markRead(id)]);
+    await service.markAllRead();
     state = AsyncData([
       for (final item in current)
         if (item.isUnread) item.copyWith(readAt: readAt) else item,
     ]);
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await ref.read(notificationServiceProvider).deleteNotification(id);
+    final current = state.value ?? [];
+    state = AsyncData([for (final item in current) if (item.id != id) item]);
+  }
+
+  /// Removes every notification for the signed-in user.
+  Future<void> clearAll() async {
+    await ref.read(notificationServiceProvider).clearAll();
+    state = const AsyncData([]);
   }
 }
 
@@ -52,6 +69,7 @@ final notificationListProvider =
 
 // How many of the loaded notifications are still unread
 final unreadNotificationCountProvider = Provider<int>((ref) {
+  if (ref.watch(sessionProvider) == null) return 0;
   final list = ref.watch(notificationListProvider);
   return list.maybeWhen(
     data: (items) => items.where((item) => item.isUnread).length,

@@ -27,6 +27,14 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        restoreSessionIfNeeded(
+          currentSession: ref.read(sessionProvider),
+          setSignedIn: ref.read(sessionProvider.notifier).setSignedIn,
+        );
+      }
+    });
     if (widget.initialIndex != 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -76,10 +84,12 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(customerTabProvider);
+    final signedIn = ref.watch(sessionProvider) != null;
     final screens = [
       HomeScreen(
-        cartCount: ref.watch(cartItemCountProvider),
-        notificationCount: ref.watch(unreadNotificationCountProvider),
+        cartCount: signedIn ? ref.watch(cartItemCountProvider) : 0,
+        notificationCount:
+            signedIn ? ref.watch(unreadNotificationCountProvider) : 0,
         onCartTap: _openCart,
         onNotificationsTap: _openNotifications,
         onSearchTap: () => _onTabSelected(1),
@@ -102,12 +112,16 @@ class _CustomerFrameState extends ConsumerState<CustomerFrame> {
     ];
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
         child: IndexedStack(index: currentIndex, children: screens),
       ),
-      bottomNavigationBar: const CustomerBottomChrome(),
+      bottomNavigationBar: CustomerBottomChrome(
+        showBasket: signedIn && currentIndex == 1,
+        onViewCart: _openCart,
+      ),
     );
   }
 }

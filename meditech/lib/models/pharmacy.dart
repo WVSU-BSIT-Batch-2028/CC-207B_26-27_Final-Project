@@ -12,6 +12,7 @@ class PharmacyDetail {
     required this.latitude,
     required this.longitude,
     this.distanceKm,
+    this.storefrontPath,
   });
 
   final String branchId;
@@ -24,6 +25,9 @@ class PharmacyDetail {
   final double longitude;
   final double? distanceKm;
 
+  /// Storage path in `pharmacy-documents` (latest storefront upload).
+  final String? storefrontPath;
+
   factory PharmacyDetail.fromJson(Map<String, dynamic> json) {
     return PharmacyDetail(
       branchId: '${json['branch_id'] ?? json['id']}',
@@ -35,6 +39,7 @@ class PharmacyDetail {
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      storefrontPath: json['storefront_path'] as String?,
     );
   }
 }
@@ -112,6 +117,19 @@ class PharmacyHours {
   }
 }
 
+// Returns the opening-hours row for the current weekday, if any.
+PharmacyHours? pharmacyHoursForToday(
+  List<PharmacyHours> hours, [
+  DateTime? now,
+]) {
+  if (hours.isEmpty) return null;
+  final weekday = (now ?? DateTime.now()).weekday % 7;
+  for (final row in hours) {
+    if (row.weekday == weekday) return row;
+  }
+  return null;
+}
+
 // Unknown hours stay listed as open. A recorded closed day shows as closed.
 bool pharmacyIsOpenNow(List<PharmacyHours>? hours, [DateTime? now]) {
   final clock = now ?? DateTime.now();
@@ -139,6 +157,7 @@ class PharmacyInventoryItem {
     required this.pricePerUnit,
     required this.availability,
     required this.stockConfirmedAt,
+    this.imagePath,
   });
 
   final String inventoryId;
@@ -154,6 +173,7 @@ class PharmacyInventoryItem {
   final double pricePerUnit;
   final MedicineAvailability availability;
   final DateTime stockConfirmedAt;
+  final String? imagePath;
 
   String get formattedPrice =>
       '₱${pricePerUnit.toStringAsFixed(2)} / $unitSold';
@@ -175,6 +195,7 @@ class PharmacyInventoryItem {
         json['availability'] as String?,
       ),
       stockConfirmedAt: DateTime.parse(json['stock_confirmed_at'] as String),
+      imagePath: json['image_path'] as String?,
     );
   }
 }

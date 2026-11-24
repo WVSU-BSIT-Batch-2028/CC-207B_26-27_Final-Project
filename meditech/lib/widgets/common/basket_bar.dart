@@ -9,6 +9,117 @@ import '../../screens/shared/guest_auth_gate.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
+// Extra bottom inset for scroll views when the scaffold uses extendBody with [CustomerBottomChrome].
+double customerBottomChromeScrollPadding(
+  BuildContext context, {
+  bool showBasket = false,
+}) {
+  final safe = MediaQuery.paddingOf(context).bottom;
+  var height = safe + AppSpacing.md + 46 + AppSpacing.sm + 64 + AppSpacing.lg;
+  if (showBasket) {
+    height += 64 + AppSpacing.sm;
+  }
+  return height;
+}
+
+// Height from the physical bottom edge up to just above basket + nav (not list scroll padding).
+double customerSnackBarBottomMargin(
+  BuildContext context, {
+  bool showBasket = false,
+}) {
+  final safe = MediaQuery.paddingOf(context).bottom;
+  var height = safe + AppSpacing.sm + 64 + AppSpacing.sm;
+  if (showBasket) {
+    height += 64 + AppSpacing.sm;
+  }
+  return height;
+}
+
+OverlayEntry? _activeCustomerSnackEntry;
+
+// Toast above bottom chrome; avoids scaffold resize and awkward mid-screen placement.
+void showCustomerSnackBar(
+  BuildContext context, {
+  required String message,
+  Duration duration = const Duration(seconds: 2),
+  bool showBasket = true,
+  SnackBarAction? action,
+}) {
+  _activeCustomerSnackEntry?.remove();
+  _activeCustomerSnackEntry = null;
+
+  final overlay = Overlay.maybeOf(context);
+  if (overlay == null) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: duration,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            customerSnackBarBottomMargin(context, showBasket: showBasket),
+          ),
+          action: action,
+        ),
+      );
+    return;
+  }
+
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) {
+      final bottom = customerSnackBarBottomMargin(ctx, showBasket: showBasket);
+      return Positioned(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: bottom,
+        child: Material(
+          elevation: 6,
+          color: const Color(0xFF323232),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+                if (action != null)
+                  TextButton(
+                    onPressed: action.onPressed,
+                    child: Text(
+                      action.label,
+                      style: const TextStyle(color: AppColors.primaryLight),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  _activeCustomerSnackEntry = entry;
+  overlay.insert(entry);
+  Future<void>.delayed(duration, () {
+    if (identical(_activeCustomerSnackEntry, entry)) {
+      entry.remove();
+      _activeCustomerSnackEntry = null;
+    }
+  });
+}
+
 // Basket pill, bottom nav, and the assistant button from the customer mock
 class CustomerBottomChrome extends ConsumerWidget {
   const CustomerBottomChrome({
@@ -55,39 +166,38 @@ class CustomerBottomChrome extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(customerTabProvider);
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
-        AppSpacing.md,
-      ),
-      child: Column(
+    return Material(
+      color: Colors.transparent,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.md,
+        ),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _AiButton(onPressed: () => _openAssistant(context)),
+            ),
+          ),
           if (showBasket) ...[
             _BasketPill(onView: onViewCart),
             const SizedBox(height: AppSpacing.sm),
           ],
-          SizedBox(
-            height: 82,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                _NavPill(
-                  currentIndex: currentIndex,
-                  onSelected: (index) => _selectTab(context, ref, index),
-                ),
-                Positioned(
-                  right: 10,
-                  top: 0,
-                  child: _AiButton(onPressed: () => _openAssistant(context)),
-                ),
-              ],
-            ),
+          _NavPill(
+            currentIndex: currentIndex,
+            onSelected: (index) => _selectTab(context, ref, index),
           ),
         ],
+        ),
       ),
     );
   }
@@ -100,8 +210,11 @@ class _BasketPill extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(cartItemCountProvider);
-    final total = ref.watch(cartProvider).value?.formattedSubtotal ?? '₱0.00';
+    final signedIn = ref.watch(sessionProvider) != null;
+    final count = signedIn ? ref.watch(cartItemCountProvider) : 0;
+    final total = signedIn
+        ? (ref.watch(cartProvider).value?.formattedSubtotal ?? '₱0.00')
+        : '₱0.00';
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -110,8 +223,19 @@ class _BasketPill extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 22),
+          const SizedBox(
+            width: 28,
+            height: 40,
+            child: Center(
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -173,9 +297,7 @@ class _NavPill extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.only(right: 28),
-        child: Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _NavItem(
@@ -207,7 +329,6 @@ class _NavPill extends StatelessWidget {
             onTap: () => onSelected(3),
           ),
         ],
-        ),
       ),
     );
   }

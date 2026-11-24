@@ -6,10 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/application_details.dart';
 import '../../../providers/admin_pharmacy_providers.dart';
+import '../../../providers/official_link_providers.dart';
 import '../../../services/admin_pharmacy_service.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/dialogs/confirm_dialog.dart';
 import '../../../widgets/dialogs/reason_dialog.dart';
+import '../../../widgets/tablet/tablet_controls.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -77,13 +79,16 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
     _tell('LTO number copied.');
   }
 
-  // Open the official FDA portal in the browser
   Future<void> _openPortal() async {
+    final portal = await ref.read(fdaVerificationPortalProvider.future);
+    if (portal == null) {
+      _tell('No verification portal is configured in the database yet.');
+      return;
+    }
     try {
-      final url = await _service.fdaPortalUrl();
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(portal.url), mode: LaunchMode.externalApplication);
     } catch (_) {
-      _tell('Could not open the FDA portal.');
+      _tell('Could not open ${portal.label}.');
     }
   }
 
@@ -135,6 +140,7 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
     final canApprove = ref.watch(branchHasMatchProvider(d.id)).value ?? false;
     final pending = d.status == 'pending_approval';
     final date = DateFormat('MMM d, yyyy · h:mm a');
+    final portal = ref.watch(fdaVerificationPortalProvider).asData?.value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,19 +156,24 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
             onPressed: _copyLto,
             icon: const Icon(Icons.copy, size: 18),
             label: const Text('Copy LTO Number'),
+            style: TabletControls.actionOutlined(),
           ),
-          OutlinedButton.icon(
-            onPressed: _openPortal,
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: const Text('Verify at FDA Portal'),
-          ),
+          if (portal != null)
+            OutlinedButton.icon(
+              onPressed: _openPortal,
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(portal.label),
+              style: TabletControls.actionOutlined(),
+            ),
         ]),
-        const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Opens the official FDA site in your browser. Compare the name, address, '
-          'and expiry with this application, then record what you found.',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-        ),
+        if (portal != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Opens ${portal.label} in your browser. Compare the name, address, '
+            'and expiry with this application, then record what you found.',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+          ),
+        ],
 
         // Step 3: record the result (only while waiting)
         if (pending) ...[
@@ -186,6 +197,7 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
             alignment: Alignment.centerRight,
             child: FilledButton(
               onPressed: _busy ? null : _record,
+              style: TabletControls.actionFilled(),
               child: const Text('Save check'),
             ),
           ),
@@ -237,10 +249,7 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
             Expanded(
               child: OutlinedButton(
                 onPressed: _busy ? null : _reject,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                  side: const BorderSide(color: AppColors.danger),
-                ),
+                style: TabletControls.dangerOutlined(),
                 child: const Text('Reject'),
               ),
             ),
@@ -248,6 +257,7 @@ class _VerificationPanelState extends ConsumerState<VerificationPanel> {
             Expanded(
               child: FilledButton(
                 onPressed: _busy || !canApprove ? null : _approve,
+                style: TabletControls.actionFilled(),
                 child: const Text('Approve'),
               ),
             ),

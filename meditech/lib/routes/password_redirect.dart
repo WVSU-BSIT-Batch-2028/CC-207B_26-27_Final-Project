@@ -8,14 +8,21 @@ const _pharmacyShellPaths = {
   '/dashboard',
   '/reservations',
   '/inventory',
+  '/stock-alerts',
+  '/settings',
   '/employees',
+  '/profile',
+  '/profile/edit',
 };
 
 const _adminShellPaths = {
+  '/overview',
   '/pharmacies',
+  '/listings',
   '/catalogue',
   '/requests',
   '/audit',
+  '/notifications',
 };
 
 // Temporary passwords must be changed before anything else
@@ -79,12 +86,12 @@ String? redirectForPharmacySession(SignedInAccount? account, String location) {
   return null;
 }
 
-// Signed-in admins open the pharmacies shell; guests stay on sign-in
+// Signed-in admins open the overview shell; guests stay on sign-in
 String? redirectForAdminSession(SignedInAccount? account, String location) {
   final passwordRedirect = redirectForPasswordChange(
     account,
     location,
-    homePath: '/pharmacies',
+    homePath: '/overview',
   );
   if (passwordRedirect != null) return passwordRedirect;
 
@@ -96,7 +103,7 @@ String? redirectForAdminSession(SignedInAccount? account, String location) {
     return null;
   }
 
-  if (location == '/') return '/pharmacies';
+  if (location == '/') return '/overview';
   return null;
 }
 

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/cart.dart';
 import '../services/cart_service.dart';
+import 'session_providers.dart';
 
 // Provides CartService (overridable in widget tests)
 final cartServiceProvider = Provider<CartService>((ref) {
@@ -14,12 +16,14 @@ final cartServiceProvider = Provider<CartService>((ref) {
 class CartNotifier extends AsyncNotifier<CustomerCart> {
   @override
   Future<CustomerCart> build() async {
+    if (ref.watch(sessionProvider) == null) {
+      return const CustomerCart();
+    }
     final service = ref.watch(cartServiceProvider);
     return service.getMyCart();
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(cartServiceProvider).getMyCart(),
     );
@@ -42,7 +46,7 @@ class CartNotifier extends AsyncNotifier<CustomerCart> {
     );
 
     if (outcome == AddToCartOutcome.added) {
-      await refresh();
+      unawaited(refresh());
     }
     return outcome;
   }
@@ -51,12 +55,26 @@ class CartNotifier extends AsyncNotifier<CustomerCart> {
     required String medicineId,
     required int quantity,
   }) async {
+    final previous = state.asData?.value;
+    if (previous != null) {
+      state = AsyncValue.data(previous.withItemQuantity(medicineId, quantity));
+    }
+
     final service = ref.read(cartServiceProvider);
-    await service.setItemQuantity(
-      medicineId: medicineId,
-      quantity: quantity,
-    );
-    await refresh();
+    try {
+      await service.setItemQuantity(
+        medicineId: medicineId,
+        quantity: quantity,
+      );
+      state = await AsyncValue.guard(
+        () => ref.read(cartServiceProvider).getMyCart(),
+      );
+    } catch (error, stackTrace) {
+      if (previous != null) {
+        state = AsyncValue.data(previous);
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> clearCart() async {
@@ -92,5 +110,7 @@ final cartProvider = AsyncNotifierProvider<CartNotifier, CustomerCart>(
 
 // Convenience badge count of total medicine units in cart
 final cartItemCountProvider = Provider<int>((ref) {
+  if (ref.watch(sessionProvider) == null) return 0;
   return ref.watch(cartProvider).value?.totalUnits ?? 0;
 });
+
