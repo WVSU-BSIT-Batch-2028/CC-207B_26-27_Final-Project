@@ -23,36 +23,25 @@ const OVERPASS_MIRRORS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 
-const QUERY_PHARMACIES = `
-[out:json][timeout:15];
-  "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://overpass.openstreetmap.ru/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-];
-
-// Full result (nodes + building outlines). Heavier — try after quick node-only pass.
-const QUERY_FULL = `
-[out:json][timeout:60];
+const QUERY_META = `
+[out:json][timeout:12];
 (
-  node["amenity"="pharmacy"](${BBOX});
-  way["amenity"="pharmacy"](${BBOX});
+  node["amenity"="pharmacy"]["name"](${BBOX});
+  way["amenity"="pharmacy"]["name"](${BBOX});
+);
+out center meta qt;
+`;
+
+const QUERY_TAGS = `
+[out:json][timeout:12];
+(
+  node["amenity"="pharmacy"]["name"](${BBOX});
+  way["amenity"="pharmacy"]["name"](${BBOX});
 );
 out center tags;
 `;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MIRROR_ATTEMPTS = 2;
-const MIRROR_RETRY_DELAY_MS = 2_000;
-out center meta;
-`;
-
-// Fast fallback when mirrors are overloaded (504)
-const QUERY_NODES_ONLY = `
-[out:json][timeout:30];
-node["amenity"="pharmacy"](${BBOX});
-out meta;
-`;
 
 function reply(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -84,6 +73,7 @@ function formatLastEdited(iso?: string): string | null {
 async function fetchFromMirror(
   mirror: string,
   query: string,
+  timeoutMs: number,
 ): Promise<OverpassElement[]> {
   const res = await fetch(mirror, {
     method: "POST",
@@ -93,7 +83,7 @@ async function fetchFromMirror(
       "User-Agent": "MediTechPharmacySync/1.0 (contact: admin@meditech.app)",
     },
     body: `data=${encodeURIComponent(query)}`,
-    signal: AbortSignal.timeout(18_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!res.ok) {
@@ -110,96 +100,25 @@ async function fetchFromMirror(
 async function loadPharmacyElements(): Promise<OverpassElement[]> {
   const errors: string[] = [];
 
-  for (let attempt = 0; attempt < MIRROR_ATTEMPTS; attempt++) {
-    for (const mirror of OVERPASS_MIRRORS) {
-      try {
-        return await fetchFromMirror(mirror, QUERY_PHARMACIES);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push(msg);
-      }
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      return await fetchFromMirror(mirror, QUERY_META, 14_000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`meta:${msg}`);
     }
+  }
 
-    if (attempt + 1 < MIRROR_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, MIRROR_RETRY_DELAY_MS));
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      return await fetchFromMirror(mirror, QUERY_TAGS, 15_000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`tags:${msg}`);
     }
   }
 
   throw new Error(`All Overpass mirrors failed (${errors.join(" | ")})`);
-}
-
-const RETRYABLE_HTTP = new Set([408, 425, 429, 500, 502, 503, 504]);
-
-async function sleep(ms: number) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function fetchOverpassOnce(
-  mirror: string,
-  query: string,
-  timeoutMs: number,
-): Promise<{ ok: true; elements: OverpassElement[] } | { ok: false; status: number }> {
-  const res = await fetch(mirror, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "MediTech-OSM-Sync/1.1 (+https://meditech)",
-    },
-    body: `data=${encodeURIComponent(query)}`,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-
-  if (!res.ok) {
-    return { ok: false, status: res.status };
-  }
-
-  const payload = await res.json();
-  const elements: OverpassElement[] = Array.isArray(payload?.elements)
-    ? payload.elements
-    : [];
-  return { ok: true, elements };
-}
-
-async function runOverpassQuery(
-  query: string,
-  timeoutMs: number,
-): Promise<OverpassElement[] | null> {
-  let lastStatus = 0;
-
-  for (const mirror of OVERPASS_MIRRORS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const result = await fetchOverpassOnce(mirror, query, timeoutMs);
-        if (result.ok) {
-          return result.elements;
-        }
-        lastStatus = result.status;
-        if (!RETRYABLE_HTTP.has(result.status)) break;
-        await sleep(1_500 * (attempt + 1));
-      } catch {
-        lastStatus = 408;
-        await sleep(1_000);
-      }
-    }
-  }
-
-  if (lastStatus > 0) {
-    throw new Error(`overpass_http_${lastStatus}`);
-  }
-  throw new Error("overpass_timeout");
-}
-
-async function loadPharmacyElements(): Promise<OverpassElement[]> {
-  try {
-    const full = await runOverpassQuery(QUERY_FULL, 90_000);
-    if (full && full.length > 0) return full;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "";
-    if (!msg.startsWith("overpass_")) throw e;
-  }
-
-  const nodes = await runOverpassQuery(QUERY_NODES_ONLY, 45_000);
-  return nodes ?? [];
 }
 
 Deno.serve(async (req) => {
@@ -246,31 +165,40 @@ Deno.serve(async (req) => {
       return reply(403, { error: "Only active administrators can sync listings." });
     }
 
-    let elements: OverpassElement[];
+    let elements: OverpassElement[] = [];
     try {
-      elements = await loadPharmacyElements();
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "overpass_unknown";
-      const code = raw.replace("overpass_http_", "").replace("overpass_", "");
-      const hint =
-        code === "504" || code === "timeout"
-          ? "Overpass is busy. Wait a minute and try Sync OSM again."
-          : "Could not download pharmacy data from OpenStreetMap.";
-      return reply(502, {
-        error: `${hint} (last HTTP ${code === "timeout" ? "timeout" : code}).`,
-      });
+      const body = await req.json();
+      if (Array.isArray(body?.elements)) {
+        elements = body.elements;
+      }
+    } catch {
+      // Ignore empty or non-JSON body
+    }
+
+    if (elements.length === 0) {
+      try {
+        elements = await loadPharmacyElements();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Overpass request failed.";
+        return reply(502, {
+          error: `Could not download pharmacy data from OpenStreetMap. ${msg}`,
+        });
+      }
     }
 
     const { data: existingRows, error: fetchError } = await supabase
       .from("osm_listings")
-      .select("osm_id, status");
+      .select("osm_id, status, last_edited_there");
 
     if (fetchError) {
       return reply(500, { error: fetchError.message });
     }
 
-    const existingStatus = new Map<string, string>(
-      (existingRows ?? []).map((row) => [row.osm_id, row.status]),
+    const existingMap = new Map<string, { status: string; lastEdited: string | null }>(
+      (existingRows ?? []).map((row) => [
+        row.osm_id,
+        { status: row.status, lastEdited: row.last_edited_there ?? null },
+      ]),
     );
 
     const now = new Date().toISOString();
@@ -283,14 +211,17 @@ Deno.serve(async (req) => {
       if (lat == null || lon == null || !name) continue;
 
       const osmId = `${el.type}/${el.id}`;
+      const existing = existingMap.get(osmId);
+      const freshEdited = formatLastEdited(el.timestamp);
+
       rowsToUpsert.push({
         osm_id: osmId,
         name,
         address: formatAddress(el.tags ?? {}),
         latitude: Number(lat.toFixed(6)),
         longitude: Number(lon.toFixed(6)),
-        last_edited_there: formatLastEdited(el.timestamp),
-        status: existingStatus.get(osmId) ?? "shown",
+        last_edited_there: freshEdited ?? existing?.lastEdited ?? null,
+        status: existing?.status ?? "shown",
         synced_at: now,
       });
     }
