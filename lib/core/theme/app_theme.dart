@@ -39,6 +39,28 @@ class AppTheme {
           color: p.textPrimary,
         ),
       ),
+      // Every popup shares one look: app surface colour, rounded corners and a
+      // thin outline. Widths come from AppSizes (see DialogFrame).
+      dialogTheme: DialogThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.lg,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: p.border),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: AppSizes.sheet),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: brightness == Brightness.dark ? const Color(0xFF2A3B63) : AppColors.brandNavy,

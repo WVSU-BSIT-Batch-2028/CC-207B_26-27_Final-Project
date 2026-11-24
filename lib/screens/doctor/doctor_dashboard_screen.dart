@@ -5,7 +5,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../models/doctor_dashboard_data.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/doctor_service.dart';
-import '../../widgets/coming_soon_sheet.dart';
+import 'doctor_prescriptions_screen.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/h360_card.dart';
 import '../../widgets/section_header.dart';
@@ -90,27 +90,26 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     _ActionTile(
                       icon: Icons.medication_rounded,
                       label: 'Prescriptions',
-                      onTap: () => showComingSoonSheet(context, title: 'Prescriptions'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const DoctorPrescriptionsScreen()),
+                      ),
                     ),
                     _ActionTile(
                       icon: Icons.folder_shared_rounded,
                       label: 'Medical Records',
-                      onTap: () => showComingSoonSheet(context, title: 'Medical Records'),
+                      // Records are opened per patient, from the Patients tab.
+                      onTap: () => _goTab(2),
                     ),
                     _ActionTile(
                       icon: Icons.science_rounded,
                       label: 'Lab Results',
-                      onTap: () => showComingSoonSheet(context, title: 'Lab Results'),
+                      onTap: () => _goTab(2),
                     ),
                     _ActionTile(icon: Icons.person_rounded, label: 'Profile', onTap: () => _goTab(3)),
                   ],
                 ),
               ),
-              SectionHeader(
-                title: 'Recent Activity',
-                actionLabel: 'View All',
-                onAction: () => showComingSoonSheet(context, title: 'Activity log'),
-              ),
+              const SectionHeader(title: 'Recent Activity'),
               FadeSlideIn(
                 delay: const Duration(milliseconds: 120),
                 child: data.activities.isEmpty

@@ -29,3 +29,17 @@ class AppShadows {
     ),
   ];
 }
+
+/// Standard popup widths, so every dialog and sheet has the same proportion.
+class AppSizes {
+  AppSizes._();
+
+  /// Short confirmations: "Log out?", "Approve this refill?", "Reminder set".
+  static const double confirmDialog = 400;
+
+  /// Popups with details: Medical Record, Lab Results, appointment details.
+  static const double detailDialog = 480;
+
+  /// Bottom sheets (vital details, App Theme): same as page content.
+  static const double sheet = 640;
+}

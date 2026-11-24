@@ -21,6 +21,8 @@ dependencies:
   # Small key-value storage: remembers which medication doses were taken today.
   shared_preferences: ^2.2.3
   url_launcher: ^6.3.3
+  # Browser notifications for medicine reminders (web only; see browser_notifier.dart).
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

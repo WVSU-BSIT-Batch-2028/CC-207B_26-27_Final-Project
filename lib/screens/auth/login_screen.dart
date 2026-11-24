@@ -5,6 +5,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/validators.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
+import '../../widgets/dialog_frame.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -67,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => DialogFrame(child: AlertDialog(
         title: const Text('Reset Password'),
         content: Form(
           key: dialogFormKey,
@@ -111,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: const Text('Send Link'),
           ),
         ],
-      ),
+      )),
     );
   }
 

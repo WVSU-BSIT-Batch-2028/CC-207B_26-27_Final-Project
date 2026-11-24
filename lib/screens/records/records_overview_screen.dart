@@ -9,7 +9,7 @@
 // screen, tap a card to open its details, pull down to refresh, tap the back
 // arrow to return to Home.
 //
-// WHERE THE DATA COMES FROM: RecordsService (mock data for now).
+// WHERE THE DATA COMES FROM: RecordsService (Firestore).
 //
 // SHARED WIDGETS USED: H360Card (inside RecordCard), SkeletonBox, EmptyState,
 // ErrorState, FadeSlideIn, RecordsHeader, RecordsScrollBody.

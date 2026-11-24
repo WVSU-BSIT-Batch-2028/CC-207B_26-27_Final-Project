@@ -2,7 +2,8 @@ import '../core/utils/date_format.dart';
 
 /// How often the patient wants to be reminded.
 enum ReminderMode {
-  /// A reminder every 8 hours, starting on the start date.
+  /// A reminder every 8 hours (8:00 AM, 4:00 PM and 12:00 AM), starting on
+  /// the start date.
   every8Hours,
 
   /// One reminder a day at a time the patient picks.
@@ -50,6 +51,29 @@ class ReminderSetting {
         final hour = customHour ?? 8;
         final minute = customMinute ?? 0;
         return 'daily at ${formatTime(DateTime(2000, 1, 1, hour, minute))}';
+    }
+  }
+
+  /// The hours of the "every 8 hours" reminders: 12:00 AM, 8:00 AM, 4:00 PM.
+  static const List<int> every8HoursAt = [0, 8, 16];
+
+  /// The times this reminder is due on [day] (empty before the start date).
+  /// Used by ReminderScheduler; plain logic, so it is unit tested.
+  List<DateTime> timesOn(DateTime day) {
+    final date = DateTime(day.year, day.month, day.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    if (date.isBefore(start)) return const [];
+
+    switch (mode) {
+      case ReminderMode.every8Hours:
+        return [
+          for (final hour in every8HoursAt)
+            DateTime(date.year, date.month, date.day, hour),
+        ];
+      case ReminderMode.customTime:
+        return [
+          DateTime(date.year, date.month, date.day, customHour ?? 8, customMinute ?? 0),
+        ];
     }
   }
 

@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/dialog_frame.dart';
 
 /// "Confirming Log Out" step from the prototype. Signs out of Firebase Auth
 /// and returns the user to the AuthGate (LoginScreen).
 Future<void> confirmLogout(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => DialogFrame(child: AlertDialog(
       backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       title: Text(
@@ -33,7 +34,7 @@ Future<void> confirmLogout(BuildContext context) async {
           ),
         ),
       ],
-    ),
+    )),
   );
 
   if (confirmed == true) {

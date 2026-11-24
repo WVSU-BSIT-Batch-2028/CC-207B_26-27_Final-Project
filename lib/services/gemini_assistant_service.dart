@@ -2,7 +2,6 @@ import 'package:firebase_ai/firebase_ai.dart';
 
 import '../models/chat_message.dart';
 import 'ai_assistant_service.dart';
-import 'ai_exceptions.dart';
 import 'ai_prompt.dart';
 
 /// The real AI: sends the patient's message to Google's Gemini model through

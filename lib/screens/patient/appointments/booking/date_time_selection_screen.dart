@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/clinic_hours.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../models/doctor.dart';
@@ -38,9 +39,9 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   void initState() {
     super.initState();
 
-    // Start with tomorrow as the suggested appointment date.
+    // Start with tomorrow (or the next open day) as the suggested date.
     final tomorrow = DateTime.now().add(const Duration(days: 1));
-    _selectedDate = DateUtils.dateOnly(tomorrow);
+    _selectedDate = ClinicHours.nextOpenDay(tomorrow);
   }
 
   /// Opens the time picker and updates the selected time.
@@ -52,9 +53,22 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 
     if (selectedTime == null || !mounted) return;
 
+    // Only clinic hours can be chosen (8:00 AM to 4:30 PM).
+    final picked = DateTime(2000, 1, 3, selectedTime.hour, selectedTime.minute); // a Monday
+    if (!ClinicHours.isWithinHours(picked)) {
+      _showError('Please choose a time from 8:00 AM to 4:30 PM.');
+      return;
+    }
+
     setState(() {
       _selectedTime = selectedTime;
     });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Combines the selected date and time into one DateTime value.
@@ -69,7 +83,14 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
   }
 
   /// Passes the selected schedule to the next booking stage.
+  /// Stops here with a message if the time is in the past or outside
+  /// clinic hours (e.g. 9:00 AM today when it is already 10:00 AM).
   void _confirmSelection() {
+    final error = ClinicHours.validate(_appointmentDateTime);
+    if (error != null) {
+      _showError(error);
+      return;
+    }
     widget.onNext(_appointmentDateTime);
   }
 
@@ -150,6 +171,8 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       firstDate: today,
                       lastDate: today.add(const Duration(days: 365)),
                       currentDate: today,
+                      // Sundays are greyed out (clinic closed).
+                      selectableDayPredicate: ClinicHours.isOpenDay,
                       onDateChanged: (date) {
                         setState(() {
                           _selectedDate = DateUtils.dateOnly(date);
@@ -187,6 +210,11 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
                       ),
                       onTap: _selectTime,
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Clinic hours: ${ClinicHours.description}.',
+                    style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                   ),
                 ],
               ),

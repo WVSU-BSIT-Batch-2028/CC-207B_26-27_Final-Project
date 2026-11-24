@@ -9,6 +9,7 @@ import '../../../services/dashboard_service.dart';
 import '../../../services/profile_service.dart';
 import '../../../widgets/demo_scenario_sheet.dart';
 import '../../../widgets/fade_slide_in.dart';
+import '../../../widgets/notifications_preview.dart';
 import '../../../widgets/section_header.dart';
 import '../../../widgets/state_views.dart';
 import 'widgets/assistant_promo_card.dart';
@@ -23,10 +24,21 @@ enum _LoadStatus { loading, ready, error }
 
 /// Patient Home / Dashboard.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onNavigate, required this.onOpenAssistant});
+  const HomeScreen({
+    super.key,
+    required this.onNavigate,
+    required this.onOpenAssistant,
+    this.refreshToken = 0,
+  });
 
   final ValueChanged<int> onNavigate;
   final VoidCallback onOpenAssistant;
+
+  /// Changed by PatientShell when Home should reload quietly (the patient
+  /// came back to the Home tab, or marked a dose taken from a reminder).
+  /// Home stays alive in the tab stack, so without this it would keep
+  /// showing what it loaded first (e.g. not a prescription added later).
+  final int refreshToken;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -38,15 +50,28 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userFirstName;
   String _error = '';
 
+  /// Bumped on every load, so the Notifications card reloads with Home.
+  int _loadCount = 0;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  /// Reload without the skeleton when the shell asks for fresh data.
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshToken != oldWidget.refreshToken) {
+      _load(showSkeleton: false);
+    }
+  }
+
   /// Fetches the dashboard and signed-in user's name.
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
+    _loadCount++;
     try {
       final results = await Future.wait([
         DashboardService.instance.fetchDashboard(),
@@ -56,9 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = results[0] as DashboardData;
       final profile = results[1] as dynamic;
       final fullName = (profile.fullName as String).trim();
-      final firstName = fullName.isEmpty
-          ? data.patientFirstName
-          : fullName.split(RegExp(r'\s+')).first;
+      // No name yet: the greeting shows without one ("Good Morning").
+      final firstName =
+          fullName.isEmpty ? null : fullName.split(RegExp(r'\s+')).first;
 
       setState(() {
         _data = data;
@@ -94,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
     DashboardService.instance.setDoseTaken(id, willBeTaken);
   }
 
+  /// Long-press the avatar: switch the data between Normal / Empty / Error
+  /// to show each state in the presentation.
   void _openDemoMenu() => showDemoScenarioSheet(context, _load);
 
   @override
@@ -133,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       case _LoadStatus.ready:
         final data = _data!;
-        final displayName = _userFirstName ?? data.patientFirstName;
+        final displayName = _userFirstName;
 
         if (data.isEmpty) {
           return [
@@ -170,9 +197,14 @@ class _HomeScreenState extends State<HomeScreen> {
               onAskAi: widget.onOpenAssistant,
             ),
           ),
+          // Notifications: what is new, with "Mark as done".
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 200),
+            child: NotificationsPreview(role: UserRole.patient, refreshToken: _loadCount),
+          ),
           const SectionHeader(
             title: 'Health at a Glance',
-            subtitle: 'Sample data for now. Tap a card for its trend, or to add your own reading.',
+            subtitle: 'Sample data plus your own readings. Tap a card for its trend, or to add a reading.',
           ),
           FadeSlideIn(
             delay: const Duration(milliseconds: 240),

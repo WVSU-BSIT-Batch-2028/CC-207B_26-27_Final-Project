@@ -5,7 +5,10 @@ import '../../models/appointment.dart';
 import '../../models/doctor.dart';
 import '../../models/user_role.dart';
 import '../../services/guide_service.dart';
+import '../../services/prescription_service.dart';
+import '../../services/reminder_scheduler.dart';
 import '../../widgets/h360_bottom_nav.dart';
+import '../../widgets/reminder_due_dialog.dart';
 import '../ai/ai_assistant_screen.dart';
 import '../onboarding/how_to_use_screen.dart';
 import '../profile/profile_screen.dart';
@@ -47,6 +50,9 @@ class _PatientShellState extends State<PatientShell> {
     setState(() {
       // Opening the Prescriptions tab (index 2) reloads it from Firestore.
       if (index == 2 && _index != 2) _prescriptionsRefreshToken++;
+      // Coming back to Home reloads it quietly (new prescriptions,
+      // appointments or doses taken elsewhere show up).
+      if (index == 0 && _index != 0) _homeRefreshToken++;
       _index = index;
     });
   }
@@ -88,10 +94,6 @@ class _PatientShellState extends State<PatientShell> {
                                             if (!confirmationContext.mounted) {
                                               return;
                                             }
-
-                                            debugPrint(
-                                              'BOOKING DEBUG: Done button tapped.',
-                                            );
 
                                             Navigator.of(
                                               confirmationContext,
@@ -140,29 +142,76 @@ class _PatientShellState extends State<PatientShell> {
     // Allows the shell to open directly on a requested tab.
     _index = widget.initialIndex.clamp(0, 4);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _showGuideIfFirstTime();
-      }
-    });
+    // New accounts see the "How to use" guide before the dashboard.
+    _checkGuide();
+
+    // Medicine reminders: checked while the patient side is open.
+    ReminderScheduler.instance.start(this, _onReminderDue);
   }
 
-  /// Displays the patient guide when it has not been viewed.
-  Future<void> _showGuideIfFirstTime() async {
-    final hasSeen = await GuideService.instance.hasSeen(UserRole.patient);
+  @override
+  void dispose() {
+    ReminderScheduler.instance.stop(this);
+    super.dispose();
+  }
 
-    if (!mounted || hasSeen) return;
+  /// Reminders that are due while a popup is already open wait here.
+  final List<DueReminder> _dueQueue = [];
+  bool _showingReminder = false;
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => const HowToUseScreen(
-          role: UserRole.patient,
-        ),
-      ),
-    );
+  /// Bumped when Home should reload quietly: the Home tab is opened again,
+  /// or a dose was marked taken from a reminder.
+  int _homeRefreshToken = 0;
 
-    await GuideService.instance.markSeen(UserRole.patient);
+  /// ReminderScheduler found a due medicine: show the popup (one at a time).
+  void _onReminderDue(DueReminder reminder) {
+    _dueQueue.add(reminder);
+    if (!_showingReminder) _showNextReminder();
+  }
+
+  Future<void> _showNextReminder() async {
+    if (_dueQueue.isEmpty || !mounted) return;
+    _showingReminder = true;
+    final reminder = _dueQueue.removeAt(0);
+
+    final answer = await showReminderDueDialog(context, reminder);
+    if (!mounted) return;
+
+    if (answer == ReminderAnswer.later) {
+      ReminderScheduler.instance.snooze(reminder);
+    } else if (answer == ReminderAnswer.taken) {
+      try {
+        await PrescriptionService.instance.setTakenToday(reminder.prescriptionId, true);
+        if (mounted) {
+          setState(() => _homeRefreshToken++);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${reminder.title} marked as taken.')),
+          );
+        }
+      } on PrescriptionException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    }
+
+    _showingReminder = false;
+    _showNextReminder();
+  }
+
+  /// null while checking; true = show the guide instead of the dashboard.
+  bool? _showGuide;
+
+  /// Decides whether this account still needs the first-time guide.
+  Future<void> _checkGuide() async {
+    final seen = await GuideService.instance.hasSeen(UserRole.patient);
+    if (mounted) setState(() => _showGuide = !seen);
+  }
+
+  /// "Get started" or "Skip" on the guide: remember it, open the dashboard.
+  void _finishGuide() {
+    GuideService.instance.markSeen(UserRole.patient);
+    setState(() => _showGuide = false);
   }
 
   /// Opens the AI assistant and handles its requested navigation action.
@@ -180,11 +229,21 @@ class _PatientShellState extends State<PatientShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Checking whether this account saw the guide (a moment on first load).
+    if (_showGuide == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    // A new account: the step-by-step guide comes before the dashboard.
+    if (_showGuide!) {
+      return HowToUseScreen(role: UserRole.patient, onFinished: _finishGuide);
+    }
+
     return Scaffold(
       body: IndexedStack(
         index: _index,
         children: [
           HomeScreen(
+            refreshToken: _homeRefreshToken,
             onNavigate: _goTo,
             onOpenAssistant: _openAssistant,
           ),

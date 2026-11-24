@@ -12,7 +12,7 @@
 // link. It is left out on purpose (the project rules say no downloading or
 // sharing of lab results as PDF). List it under Known Limitations.
 //
-// WHERE THE DATA COMES FROM: RecordsService.fetchLabResultDetail (mock).
+// WHERE THE DATA COMES FROM: RecordsService.fetchLabResultDetail (Firestore).
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';

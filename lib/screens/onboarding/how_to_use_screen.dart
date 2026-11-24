@@ -6,13 +6,18 @@ import '../../models/user_role.dart';
 import '../../widgets/h360_button.dart';
 
 /// Short step-by-step guide (swipe through the pages).
-/// Shown automatically the first time each role opens the app, and reopened
-/// any time from Profile > Help & Support > How to Use Health360.
+/// Shown to every new account BEFORE its dashboard (the shells show it in
+/// place of the dashboard and pass [onFinished]), and reopened any time from
+/// Profile > Help & Support > How to Use Health360 (pushed as a page).
 /// Added because validators asked where to press and how video visits work.
 class HowToUseScreen extends StatefulWidget {
-  const HowToUseScreen({super.key, required this.role});
+  const HowToUseScreen({super.key, required this.role, this.onFinished});
 
   final UserRole role;
+
+  /// Called on "Get started" or "Skip" when the guide is shown in place of
+  /// the dashboard. When null (opened from Help & Support) the page closes.
+  final VoidCallback? onFinished;
 
   @override
   State<HowToUseScreen> createState() => _HowToUseScreenState();
@@ -61,6 +66,11 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
       'Tap Menu in the bottom bar for the full list: appointments, patients, prescriptions, medical records, lab results and the dashboard.',
     ),
     _GuidePage(
+      Icons.folder_shared_rounded,
+      "Write your patients' records",
+      'In Patients, open a patient to add consultation notes, prescriptions and lab results. The patient sees them in their Records and Prescriptions.',
+    ),
+    _GuidePage(
       Icons.dashboard_rounded,
       'Dashboard and profile',
       'The dashboard has shortcuts and recent activity. Manage your details and preferences in Profile. You can reopen this guide from Profile > Help & Support.',
@@ -79,9 +89,19 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
     super.dispose();
   }
 
+  /// "Get started" or "Skip": open the dashboard, or close the page.
+  void _finish() {
+    final onFinished = widget.onFinished;
+    if (onFinished != null) {
+      onFinished();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   void _next() {
     if (_isLast) {
-      Navigator.of(context).pop();
+      _finish();
     } else {
       _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
     }
@@ -103,7 +123,7 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
                 child: Opacity(
                   opacity: _isLast ? 0 : 1,
                   child: TextButton(
-                    onPressed: _isLast ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLast ? null : _finish,
                     child: const Text('Skip', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),

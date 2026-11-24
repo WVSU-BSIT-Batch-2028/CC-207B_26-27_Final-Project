@@ -8,14 +8,15 @@ import '../../models/user_role.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/doctor_service.dart';
 import '../../services/profile_service.dart';
-import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/demo_scenario_sheet.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/h360_card.dart';
 import '../../widgets/hero_panel.dart';
+import '../../widgets/notifications_preview.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
+import 'doctor_prescriptions_screen.dart';
 import 'widgets/appointment_row.dart';
 import 'widgets/overview_tile.dart';
 
@@ -38,6 +39,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   String? _doctorDisplayName;
   String _error = '';
 
+  /// Bumped on every load, so the Notifications card reloads with Home.
+  int _loadCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +50,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
+    _loadCount++;
     try {
       final results = await Future.wait([
         DoctorService.instance.fetchDashboard(),
@@ -210,6 +215,12 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               ),
             ),
           ),
+          // Notifications: bookings, change requests and refills to handle,
+          // each with "Mark as done".
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 140),
+            child: NotificationsPreview(role: UserRole.doctor, refreshToken: _loadCount),
+          ),
           SectionHeader(title: 'Quick Overview', actionLabel: 'Full dashboard', onAction: widget.onOpenDashboard),
           FadeSlideIn(
             delay: const Duration(milliseconds: 180),
@@ -247,7 +258,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                         value: '${d.prescriptions}',
                         label: 'Prescription',
                         color: AppColors.sleep,
-                        onTap: () => showComingSoonSheet(context, title: 'Prescriptions'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(builder: (_) => const DoctorPrescriptionsScreen()),
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -257,7 +270,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                         value: '${d.labResults}',
                         label: 'Lab Results',
                         color: AppColors.heart,
-                        onTap: () => showComingSoonSheet(context, title: 'Lab Results'),
+                        // Lab results are opened per patient (Patients tab).
+                        onTap: () => widget.onNavigate(2),
                       ),
                     ),
                   ],

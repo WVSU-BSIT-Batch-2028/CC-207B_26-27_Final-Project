@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/clinic_hours.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../models/appointment.dart';
@@ -109,6 +110,13 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
 
     if (selectedTime == null || !mounted) return;
 
+    // Only clinic hours can be chosen (8:00 AM to 4:30 PM).
+    final picked = DateTime(2000, 1, 3, selectedTime.hour, selectedTime.minute); // a Monday
+    if (!ClinicHours.isWithinHours(picked)) {
+      setState(() => _submitError = 'Please choose a time from 8:00 AM to 4:30 PM.');
+      return;
+    }
+
     setState(() {
       _selectedTime = selectedTime;
       _submitError = null;
@@ -164,6 +172,12 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
       setState(() {
         _submitError = 'Please select a future appointment date and time.';
       });
+      return;
+    }
+
+    final hoursError = ClinicHours.validate(_appointmentDateTime);
+    if (hoursError != null) {
+      setState(() => _submitError = hoursError);
       return;
     }
 
@@ -269,10 +283,16 @@ class _EditAppointmentScreenState extends State<EditAppointmentScreen> {
             side: BorderSide(color: AppColors.border),
           ),
           child: CalendarDatePicker(
-            initialDate: _selectedDate.isBefore(today) ? today : _selectedDate,
+            // The first open day on or after the saved date (never a Sunday,
+            // which the calendar does not allow as its starting date).
+            initialDate: ClinicHours.nextOpenDay(
+              _selectedDate.isBefore(today) ? today : _selectedDate,
+            ),
             firstDate: today,
-            lastDate: today.add(const Duration(days: 365)),
+            lastDate: today.add(const Duration(days: 366)),
             currentDate: today,
+            // Sundays are greyed out (clinic closed).
+            selectableDayPredicate: ClinicHours.isOpenDay,
             onDateChanged: (date) {
               if (_isSubmitting) return;
 

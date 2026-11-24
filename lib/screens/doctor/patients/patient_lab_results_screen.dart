@@ -3,14 +3,16 @@
 //
 // WHAT THE DOCTOR SEES: a "Patient Lab Results" header with a back arrow,
 // three pills (Records / Lab Results / Prescriptions) with "Lab Results"
-// selected, a "Laboratory Results" heading with a "View only" label, and one
-// card per lab test (name and date), newest first.
+// selected, a "Laboratory Results" heading with a "View only" label, one
+// card per lab test (name and date), newest first, and an "Add Lab Result"
+// button pinned at the bottom.
 //
-// WHAT THE DOCTOR CAN DO: tap a card to open that result, tap the other pills
-// to switch, pull down to refresh, tap the back arrow to return to Patient
-// Details. Doctors can only VIEW results here, not edit them.
+// WHAT THE DOCTOR CAN DO: tap a card to open that result, tap "Add Lab
+// Result" to enter a new one from the laboratory's report, tap the other
+// pills to switch, pull down to refresh, tap the back arrow to return to
+// Patient Details. Saved results are view only (they cannot be edited).
 //
-// WHERE THE DATA COMES FROM: PatientsService.fetchPatientLabResults (mock).
+// WHERE THE DATA COMES FROM: PatientsService.fetchPatientLabResults (Firestore).
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -19,6 +21,7 @@ import '../../../models/patient.dart';
 import '../../../models/patient_lab_result.dart';
 import '../../../services/patients_service.dart';
 import '../../../widgets/fade_slide_in.dart';
+import '../../../widgets/h360_button.dart';
 import '../../../widgets/state_views.dart';
 import '../../../widgets/status_chip.dart';
 import '../../records/widgets/records_header.dart';
@@ -31,7 +34,8 @@ enum _LoadStatus { loading, ready, error }
 
 /// Doctor Patient Lab Results. [onBack] returns to Patient Details;
 /// [onTabSelected] tells the Patients tab which pill was tapped;
-/// [onOpenLabResult] tells it which lab result was tapped.
+/// [onOpenLabResult] tells it which lab result was tapped;
+/// [onAddLabResult] that the "Add Lab Result" button was tapped.
 class PatientLabResultsScreen extends StatefulWidget {
   const PatientLabResultsScreen({
     super.key,
@@ -39,6 +43,7 @@ class PatientLabResultsScreen extends StatefulWidget {
     required this.onBack,
     required this.onTabSelected,
     required this.onOpenLabResult,
+    required this.onAddLabResult,
   });
 
   /// The patient whose lab results are shown.
@@ -46,6 +51,7 @@ class PatientLabResultsScreen extends StatefulWidget {
   final VoidCallback onBack;
   final ValueChanged<PatientRecordTab> onTabSelected;
   final ValueChanged<PatientLabResult> onOpenLabResult;
+  final VoidCallback onAddLabResult;
 
   @override
   State<PatientLabResultsScreen> createState() =>
@@ -105,6 +111,23 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
               children: _buildChildren(),
             ),
           ),
+
+          // "Add Lab Result" stays pinned at the bottom once the list has loaded
+          if (_status == _LoadStatus.ready)
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+                  child: H360Button(
+                    label: 'Add Lab Result',
+                    icon: Icons.add_circle_outline_rounded,
+                    onPressed: widget.onAddLabResult,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -163,7 +186,7 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'You can view these results but not change them.',
+            'Saved results cannot be changed. If a test is repeated, add a new result.',
             style: TextStyle(fontSize: 14, color: AppColors.textMuted),
           ),
           gap,
@@ -174,7 +197,7 @@ class _PatientLabResultsScreenState extends State<PatientLabResultsScreen> {
               icon: Icons.assignment_outlined,
               title: 'No lab results yet',
               message:
-                  "This patient's lab results will appear here once their tests are done.",
+                  'Tap "Add Lab Result" to enter the numbers from the laboratory report.',
             ),
 
           // List of lab result cards (each fades in a little after the one above)

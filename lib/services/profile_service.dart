@@ -5,11 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/utils/date_format.dart';
+import '../models/appointment.dart';
+import '../models/appointment_status.dart';
+import '../models/health_record.dart';
 import '../models/notification_item.dart';
+import '../models/refill_request.dart';
 import '../models/user_profile.dart';
 import '../models/user_role.dart';
+import 'appointment_service.dart';
 import 'auth_service.dart';
 import 'prescription_service.dart';
+import 'records_service.dart';
 
 /// Saves personal information and notification toggles.
 /// Reads the signed-in user's name/email from Firebase Auth & Firestore `users/{uid}`.
@@ -45,6 +52,10 @@ class ProfileService {
     String resolvedName = d.fullName;
     String resolvedEmail = d.email;
 
+    // Mobile, birth date, gender and address saved in `users/{uid}`
+    // (null = not loaded from Firestore, so the copy on this device is used).
+    Map<String, dynamic>? account;
+
     if (Firebase.apps.isNotEmpty) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -54,6 +65,7 @@ class ProfileService {
         }
         try {
           final data = await AuthService().getUserProfile(user.uid);
+          account = data;
           final fsName = data?['fullName'] as String?;
           final fsEmail = data?['email'] as String?;
           if (fsName != null && fsName.trim().isNotEmpty) {
@@ -68,8 +80,13 @@ class ProfileService {
       }
     }
 
-    String read(String field, String fallback) =>
-        prefs.getString(_key(role, field)) ?? fallback;
+    // Signed in: the value from Firestore. Otherwise (or for accounts saved
+    // before this change) the copy kept on this device.
+    String read(String field, String fallback) {
+      final cloud = account?[field];
+      if (cloud is String && cloud.trim().isNotEmpty) return cloud.trim();
+      return prefs.getString(_key(role, field)) ?? fallback;
+    }
 
     return UserProfile(
       fullName: Firebase.apps.isNotEmpty && FirebaseAuth.instance.currentUser != null
@@ -83,7 +100,10 @@ class ProfileService {
     );
   }
 
-  /// Saves personal information locally and updates `users/{uid}` in Firestore when signed in.
+  /// Saves personal information in `users/{uid}` (so it follows the user to
+  /// any computer) and keeps a copy on this device for use without Firebase.
+  /// The rules allow it: users may update their own document as long as the
+  /// role does not change.
   async.Future<void> save(UserRole role, UserProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key(role, 'fullName'), profile.fullName);
@@ -97,51 +117,179 @@ class ProfileService {
       if (user != null) {
         await user.updateDisplayName(profile.fullName);
         await fs.FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-          {'fullName': profile.fullName},
+          {
+            'fullName': profile.fullName,
+            'mobile': profile.mobile,
+            'birthDate': profile.birthDate,
+            'gender': profile.gender,
+            'address': profile.address,
+            'updatedAt': fs.FieldValue.serverTimestamp(),
+          },
           fs.SetOptions(merge: true),
         );
+        // Otherwise the cached copy still holds the old name and Personal
+        // Information / Home keep showing it until the next sign-in.
+        AuthService.forgetCachedProfile();
       }
     }
   }
 
-  /// MOCK notification history (newest first). Which items were read is saved
-  /// on the device. Replace the sample list with the real backend later.
+  /// Notification history (newest first), built from the user's real data
+  /// in Firestore. Which items were read is saved on the device.
+  ///
+  /// Patient: upcoming, cancelled or changed appointments, answered refill
+  /// requests, and new consultation notes or lab results (last 30 days).
+  /// Doctor: bookings and change requests to review, cancellations, today's
+  /// visits, and refill requests waiting for an answer.
+  /// A part that cannot be loaded is skipped, so the rest still shows.
   async.Future<List<NotificationItem>> loadNotificationHistory(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     final readIds = (prefs.getStringList('${role.name}_notif_read') ?? const <String>[]).toSet();
-    final now = DateTime.now();
-    DateTime at(int daysAgo, int hour, int minute) =>
-        DateTime(now.year, now.month, now.day - daysAgo, hour, minute);
 
-    final items = role == UserRole.doctor
-        ? <NotificationItem>[
-            NotificationItem(id: 'd1', categoryKey: 'lab', title: 'New lab result available', message: 'Patient: Mark Villanueva', time: at(0, 10, 30)),
-            NotificationItem(id: 'd2', categoryKey: 'prescription', title: 'Prescription updated', message: 'Patient: Ana Dela Cruz', time: at(0, 9, 45)),
-            NotificationItem(id: 'd3', categoryKey: 'appointment', title: 'Appointment cancelled', message: 'Liza Ramos cancelled the 3:00 PM consultation.', time: at(0, 7, 50)),
-            NotificationItem(id: 'd4', categoryKey: 'appointment', title: 'Appointment request pending', message: 'Paolo Mendoza asked for a follow-up on Thursday.', time: at(1, 15, 10)),
-            NotificationItem(id: 'd5', categoryKey: 'system', title: 'System update', message: 'New features are available in Health360.', time: at(2, 18, 0)),
-          ]
-        : <NotificationItem>[
-            NotificationItem(id: 'n1', categoryKey: 'appointments', title: 'Appointment tomorrow', message: 'Reminder: General Consultation with Dr. Maria Santos tomorrow at 10:00 AM.', time: at(0, 9, 0)),
-            NotificationItem(id: 'n2', categoryKey: 'prescriptions', title: 'Time to take Vitamin D3', message: '1000 IU, scheduled for 8:00 AM.', time: at(0, 8, 0)),
-            NotificationItem(id: 'n3', categoryKey: 'lab_results', title: 'Lab results available', message: 'Your blood test results are ready to view in Records.', time: at(1, 16, 30)),
-            NotificationItem(id: 'n4', categoryKey: 'appointments', title: 'Appointment confirmed', message: 'Your visit on Monday at 10:00 AM is confirmed.', time: at(2, 11, 15)),
-            NotificationItem(id: 'n5', categoryKey: 'health', title: 'Daily check-in', message: 'How did you sleep last night? Add a reading in Health at a Glance.', time: at(3, 7, 30)),
-          ];
-
-    // Doctor: one entry for every refill request still waiting for an answer.
-    if (role == UserRole.doctor) {
-      items.addAll(await _refillNotifications());
-    }
+    final items = <NotificationItem>[
+      ...await _appointmentNotifications(role),
+      if (role == UserRole.doctor) ...await _refillNotifications(),
+      if (role == UserRole.patient) ...await _refillAnswerNotifications(),
+      if (role == UserRole.patient) ...await _recordNotifications(),
+    ];
 
     items.sort((a, b) => b.time.compareTo(a.time));
     return [for (final i in items) i.copyWith(read: readIds.contains(i.id))];
   }
 
+  /// "Mon, Nov 30 at 10:00 AM".
+  String _when(DateTime d) => '${formatWeekdayDate(d)} at ${formatTime(d)}';
+
+  /// Entries from the user's appointments (patient or doctor side).
+  async.Future<List<NotificationItem>> _appointmentNotifications(UserRole role) async {
+    final List<Appointment> all;
+    try {
+      all = await AppointmentService.instance.fetchAppointments();
+    } catch (_) {
+      return const <NotificationItem>[];
+    }
+
+    final now = DateTime.now();
+    final soon = now.add(const Duration(days: 7));
+    final doctor = role == UserRole.doctor;
+    final category = doctor ? 'appointment' : 'appointments';
+    final items = <NotificationItem>[];
+
+    for (final a in all) {
+      final upcoming = a.dateTime.isAfter(now);
+      final who = doctor ? (a.patientName ?? 'A patient') : a.doctorName;
+      final booked = a.bookedAt ?? now;
+      final request = a.changeRequest;
+
+      if (upcoming && a.status == AppointmentStatus.cancelled) {
+        items.add(NotificationItem(
+          id: 'apt_cancel_${a.id}',
+          categoryKey: category,
+          title: 'Appointment cancelled',
+          message: doctor
+              ? 'The consultation with $who on ${_when(a.dateTime)} was cancelled.'
+              : 'Your consultation with $who on ${_when(a.dateTime)} was cancelled.',
+          time: booked,
+        ));
+        continue;
+      }
+
+      if (doctor && upcoming && a.status == AppointmentStatus.pending) {
+        items.add(NotificationItem(
+          id: 'apt_new_${a.id}',
+          categoryKey: category,
+          title: 'New appointment to confirm',
+          message: '$who booked ${a.specialty} on ${_when(a.dateTime)}.',
+          time: booked,
+        ));
+      } else if (upcoming && a.dateTime.isBefore(soon)) {
+        items.add(NotificationItem(
+          id: 'apt_soon_${a.id}',
+          categoryKey: category,
+          title: a.status == AppointmentStatus.confirmed
+              ? 'Upcoming appointment (confirmed)'
+              : 'Upcoming appointment (waiting for the doctor)',
+          message: '${a.specialty} with $who on ${_when(a.dateTime)}.',
+          time: booked,
+        ));
+      }
+
+      if (request != null && upcoming) {
+        final status = request.status;
+        if (doctor && status == ChangeRequestStatus.pending) {
+          items.add(NotificationItem(
+            id: 'apt_change_${a.id}_${request.requestedAt.millisecondsSinceEpoch}',
+            categoryKey: category,
+            title: 'Change request to review',
+            message: '$who asked to move their appointment to ${_when(request.dateTime)}.',
+            time: request.requestedAt,
+          ));
+        } else if (!doctor && status != ChangeRequestStatus.pending) {
+          final approved = status == ChangeRequestStatus.approved;
+          items.add(NotificationItem(
+            id: 'apt_change_${a.id}_${request.requestedAt.millisecondsSinceEpoch}',
+            categoryKey: category,
+            title: approved ? 'Change request approved' : 'Change request declined',
+            message: approved
+                ? 'Your appointment is now on ${_when(a.dateTime)}.'
+                : 'Your appointment stays on ${_when(a.dateTime)}.',
+            time: request.requestedAt,
+          ));
+        }
+      }
+    }
+    return items;
+  }
+
+  /// Patient: refill requests the doctor approved or declined.
+  async.Future<List<NotificationItem>> _refillAnswerNotifications() async {
+    try {
+      final answers = await PrescriptionService.instance.fetchMyAnsweredRefills();
+      return [
+        for (final r in answers)
+          NotificationItem(
+            id: 'refill_${r.id}_${r.status.name}',
+            categoryKey: 'prescriptions',
+            title: r.status == RefillStatus.approved ? 'Refill approved' : 'Refill declined',
+            message: r.status == RefillStatus.approved
+                ? 'Your refill for ${r.medicineTitle} was approved.'
+                : 'Your refill for ${r.medicineTitle} was declined. You can send a new request.',
+            time: r.at,
+          ),
+      ];
+    } catch (_) {
+      return const <NotificationItem>[];
+    }
+  }
+
+  /// Patient: consultation notes and lab results from the last 30 days.
+  async.Future<List<NotificationItem>> _recordNotifications() async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 30));
+      final records = await RecordsService.instance.fetchRecords();
+      return [
+        for (final r in records)
+          if (r.date.isAfter(since))
+            NotificationItem(
+              id: 'record_${r.id}',
+              categoryKey: 'lab_results',
+              title: r.type == RecordType.labResult
+                  ? 'Lab results available'
+                  : 'New consultation notes',
+              message: r.type == RecordType.labResult
+                  ? '${r.subtitle} is ready to view in Records.'
+                  : '${r.subtitle} added notes from your visit. See Records.',
+              time: r.date,
+            ),
+      ];
+    } catch (_) {
+      return const <NotificationItem>[];
+    }
+  }
+
   /// Notification entries built from the refill requests that patients sent
   /// to this doctor and that nobody has answered yet. They disappear once the
-  /// doctor approves or declines. If they cannot be loaded, the sample
-  /// notifications still show.
+  /// doctor approves or declines.
   async.Future<List<NotificationItem>> _refillNotifications() async {
     try {
       final notices = await PrescriptionService.instance.fetchPendingRefillNotices();

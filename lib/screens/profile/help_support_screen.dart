@@ -5,7 +5,6 @@ import '../../core/constants/contact_info.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../models/user_role.dart';
-import '../../widgets/coming_soon_sheet.dart';
 import '../../widgets/menu_tile.dart';
 import '../onboarding/how_to_use_screen.dart';
 import 'faq_screen.dart';
@@ -75,19 +74,14 @@ class HelpSupportScreen extends StatelessWidget {
             subtitle: _phone,
             onTap: () => _copy(context, 'Phone number', _phone),
           ),
-          MenuTile(
-            icon: Icons.chat_bubble_outline_rounded,
-            title: 'Live Chat',
-            subtitle: 'Chat with the Health360 Assistant',
-            onTap: () {
-              if (role == UserRole.patient) {
-                Navigator.of(context).pushNamed(AppRoutes.assistant);
-              } else {
-                showComingSoonSheet(context, title: 'Live Chat',
-                    message: 'Doctor support chat is planned for a future release.');
-              }
-            },
-          ),
+          // The assistant is a patient feature; doctors use phone or email.
+          if (role == UserRole.patient)
+            MenuTile(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'Live Chat',
+              subtitle: 'Chat with the Health360 Assistant',
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.assistant),
+            ),
         ],
       ),
     );

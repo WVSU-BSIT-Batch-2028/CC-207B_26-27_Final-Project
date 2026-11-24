@@ -534,7 +534,7 @@ class _InputBar extends StatelessWidget {
                   maxLines: 4,
                   keyboardType: TextInputType.multiline,
                   textCapitalization: TextCapitalization.sentences,
-                  inputFormatters: [LengthLimitingTextInputFormatter(500)],
+                  inputFormatters: [LengthLimitingTextInputFormatter(_AiAssistantScreenState._maxLength)],
                   onChanged: onChanged,
                   decoration: AppTheme.inputDecoration(
                     hint: 'Describe your symptoms…',

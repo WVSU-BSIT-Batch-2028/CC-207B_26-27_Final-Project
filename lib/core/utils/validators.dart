@@ -16,7 +16,7 @@ class Validators {
   static String? email(String? value) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return 'Please enter your email address.';
-    if (!RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(text)) {
+    if (!RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,}$').hasMatch(text)) {
       return 'Please enter a valid email address.';
     }
     return null;

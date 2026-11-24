@@ -10,6 +10,7 @@ import '../../../widgets/appointment_status_chip.dart';
 import '../../../widgets/h360_card.dart';
 import '../../../widgets/section_header.dart';
 import '../../../widgets/state_views.dart';
+import '../../../widgets/dialog_frame.dart';
 
 enum _LoadStatus { loading, ready, error }
 
@@ -672,19 +673,15 @@ class _AppointmentDetailsDialog extends StatelessWidget {
   /// Builds the appointment details dialog.
   @override
   Widget build(BuildContext context) {
+    // Colour, corners and outline come from the dialog theme (AppTheme).
     return Dialog(
-      backgroundColor: AppColors.surface,
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: BoxConstraints(
+          maxWidth: AppSizes.detailDialog,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -938,19 +935,15 @@ class _ChangeRequestReviewDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = appointment.changeRequest!;
 
+    // Colour, corners and outline come from the dialog theme (AppTheme).
     return Dialog(
-      backgroundColor: AppColors.surface,
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 540),
+        constraints: BoxConstraints(
+          maxWidth: AppSizes.detailDialog,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1165,7 +1158,7 @@ class _ActionConfirmationDialog extends StatelessWidget {
   /// Builds the action confirmation dialog.
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return DialogFrame(child: AlertDialog(
       title: Text(title),
       content: Text(description),
       actions: [
@@ -1185,7 +1178,7 @@ class _ActionConfirmationDialog extends StatelessWidget {
           label: Text(confirmLabel),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -1243,7 +1236,7 @@ class _MeetingUrlDialogState extends State<_MeetingUrlDialog> {
   /// Builds the Google Meet URL form.
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return DialogFrame(child: AlertDialog(
       title: Text(
         widget.initialUrl == null
             ? 'Add Google Meet Link'
@@ -1275,7 +1268,7 @@ class _MeetingUrlDialogState extends State<_MeetingUrlDialog> {
           child: const Text('Save Link'),
         ),
       ],
-    );
+    ));
   }
 }
 
