@@ -141,61 +141,88 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
               title: const Text('Mark back in stock'),
               content: SizedBox(
                 width: 480,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Count what\'s on the shelf and enter the quantity. MediTech '
-                      'isn\'t connected to your POS, so it doesn\'t restore an old '
-                      'count or calculate one. Your number replaces the recorded '
-                      'stock, and availability is worked out from it.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(10),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Count what\'s on the shelf and enter the quantity. MediTech '
+                        'isn\'t connected to your POS, so it doesn\'t restore an old '
+                        'count or calculate one. Your number replaces the recorded '
+                        'stock, and availability is worked out from it.',
+                        style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: AppSpacing.lg),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: error != null
+                                ? AppColors.danger
+                                : AppColors.border,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  item.medicineDisplayName,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.medicineDisplayName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Last recorded: ${item.stockQuantity} ${item.unit}s',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Last recorded: ${item.stockQuantity} ${item.unit}s',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                const SizedBox(width: AppSpacing.md),
+                                SizedBox(
+                                  width: 120,
+                                  child: TextField(
+                                    controller: controller,
+                                    keyboardType: TextInputType.number,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Quantity on shelf',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          SizedBox(
-                            width: 120,
-                            child: TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              autofocus: true,
-                              decoration: InputDecoration(
-                                labelText: 'Quantity on shelf',
-                                errorText: error,
-                                isDense: true,
-                                border: const OutlineInputBorder(),
+                            if (error != null) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                error!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.danger,
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [

@@ -750,49 +750,66 @@ class _BackInStockDialogState extends State<_BackInStockDialog> {
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(
+                      color: (_errors[item.id] ?? '').isNotEmpty
+                          ? AppColors.danger
+                          : AppColors.border,
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${item.brandName} ${item.strength}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${item.brandName} ${item.strength}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Last recorded: ${item.stockQuantity} '
+                                  '${item.unit}s',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          SizedBox(
+                            width: 170,
+                            child: TextField(
+                              controller: _controllers[item.id],
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Quantity on shelf',
+                                border: OutlineInputBorder(),
+                                isDense: true,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Last recorded: ${item.stockQuantity} '
-                              '${item.unit}s',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      SizedBox(
-                        width: 170,
-                        child: TextField(
-                          controller: _controllers[item.id],
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Quantity on shelf',
-                            errorText: _errors[item.id],
-                            errorMaxLines: 2,
-                            border: const OutlineInputBorder(),
-                            isDense: true,
+                      if ((_errors[item.id] ?? '').isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          _errors[item.id]!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.danger,
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
