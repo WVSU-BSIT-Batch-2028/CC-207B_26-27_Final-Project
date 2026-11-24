@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../models/cart.dart';
+import '../../../models/medicine.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/medicine_providers.dart';
 import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
@@ -201,13 +203,45 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  void _changePharmacy() {
-    ref.read(customerTabProvider.notifier).select(0);
-    if (GoRouter.maybeOf(context) != null) {
-      context.go('/home');
-      return;
-    }
-    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  void _changePharmacy(CustomerCart cart) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _ChangePharmacySheet(
+        cart: cart,
+        onPharmacySelected: (branchId, pharmacyName) async {
+          Navigator.of(sheetContext).pop();
+          // Replace cart items one by one from the new branch
+          final notifier = ref.read(cartProvider.notifier);
+          bool first = true;
+          for (final item in cart.items) {
+            await notifier.addItem(
+              branchId: branchId,
+              medicineId: item.medicineId,
+              quantity: item.quantity,
+              replaceBranch: first,
+            );
+            first = false;
+          }
+          if (mounted) {
+            showCustomerSnackBar(
+              context,
+              message: 'Switched to $pharmacyName.',
+              showBasket: false,
+            );
+          }
+        },
+        onBrowseAll: () {
+          Navigator.of(sheetContext).pop();
+          ref.read(customerTabProvider.notifier).select(0);
+          if (GoRouter.maybeOf(context) != null) {
+            context.go('/home');
+          }
+        },
+      ),
+    );
   }
 
   void _browseMedicines() {
@@ -284,7 +318,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           _BranchBanner(
                             cart: cart,
                             onGetDirections: () => _getDirections(cart),
-                            onChangePharmacy: _changePharmacy,
+                            onChangePharmacy: () => _changePharmacy(cart),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           // Line items
@@ -910,6 +944,413 @@ class _EmptyCartView extends StatelessWidget {
             FilledButton(
               onPressed: onBrowseMedicines,
               child: const Text('Browse Medicines'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Change Pharmacy Sheet ────────────────────────────────────────────────────
+// Shows pharmacies that carry every medicine currently in the cart, ranked by
+// coverage (all items > partial) then by total estimated price.
+
+class _ChangePharmacySheet extends ConsumerStatefulWidget {
+  const _ChangePharmacySheet({
+    required this.cart,
+    required this.onPharmacySelected,
+    required this.onBrowseAll,
+  });
+
+  final CustomerCart cart;
+  final void Function(String branchId, String pharmacyName) onPharmacySelected;
+  final VoidCallback onBrowseAll;
+
+  @override
+  ConsumerState<_ChangePharmacySheet> createState() =>
+      _ChangePharmacySheetState();
+}
+
+class _ChangePharmacySheetState extends ConsumerState<_ChangePharmacySheet> {
+  late Future<List<_PharmacyRecommendation>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _buildRecommendations();
+  }
+
+  Future<List<_PharmacyRecommendation>> _buildRecommendations() async {
+    final currentBranchId = widget.cart.branchId;
+    final items = widget.cart.items;
+    if (items.isEmpty) return const [];
+
+    // Fetch offers for every medicine in the cart in parallel
+    final offersByMedicine = await Future.wait(
+      items.map((item) async {
+        final service = ref.read(medicineServiceProvider);
+        final filter = ref.read(medicineSearchFilterProvider);
+        final offers = await service.getMedicineOffers(
+          medicineId: item.medicineId,
+          sort: 'price',
+          latitude: filter.latitude,
+          longitude: filter.longitude,
+        );
+        return MapEntry(item.medicineId, offers);
+      }),
+    );
+
+    // Build a map: branchId → {medicineId → MedicineOffer}
+    final branchOffers = <String, Map<String, MedicineOffer>>{};
+    for (final entry in offersByMedicine) {
+      for (final offer in entry.value) {
+        if (offer.branchId == currentBranchId) continue;
+        if (!offer.availability.canReserve) continue;
+        branchOffers
+            .putIfAbsent(offer.branchId, () => {})
+            .putIfAbsent(entry.key, () => offer);
+      }
+    }
+
+    if (branchOffers.isEmpty) return const [];
+
+    // Build recommendation objects
+    final recommendations = <_PharmacyRecommendation>[];
+    for (final entry in branchOffers.entries) {
+      final offerMap = entry.value;
+      final firstOffer = offerMap.values.first;
+      double totalPrice = 0;
+      for (final item in items) {
+        final offer = offerMap[item.medicineId];
+        if (offer != null) totalPrice += offer.pricePerUnit * item.quantity;
+      }
+      recommendations.add(
+        _PharmacyRecommendation(
+          branchId: entry.key,
+          pharmacyName: firstOffer.pharmacyName,
+          branchName: firstOffer.branchName,
+          address: firstOffer.address,
+          distanceKm: firstOffer.distanceKm,
+          availableCount: offerMap.length,
+          totalItems: items.length,
+          estimatedTotal: totalPrice,
+          offerMap: offerMap,
+        ),
+      );
+    }
+
+    // Sort: full coverage first, then partial; within each group sort by price
+    recommendations.sort((a, b) {
+      final aFull = a.availableCount == a.totalItems;
+      final bFull = b.availableCount == b.totalItems;
+      if (aFull && !bFull) return -1;
+      if (!aFull && bFull) return 1;
+      return a.estimatedTotal.compareTo(b.estimatedTotal);
+    });
+
+    return recommendations;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Switch pharmacy',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Pharmacies that carry your ${widget.cart.items.length == 1 ? 'medicine' : 'medicines'}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: FutureBuilder<List<_PharmacyRecommendation>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: AppColors.textMuted, size: 40),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text('Could not load pharmacy recommendations.'),
+                            const SizedBox(height: AppSpacing.md),
+                            OutlinedButton(
+                              onPressed: () =>
+                                  setState(() {
+                                    _future = _buildRecommendations();
+                                  }),
+                              child: const Text('Try again'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final recs = snapshot.data ?? const [];
+
+                  if (recs.isEmpty) {
+                    return ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      children: [
+                        const Icon(Icons.store_outlined,
+                            size: 48, color: AppColors.textMuted),
+                        const SizedBox(height: AppSpacing.md),
+                        const Text(
+                          'No other pharmacies currently carry all of your medicines.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        const Text(
+                          'You can browse all stores and add medicines individually.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        FilledButton(
+                          onPressed: widget.onBrowseAll,
+                          child: const Text('Browse all pharmacies'),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.xxl,
+                    ),
+                    itemCount: recs.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, index) {
+                      return _RecommendationCard(
+                        rec: recs[index],
+                        cart: widget.cart,
+                        onSelect: () => widget.onPharmacySelected(
+                          recs[index].branchId,
+                          recs[index].pharmacyName,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PharmacyRecommendation {
+  const _PharmacyRecommendation({
+    required this.branchId,
+    required this.pharmacyName,
+    required this.branchName,
+    required this.address,
+    required this.distanceKm,
+    required this.availableCount,
+    required this.totalItems,
+    required this.estimatedTotal,
+    required this.offerMap,
+  });
+
+  final String branchId;
+  final String pharmacyName;
+  final String branchName;
+  final String address;
+  final double? distanceKm;
+  final int availableCount;
+  final int totalItems;
+  final double estimatedTotal;
+  final Map<String, MedicineOffer> offerMap;
+
+  bool get hasAll => availableCount == totalItems;
+}
+
+class _RecommendationCard extends StatelessWidget {
+  const _RecommendationCard({
+    required this.rec,
+    required this.cart,
+    required this.onSelect,
+  });
+
+  final _PharmacyRecommendation rec;
+  final CustomerCart cart;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final coverageText = rec.hasAll
+        ? 'All ${rec.totalItems} ${rec.totalItems == 1 ? 'medicine' : 'medicines'} available'
+        : '${rec.availableCount} of ${rec.totalItems} medicines available';
+    final coverageColor = rec.hasAll ? AppColors.primary : AppColors.warning;
+
+    final distanceText = rec.distanceKm != null
+        ? '${rec.distanceKm!.toStringAsFixed(1)} km away'
+        : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: rec.hasAll ? AppColors.primary : AppColors.border,
+          width: rec.hasAll ? 1.5 : 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const Icon(
+                    Icons.local_pharmacy_outlined,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rec.pharmacyName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      if (rec.branchName.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          rec.branchName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                      if (rec.address.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          distanceText != null
+                              ? '${rec.address} · $distanceText'
+                              : rec.address,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Icon(
+                  rec.hasAll
+                      ? Icons.check_circle_outline
+                      : Icons.info_outline,
+                  size: 14,
+                  color: coverageColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  coverageText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: coverageColor,
+                  ),
+                ),
+                const Spacer(),
+                if (rec.estimatedTotal > 0)
+                  Text(
+                    'Est. ₱${rec.estimatedTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onSelect,
+                child: const Text('Switch to this pharmacy'),
+              ),
             ),
           ],
         ),
