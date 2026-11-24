@@ -58,19 +58,14 @@ class _ReservationDetailsDrawerState
 
   // Confirm reservation modal (Ph-15)
   Future<void> _handleConfirm(BranchReservation res) async {
-    final medicineDesc = res.items
-        .map((i) => '${i.brandName} × ${i.quantity}')
-        .join(', ');
-
     final confirmed = await showTabletConfirmDialog(
       context: context,
-      title: 'Confirm ${res.referenceNo}?',
-      targetName: '${res.customerName} · $medicineDesc',
+      title: 'Confirm reservation ${res.referenceNo}?',
+      targetName: res.hasRx
+          ? 'Rx items included — verify the uploaded prescription before confirming.'
+          : null,
       consequences: [
-        'Holds $medicineDesc from your stock until pickup, cancellation, or expiry.',
-        'Generates a pickup code and notifies ${res.customerName}.',
-        if (res.hasRx)
-          'Confirms that you checked the uploaded prescription.',
+        'Stock will be held for ${res.customerName} until pickup, cancellation, or expiry.',
       ],
       confirmLabel: 'Confirm reservation',
     );
@@ -112,6 +107,32 @@ class _ReservationDetailsDrawerState
         ref.invalidate(selectedReservationDetailProvider);
       } catch (e) {
         await _showActionError(e, 'reject this reservation');
+      } finally {
+        if (mounted) setState(() => _isBusy = false);
+      }
+    }
+  }
+
+  // Mark reservation ready for pickup — generates the pickup code (Ph-18)
+  Future<void> _handleMarkReady(BranchReservation res) async {
+    final confirmed = await showTabletConfirmDialog(
+      context: context,
+      title: 'Mark ready for pickup?',
+      targetName: res.referenceNo,
+      consequences: [
+        'The pickup code is generated and sent to ${res.customerName}.',
+        'Place the prepared medicine at the counter before confirming.',
+      ],
+      confirmLabel: 'Mark ready',
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isBusy = true);
+      try {
+        await ref.read(branchReservationsProvider.notifier).markReady(res.id);
+        ref.invalidate(selectedReservationDetailProvider);
+      } catch (e) {
+        await _showActionError(e, 'mark this reservation ready');
       } finally {
         if (mounted) setState(() => _isBusy = false);
       }
@@ -171,9 +192,7 @@ class _ReservationDetailsDrawerState
           title: 'Release medicines and complete?',
           targetName: '${res.customerName} · $medicineDesc',
           consequences: [
-            'The code matches ${res.referenceNo}.',
-            'Stock is deducted: $medicineDesc.',
-            'The reservation is marked Completed and the code can\'t be used again.',
+            'Medicines are handed to ${res.customerName} and stock is deducted.',
           ],
           confirmLabel: 'Release and complete',
         );
@@ -464,27 +483,33 @@ class _ReservationDetailsDrawerState
                         ),
                         const SizedBox(height: AppSpacing.lg),
                       ] else if (reservation.isConfirmed) ...[
+                        // Status hint
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: AppColors.infoLight,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.info),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.info),
+                              SizedBox(width: AppSpacing.xs),
+                              Expanded(
+                                child: Text(
+                                  'Confirmed — medicine is being prepared. Mark ready when it is on the counter and the pickup code has been given to the patient.',
+                                  style: TextStyle(fontSize: 12, color: AppColors.info),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
                         // Mark ready action button
                         ElevatedButton(
                           onPressed: _isBusy
                               ? null
-                              : () async {
-                                  setState(() => _isBusy = true);
-                                  try {
-                                    await ref
-                                        .read(branchReservationsProvider.notifier)
-                                        .markReady(reservation.id);
-                                    ref.invalidate(
-                                        selectedReservationDetailProvider);
-                                  } catch (e) {
-                                    await _showActionError(
-                                      e,
-                                      'mark this reservation ready',
-                                    );
-                                  } finally {
-                                    if (mounted) setState(() => _isBusy = false);
-                                  }
-                                },
+                              : () => _handleMarkReady(reservation),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,

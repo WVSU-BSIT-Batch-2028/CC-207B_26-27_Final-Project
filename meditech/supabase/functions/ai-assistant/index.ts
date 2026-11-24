@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
   }
 
   // Prefer the current Gemini flash model; fall back if Google is busy
-  const models = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
   let answer = "";
   let geminiOk = false;
   for (const model of models) {
