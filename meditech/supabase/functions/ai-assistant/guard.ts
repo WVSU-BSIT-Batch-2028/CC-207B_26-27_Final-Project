@@ -6,47 +6,73 @@ export type AiFacts = {
   pickupCodes: string[];
 };
 
+// ─── Refusal patterns ─────────────────────────────────────────────────────────
+
+// Medical advice: diagnosis, dosing, treatment — always refused
+// NOTE: "prescription" is intentionally excluded — "do I need a prescription?"
+// is a valid app question. Only "prescrib" (prescribe/prescribed) is blocked.
 const dosingOrDiagnosis =
-  /diagnos|dosage|\bdose\b|how many (tablet|tablets|capsule|capsules|ml|mg)|how much should i take|side effect|symptom|pregnant|what (medicine|drug) should i|treatment|\bcure\b|prescri/i;
+  /diagnos|dosage|\bdose\b|how many (tablet|tablets|capsule|capsules|ml|mg)|how much should i take|side effect|symptom|pregnant|what (medicine|drug) should i|treatment|\bcure\b|prescrib/i;
 
+// Clearly off-topic — no connection to MediTech or health at all
 const outsideMeditech =
-  /weather|joke|homework|write (me )?code|politic|president|movie|song lyric|recipe|stock market|bitcoin|another (customer|person)|someone else/i;
+  /weather|joke|homework|write (me )?code|politic|president|prime minister|movie|song lyric|recipe|stock market|bitcoin|crypto|another (customer|person)|someone else|\bwho (are|is) you\b|tell me about yourself|roleplay|pretend (you are|to be)|act as|ignore (your|all) (previous|prior|instructions)|jailbreak/i;
 
+// Topics that ARE about MediTech — used to catch edge cases the other patterns miss
 const aboutMeditech =
-  /meditech|medicine|pharmacy|pharmacies|reserve|reservation|pickup|price|stock|available|brand|generic|find|where|offer|\bmg\b|tablet|capsule|syrup|biogesic|paracetamol|cart|search|sign ?in|sign ?up|profile|notification|assistant|account|how (do|to|can)|help|recommend|steps?|app/i;
+  /meditech|medicine|pharmacy|pharmacies|reserve|reservation|pickup|price|stock|available|brand|generic|find|where|offer|\bmg\b|tablet|capsule|syrup|biogesic|paracetamol|cart|search|sign ?in|sign ?up|profile|notification|assistant|account|how (do|to|can)|help|recommend|steps?|app|cancel|address|change pharmacy|confirm|confirmed|ready|reject|rejected|prescription|rx\b|upload|password|guest/i;
 
+// ─── App help patterns ────────────────────────────────────────────────────────
+
+// Questions that should be answered with a hardcoded app guide (no Gemini call)
 const appHelp =
-  /how (do|to|can)|steps?|help|recommend|what is meditech|about (the )?app|sign ?in|sign ?up|cart|profile|notification|forgot password|guest|pickup code|my reservation|use (the )?app|walk me through/i;
+  /how (do|to|can)|steps?|help|recommend|what is meditech|about (the )?app|sign ?in|sign ?up|cart|profile|notification|forgot password|guest|pickup code|my reservation|use (the )?app|walk me through|change pharmacy|cancel(lation)?|cancel.*(reservation|order)|address|saved address|ready for pickup|confirmed|notification preference|upload.*(prescription|rx)|prescription.*upload|do i need.*prescription|is.*rx|password/i;
 
-// Fixed guide about the customer app only. No medical advice.
+// ─── App guide (served directly — no Gemini, no DB) ──────────────────────────
+
 export const appGuide = {
   what_meditech_is:
-    "MediTech helps customers find medicines at partner pharmacies in the app, compare offers, and reserve for pickup. It does not give medical advice.",
+    "MediTech helps customers find medicines at partner pharmacies, compare prices, and reserve for pickup. It does not give medical or dosing advice.",
   main_steps: [
-    "1. Sign in with your email or mobile number (or continue as guest to browse).",
+    "1. Sign in with your email or mobile number, or continue as guest to browse.",
     "2. Use Search or Home to look up a medicine by brand or generic name.",
-    "3. Open a medicine, compare pharmacy offers, and add Available or Low Stock items to your cart.",
-    "4. Keep one pharmacy per cart. Guests must sign in before using a cart.",
-    "5. Upload a prescription in the cart when an item needs one.",
-    "6. Place the reservation, then track it under My Reservations.",
-    "7. After the pharmacy confirms, your pickup code appears on the reservation details.",
-    "8. Bring the pickup code to the pharmacy to collect your order.",
+    "3. Open a medicine to see pharmacy offers. Add Available or Low Stock items to your cart.",
+    "4. Your cart is locked to one pharmacy branch. Change Pharmacy in the cart shows other branches carrying the same medicines.",
+    "5. Upload a prescription photo in the cart when an Rx item is in it.",
+    "6. Tick the acknowledgment checkbox and tap Continue to Reservation.",
+    "7. Track progress under My Reservations.",
+    "8. Confirmed — the pharmacy accepted your request and is preparing your medicine.",
+    "9. Ready for Pickup — medicine is on the counter. Your pickup code appears on the reservation details.",
+    "10. Show the pickup code at the pharmacy counter to collect your order.",
+    "11. You can cancel a Pending reservation before the pharmacy confirms it.",
+  ],
+  reservation_statuses: [
+    "Pending — waiting for the pharmacy to review your request.",
+    "Confirmed — pharmacy accepted; medicine is being prepared. No pickup code yet.",
+    "Ready for Pickup — medicine is ready. Pickup code is now visible in the reservation details.",
+    "Completed — you collected the medicine. The pickup code was verified.",
+    "Rejected — pharmacy declined your request. A reason is shown.",
+    "Cancelled — you or the pharmacy cancelled before completion.",
+    "Expired — the reservation was not acted on within the allowed time.",
   ],
   recommendations: [
-    "Prefer pharmacies marked Available. Low Stock can still be reserved, but may run out.",
+    "Prefer pharmacies marked Available. Low Stock can still be reserved but may run out.",
     "If several pharmacies list the same medicine, compare price and availability in the offers list.",
     "If a medicine is not listed, it is not on MediTech yet. Try another brand or generic name in Search.",
-    "Use this Assistant for listings, offers, your own reservations, and how to use the app. Ask a pharmacist or doctor for dosing or diagnosis.",
+    "Use this Assistant for listings, offers, your reservations, and how to use the app. Ask a pharmacist or doctor for dosing or diagnosis.",
   ],
   limits: [
-    "Customers can cancel a pending reservation before the pharmacy confirms it.",
+    "Customers can cancel a Pending reservation only.",
     "Only medicines shown in MediTech can be recommended.",
     "Never invent a price, availability, reservation status, reference number, or pickup code.",
   ],
 };
 
-// True when the customer is asking about a medicine listing, not app help or reservations
+// ─── Classification helpers ───────────────────────────────────────────────────
+
+// True when the customer is asking about a medicine listing (triggers DB lookup + Gemini)
 export function isMedicineLookup(message: string): boolean {
+  // App how-to questions that mention "medicine" should stay in appHelp
   if (appHelp.test(message)) return false;
   if (/reserv|pickup|reference/i.test(message)) return false;
   if (/nearby pharmac|pharmacies (near|around)|open now/i.test(message)) return false;
@@ -54,17 +80,21 @@ export function isMedicineLookup(message: string): boolean {
     .test(message);
 }
 
-// What to say when MediTech has no matching medicine
+// What to say when MediTech has no matching medicine listed
 export function medicineNotListedAnswer(): string {
-  return "That medicine is not available on MediTech yet. Try another brand or generic name from Search, or ask about a medicine listed in the app. I can also walk you through Search → medicine details → cart → reservation if you want the steps.";
+  return (
+    "That medicine is not listed on MediTech yet. " +
+    "Try searching by brand name, generic name, or strength in the Search tab. " +
+    "If it still doesn't appear, it may not be carried by any partner pharmacy at this time."
+  );
 }
 
-// True when the customer wants app how-to help
+// True when the customer wants app how-to help (answered with canned text, no Gemini)
 export function isAppHelp(message: string): boolean {
-  // "Recommend a pharmacy for Biogesic" should use live offers, not only tips
+  // "Recommend a pharmacy for [specific medicine]" should use live offers via Gemini
   if (
     /recommend/i.test(message) &&
-    /biogesic|paracetamol|\bmg\b|tablet|capsule|syrup|for [a-z]/i.test(message) &&
+    /\bmg\b|tablet|capsule|syrup|for [a-z]|biogesic|paracetamol|amoxicillin|metformin|losartan|amlodipine|cetirizine|omeprazole/i.test(message) &&
     !/how (do|to|can)|steps|what is meditech|sign ?in|cart|profile/i.test(message)
   ) {
     return false;
@@ -72,45 +102,122 @@ export function isAppHelp(message: string): boolean {
   return appHelp.test(message);
 }
 
-// Fixed MediTech-only steps and tips, without calling the model
+// ─── Canned app-help answers (no Gemini, no DB) ──────────────────────────────
+
 export function appHelpAnswer(message: string): string {
   const lower = message.toLowerCase();
-  if (/reserv|pickup|cart|prescription/.test(lower)) {
+
+  // Reservation workflow
+  if (/reserv|pickup code|ready for pickup|confirmed|how.*(order|place|submit)/.test(lower)) {
     return [
-      "Here’s how reservations work in MediTech:",
+      "Here's how reservations work in MediTech:",
       "1. Search for a medicine and open one listed in the app.",
       "2. Choose a pharmacy offer marked Available or Low Stock and add it to your cart.",
       "3. One pharmacy per cart. Sign in if you are still a guest.",
-      "4. Upload a prescription in the cart when an item needs one.",
-      "5. Place the reservation, then open My Reservations to track it.",
-      "6. After the pharmacy confirms, your pickup code shows on the reservation details. Bring that code to the pharmacy.",
-      "Customers can cancel a pending reservation before confirmation. Ask a pharmacist or doctor for medical advice.",
+      "4. Upload a prescription photo in the cart if any item needs one.",
+      "5. Tick the acknowledgment and tap Continue to Reservation.",
+      "6. Track progress under My Reservations.",
+      "7. Confirmed — pharmacy accepted. Your medicine is being prepared. No pickup code yet.",
+      "8. Ready for Pickup — medicine is on the counter. Your pickup code now appears on the reservation details.",
+      "9. Show the code at the pharmacy counter to collect your order.",
+      "",
+      "You can cancel a Pending reservation before the pharmacy confirms it.",
+      "Ask a pharmacist or doctor for medical advice — this assistant covers the app only.",
     ].join("\n");
   }
+
+  // Cancellation
+  if (/cancel/.test(lower)) {
+    return [
+      "Cancellation rules in MediTech:",
+      "- You can cancel a reservation while it is still Pending (before the pharmacy confirms it).",
+      "- Once Confirmed, Ready for Pickup, or Completed, you cannot cancel from the app.",
+      "- To cancel: open My Reservations → tap the reservation → tap Cancel reservation.",
+      "- The pharmacy will no longer prepare the order and no stock will be held.",
+    ].join("\n");
+  }
+
+  // Reservation statuses
+  if (/status|pending|confirmed|ready|rejected|expired|completed/.test(lower)) {
+    return [
+      "Reservation statuses in MediTech:",
+      ...appGuide.reservation_statuses.map((s) => `• ${s}`),
+    ].join("\n");
+  }
+
+  // Prescription / Rx
+  if (/prescription|rx\b|upload|do i need/.test(lower)) {
+    return [
+      "Prescriptions in MediTech:",
+      "- Items marked Rx require a prescription. You will see an Rx badge on the medicine and in your cart.",
+      "- Upload a photo of your prescription (JPG, PNG, or PDF, max 5 MB) in the cart before placing the reservation.",
+      "- You can upload up to 3 files. Bring the original prescription to the pharmacy when you collect your order.",
+      "- The pharmacist checks the prescription before confirming your reservation.",
+    ].join("\n");
+  }
+
+  // Change pharmacy
+  if (/change pharmacy|switch pharmacy|different pharmacy/.test(lower)) {
+    return [
+      "To change the pharmacy in your cart:",
+      "- Open your cart and tap Change Pharmacy in the branch banner.",
+      "- MediTech shows pharmacies that carry the same medicines you already have in your cart.",
+      "- Tap Switch to this pharmacy — your cart items are moved to the new branch.",
+      "- If no alternatives appear, no other registered pharmacy currently carries all your medicines.",
+    ].join("\n");
+  }
+
+  // Saved addresses
+  if (/address|saved address/.test(lower)) {
+    return [
+      "Saved addresses in MediTech:",
+      "- Go to Profile → Saved Addresses to add, edit, or remove addresses.",
+      "- You can set one address as your default.",
+      "- Addresses are used to show pharmacies near you and to pre-fill delivery details.",
+    ].join("\n");
+  }
+
+  // Notifications
+  if (/notification/.test(lower)) {
+    return [
+      "Notifications in MediTech:",
+      "- You receive a notification when your reservation status changes (confirmed, ready for pickup, rejected, etc.).",
+      "- Manage which channels notify you under Profile → Notification Preferences.",
+      "- You can turn push, email, or SMS notifications on or off independently.",
+    ].join("\n");
+  }
+
+  // Account / sign-in / sign-up / password
+  if (/sign ?in|sign ?up|account|guest|forgot password|profile|password/.test(lower)) {
+    return [
+      "Account help in MediTech:",
+      "- Sign in with your email address or mobile number and password.",
+      "- New? Tap Create account on the sign-in screen. You must be 18 or older to register.",
+      "- Guests can browse and search, but need to sign in to use the cart, place reservations, and view reservation history.",
+      "- Forgot your password? Tap Forgot password on the sign-in screen for a reset link by email.",
+      "- Change your profile details under Profile → Edit Profile.",
+      "- Change your password under Profile → Change Password.",
+    ].join("\n");
+  }
+
+  // Recommendation (generic)
   if (/recommend/.test(lower)) {
     return [
       "In MediTech I only recommend from medicines and offers listed in the app:",
       "- Prefer pharmacies marked Available. Low Stock can still be reserved, but may run out.",
-      "- Compare price and availability on the medicine’s offer list.",
-      "- Ask me about a specific listed medicine (for example Biogesic or paracetamol) for pharmacy options.",
-      "- If it isn’t in Search, it isn’t on MediTech yet.",
+      "- Compare price and availability on the medicine's offer list.",
+      "- Ask me about a specific medicine (for example Biogesic or paracetamol) for pharmacy options.",
+      "- If it isn't in Search, it isn't on MediTech yet.",
+      "",
       appGuide.what_meditech_is,
     ].join("\n");
   }
-  if (/sign ?in|sign ?up|account|guest|forgot password|profile/.test(lower)) {
-    return [
-      "Account help in the MediTech customer app:",
-      "- Sign in with your email or mobile number and password.",
-      "- New here? Use Sign up, then confirm your details.",
-      "- Guests can browse Search, but need to sign in for cart, reservations, and this Assistant’s personal reservation answers.",
-      "- Forgot password? Use Forgot password on the sign-in screen for an emailed code.",
-      "- Profile and the privacy notice are under Profile.",
-    ].join("\n");
-  }
+
+  // Generic app overview
   return [
     appGuide.what_meditech_is,
     "",
-    "Basic steps:",
+    "How to use MediTech:",
     ...appGuide.main_steps,
     "",
     "Tips:",
@@ -118,27 +225,44 @@ export function appHelpAnswer(message: string): string {
   ].join("\n");
 }
 
-// A refusal, or null when the question may be answered from MediTech data
+// ─── Refusal function ─────────────────────────────────────────────────────────
+
 export function refuseReason(message: string): string | null {
   if (dosingOrDiagnosis.test(message)) {
-    return "I can't help with diagnosis or how much medicine to take. Ask a pharmacist or a doctor. I can still help you search medicines in MediTech or explain how reservations work.";
+    return (
+      "I can't help with diagnosis, dosing, or treatment advice. " +
+      "Please ask a pharmacist or doctor. " +
+      "I can help you search for medicines on MediTech, check availability, or explain how reservations work."
+    );
   }
-  if (outsideMeditech.test(message) || !aboutMeditech.test(message)) {
-    return "I can only help with the MediTech app: medicines, pharmacies, your reservations, and how to use the customer app.";
+  if (outsideMeditech.test(message)) {
+    return "I can only help with the MediTech app: finding medicines, pharmacies, your reservations, and how to use the app.";
+  }
+  // If nothing in the message relates to MediTech at all, refuse
+  if (!aboutMeditech.test(message)) {
+    return "I can only help with the MediTech app: finding medicines, pharmacies, your reservations, and how to use the app.";
   }
   return null;
 }
 
-// True when the reply names a price, reference number, or pickup code that was not in the facts
+// ─── Hallucination guard ──────────────────────────────────────────────────────
+
+// Returns true when the reply contains a reference number or pickup code
+// that was not in the facts loaded from the database.
+// Price checking was removed — it caused too many false positives when Gemini
+// reformatted or rounded numbers.
 export function hasInventedFact(reply: string, facts: AiFacts): boolean {
-  const prices = reply.match(/\d+\.\d{2}/g) ?? [];
-  if (prices.some((price) => !facts.prices.includes(price))) return true;
+  // Reference numbers: MT-MMDDYY-XXXX format
+  const references = reply.match(/MT-\d{6}-[A-Za-z0-9]{4,5}/gi) ?? [];
+  if (references.some((ref) => !facts.referenceNumbers.includes(ref.toUpperCase()))) {
+    return true;
+  }
 
-  const references = reply.match(/RM-\d{6}-\d{4,5}/g) ?? [];
-  if (references.some((reference) => !facts.referenceNumbers.includes(reference))) return true;
-
-  const pickup = reply.match(/pickup code[^A-Za-z0-9]*([A-Za-z0-9]{4})/i);
-  if (pickup && !facts.pickupCodes.includes(pickup[1].toUpperCase())) return true;
+  // Pickup codes: 4-character alphanumeric after "pickup code"
+  const pickup = reply.match(/pickup code[^A-Za-z0-9]*([A-Za-z0-9]{4})\b/i);
+  if (pickup && !facts.pickupCodes.includes(pickup[1].toUpperCase())) {
+    return true;
+  }
 
   return false;
 }

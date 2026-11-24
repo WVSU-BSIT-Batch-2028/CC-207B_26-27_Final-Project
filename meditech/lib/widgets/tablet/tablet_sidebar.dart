@@ -39,26 +39,33 @@ class TabletSidebar extends StatelessWidget {
     final selectedIndex = visibleItems.indexWhere((item) => item.id == selectedItemId);
 
     return Container(
-      width: 250,
+      width: 240,
       decoration: const BoxDecoration(
-        color: Color(0xFFF9FAFB),
+        // Deep green sidebar — matches the approved prototype color scheme
+        color: Color(0xFF1A5C35),
         border: Border(
-          right: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          right: BorderSide(color: Color(0xFF155129), width: 1),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // App Logo and Brand header
+          // App Logo and Brand header — white on green
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF154D2D),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF155129), width: 1),
+              ),
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E6B3E),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Center(
@@ -79,20 +86,20 @@ class TabletSidebar extends StatelessWidget {
                         appTitle,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E6B3E),
-                          letterSpacing: -0.3,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       if (appSubtitle != null)
                         Text(
                           appSubtitle!,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF6B7280),
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                         ),
                     ],
@@ -102,18 +109,17 @@ class TabletSidebar extends StatelessWidget {
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Navigation Links with a single smoothly sliding active highlight pill
+          // Navigation Links
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Stack(
                 children: [
                   if (selectedIndex >= 0)
                     AnimatedPositioned(
-                      duration: const Duration(milliseconds: 220),
+                      duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
                       top: selectedIndex * (_itemHeight + _itemGap),
                       left: 0,
@@ -121,7 +127,7 @@ class TabletSidebar extends StatelessWidget {
                       height: _itemHeight,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -142,64 +148,29 @@ class TabletSidebar extends StatelessWidget {
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
 
-          // Bottom Utility Links (Settings and Log out)
+          // Bottom Utility Links
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (showSettings)
-                  InkWell(
+                  _buildUtilityTile(
+                    icon: Icons.settings_outlined,
+                    label: 'Branch settings',
                     onTap: onSettingsTap,
-                    borderRadius: BorderRadius.circular(8),
-                    splashColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.settings_outlined, size: 20, color: Color(0xFF6B7280)),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Branch settings',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF4B5563),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    danger: false,
                   ),
-                InkWell(
+                _buildUtilityTile(
+                  icon: Icons.logout,
+                  label: logoutLabel,
                   onTap: onLogoutTap,
-                  borderRadius: BorderRadius.circular(8),
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.logout, size: 20, color: Color(0xFFD32F2F)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            logoutLabel,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFD32F2F),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  danger: true,
                 ),
               ],
             ),
@@ -209,38 +180,84 @@ class TabletSidebar extends StatelessWidget {
     );
   }
 
+  Widget _buildUtilityTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+    required bool danger,
+  }) {
+    final color = danger
+        ? const Color(0xFFFFB3B3)
+        : Colors.white.withValues(alpha: 0.65);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildNavTile(TabletNavigationItem item, bool isSelected) {
+    final iconColor = isSelected
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.65);
+    final textColor = isSelected
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.75);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onItemSelected(item.id),
         borderRadius: BorderRadius.circular(8),
-        hoverColor: isSelected ? Colors.transparent : const Color(0x0A111827),
+        hoverColor: Colors.white.withValues(alpha: 0.08),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         child: SizedBox(
           height: _itemHeight,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  size: 20,
-                  color: isSelected
-                      ? const Color(0xFF1E6B3E)
-                      : const Color(0xFF4B5563),
+                // Active indicator bar on left edge
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 3,
+                  height: isSelected ? 20 : 0,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                Icon(item.icon, size: 20, color: iconColor),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     item.label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? const Color(0xFF1E6B3E)
-                          : const Color(0xFF374151),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                      color: textColor,
                     ),
                   ),
                 ),

@@ -180,8 +180,7 @@ class _ReservationCard extends StatelessWidget {
     ).format(reservation.submittedAt.toLocal());
     final pickupCode = reservation.fullPickupCode;
     final showPickupCode =
-        (reservation.status == ReservationStatus.confirmed ||
-            reservation.status == ReservationStatus.readyForPickup) &&
+        reservation.status == ReservationStatus.readyForPickup &&
         pickupCode != null;
 
     return Card(

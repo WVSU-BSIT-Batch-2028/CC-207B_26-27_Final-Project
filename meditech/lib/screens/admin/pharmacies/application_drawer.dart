@@ -233,12 +233,19 @@ class _DrawerContentState extends ConsumerState<_DrawerContent> {
                   children: [
                     Text(
                       d.pharmacyName,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${d.displayId} · ${d.branchName}',
-                      style: const TextStyle(color: AppColors.textMuted),
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     branchStatusBadge(d.status),

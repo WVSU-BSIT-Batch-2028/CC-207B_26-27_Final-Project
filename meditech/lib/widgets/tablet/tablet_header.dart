@@ -37,8 +37,7 @@ class TabletHeader extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 64,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -46,42 +45,49 @@ class TabletHeader extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Green left accent bar
+          Container(width: 4, color: const Color(0xFF1A5C35)),
+
           // Branch title and subtitle
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1F2937),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6B7280),
-                      fontSize: 12,
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1F2937),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF6B7280),
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-          const SizedBox(width: 16),
 
-          // Notification bell icon with unread badge
+          // Notification bell
           Stack(
             clipBehavior: Clip.none,
+            alignment: Alignment.center,
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined, color: Color(0xFF4B5563)),
@@ -91,17 +97,14 @@ class TabletHeader extends StatelessWidget {
               if (unreadNotifications > 0)
                 Positioned(
                   right: 8,
-                  top: 8,
+                  top: 10,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
                       color: Color(0xFFE65100),
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                     child: Center(
                       child: Text(
                         unreadNotifications > 99 ? '99+' : '$unreadNotifications',
@@ -118,31 +121,32 @@ class TabletHeader extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 4),
 
-          // User info pill and avatar
+          // User pill — green avatar
           InkWell(
             onTap: onProfileTap,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   CircleAvatar(
                     key: ValueKey(userPhotoUrl ?? userName),
-                    radius: 18,
-                    backgroundColor: const Color(0xFF1E6B3E),
+                    radius: 17,
+                    backgroundColor: const Color(0xFF1A5C35),
                     child: userPhotoUrl != null
                         ? NetworkAvatarImage(
                             url: userPhotoUrl!,
-                            radius: 18,
-                            backgroundColor: const Color(0xFF1E6B3E),
+                            radius: 17,
+                            backgroundColor: const Color(0xFF1A5C35),
                             fallback: Text(
                               _getInitials(userName),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           )
@@ -151,7 +155,7 @@ class TabletHeader extends StatelessWidget {
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                   ),
@@ -177,10 +181,13 @@ class TabletHeader extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(width: 4),
                 ],
               ),
             ),
           ),
+
+          const SizedBox(width: 8),
         ],
       ),
     );

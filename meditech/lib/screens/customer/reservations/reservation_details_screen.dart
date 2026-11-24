@@ -214,10 +214,8 @@ class _PickupCodeOrNoticeCard extends StatelessWidget {
     final code = reservation.fullPickupCode;
 
     // Confirmed or Ready for Pickup: show MT-MMDDYY-XXXX pickup code
-    if ((reservation.status == ReservationStatus.confirmed ||
-            reservation.status == ReservationStatus.readyForPickup) &&
-        code != null) {
-      final isReady = reservation.status == ReservationStatus.readyForPickup;
+    // Ready for Pickup: show pickup code — the medicine is prepared
+    if (reservation.status == ReservationStatus.readyForPickup && code != null) {
       return Card(
         color: AppColors.primaryLight,
         child: Padding(
@@ -233,11 +231,9 @@ class _PickupCodeOrNoticeCard extends StatelessWidget {
                     size: 20,
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    isReady
-                        ? 'READY FOR PICKUP · PICKUP CODE'
-                        : 'CONFIRMED · PICKUP CODE',
-                    style: const TextStyle(
+                  const Text(
+                    'READY FOR PICKUP · PICKUP CODE',
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
@@ -278,8 +274,48 @@ class _PickupCodeOrNoticeCard extends StatelessWidget {
               Text(
                 reservation.hasRx
                     ? 'Show this code at the pharmacy counter and bring your original physical prescription.'
-                    : 'Show this code at the pharmacy counter to claim your reservation.',
+                    : 'Show this code at the pharmacy counter to collect your reservation.',
                 style: const TextStyle(fontSize: 13, color: AppColors.text),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Confirmed: pharmacy accepted — medicine is being prepared, no code yet
+    if (reservation.status == ReservationStatus.confirmed) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.info,
+                size: 20,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reservation confirmed',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.info,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'The pharmacy is preparing your medicine. Your pickup code will appear here once it is ready for collection.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -303,7 +339,7 @@ class _PickupCodeOrNoticeCard extends StatelessWidget {
               SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Waiting for pharmacy confirmation. Your pickup code will appear here once a pharmacist confirms your reservation.',
+                  'Waiting for the pharmacy to confirm your reservation. You will be notified when it is confirmed and again when your medicine is ready for pickup.',
                   style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 ),
               ),

@@ -298,40 +298,58 @@ class _StatCard extends StatelessWidget {
         data.value < 10 ? data.value.toString().padLeft(2, '0') : '${data.value}';
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            data.title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            valueText,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
-              height: 1,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            data.subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: data.accent,
+          // Colored left accent stripe
+          Container(width: 5, color: data.accent),
+          // Card content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    valueText,
+                    style: const TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    data.subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: data.accent,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
