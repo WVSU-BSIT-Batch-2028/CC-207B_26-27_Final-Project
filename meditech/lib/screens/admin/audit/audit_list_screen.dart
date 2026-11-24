@@ -72,13 +72,22 @@ class _AuditListScreenState extends ConsumerState<AuditListScreen> {
               padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
               child: Text('Filter by type', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
-            for (final (label, value) in _typeOptions)
-              RadioListTile<String>(
-                value: value,
-                groupValue: _typeFilter,
-                title: Text(label),
-                onChanged: (v) => Navigator.pop(context, v),
+            RadioGroup<String>(
+              groupValue: _typeFilter,
+              onChanged: (v) {
+                if (v != null) Navigator.pop(context, v);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (label, value) in _typeOptions)
+                    RadioListTile<String>(
+                      value: value,
+                      title: Text(label),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),

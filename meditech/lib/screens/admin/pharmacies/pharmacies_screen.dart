@@ -105,13 +105,22 @@ class _PharmaciesScreenState extends ConsumerState<PharmaciesScreen> {
               padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
               child: Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
-            for (final (label, value) in _filterOptions)
-              RadioListTile<String>(
-                value: value,
-                groupValue: _filter,
-                title: Text(label),
-                onChanged: (v) => Navigator.pop(context, v),
+            RadioGroup<String>(
+              groupValue: _filter,
+              onChanged: (v) {
+                if (v != null) Navigator.pop(context, v);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (label, value) in _filterOptions)
+                    RadioListTile<String>(
+                      value: value,
+                      title: Text(label),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),
