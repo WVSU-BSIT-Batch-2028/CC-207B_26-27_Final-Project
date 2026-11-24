@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../foodwise_theme.dart';
+
+import '../../foodwise_theme.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 
@@ -51,10 +52,7 @@ class WelcomeScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFFFA64D),
-                          Color(0xFFE96B10),
-                        ],
+                        colors: [Color(0xFFFFA64D), Color(0xFFE96B10)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -142,30 +140,53 @@ class WelcomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 30),
                   FilledButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [Text('Sign In'), SizedBox(width: 9), Icon(Icons.arrow_forward_rounded, size: 19)],
+                      children: [
+                        Text('Sign In'),
+                        SizedBox(width: 9),
+                        Icon(Icons.arrow_forward_rounded, size: 19),
+                      ],
                     ),
                   ),
 
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: FoodWiseColors.deepOrange,
                       minimumSize: const Size.fromHeight(54),
-                      side: const BorderSide(color: FoodWiseColors.orange, width: 1.3),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      side: const BorderSide(
+                        color: FoodWiseColors.orange,
+                        width: 1.3,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    child: const Text('Create Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Create Account',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
 
                   const SizedBox(height: 23),
                   const Text(
                     'DISCOVER  \u2022  EAT  \u2022  ENJOY',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: FoodWiseColors.muted, fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),

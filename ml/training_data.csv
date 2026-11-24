@@ -1,0 +1,501 @@
+text,labels
+Please skip the egg topping.,avoid_egg
+Find me a midday meal.,meal_lunch
+Pang-tanghalian sana na walang itlog.,meal_lunch|avoid_egg
+Gusto ko ng pang-meryenda.,meal_snack
+Do not include peanut sauce.,avoid_peanuts
+Seafood causes an allergic reaction for me.,allergy_seafood
+Wag maanghang ang pagkain.,avoid_spicy
+Ayoko ng itlog sa pagkain.,avoid_egg
+Allergy concern ko ang itlog; budget-friendly food sana.,allergy_egg|budget_friendly
+Please suggest a small snack.,meal_snack
+I prefer meals featuring fish.,pref_fish
+I want food with rice.,pref_rice
+My meal plan must exclude gluten.,restriction_gluten
+May egg allergy ako.,allergy_egg
+What should I eat at noon?,meal_lunch
+Gusto ko ng kanin na mura.,pref_rice|budget_friendly
+"Pang-hapunan ko, gusto ko ng isda.",meal_dinner|pref_fish
+Allergic ako sa mani; ano ang puwede for merienda?,meal_snack|allergy_peanuts
+I prefer dishes without heat.,avoid_spicy
+May vegetarian option ba para sa hapunan?,meal_dinner|diet_vegetarian
+I need to avoid peanuts because of my allergy.,allergy_peanuts
+I am allergic to seafood; can you find snack options?,meal_snack|allergy_seafood
+"For breakfast, I need food that meets my strict gluten-free diet.",meal_breakfast|restriction_gluten
+Please recommend hearty food.,filling
+I prefer vegetables but without gluten.,pref_vegetables|avoid_gluten
+I need a budget-friendly vegan option.,diet_vegan|budget_friendly
+May vegan option ba para sa almusal?,meal_breakfast|diet_vegan
+I have been told to avoid gluten because of an allergy concern.,allergy_gluten
+Suggest something for tonight’s dinner.,meal_dinner
+Ano ang puwedeng pang-almusal?,meal_breakfast
+Gusto ko ng nakakabusog na walang gatas o keso.,avoid_dairy|filling
+Peanuts trigger my allergy.,allergy_peanuts
+I am craving ramen.,pref_noodles
+Mas gusto ko ng veggies.,pref_vegetables
+Gluten allergy ang tawag ko sa restriction ko.,allergy_gluten
+I report an allergy involving milk; I would like an affordable option.,allergy_dairy|budget_friendly
+Looking for a quick snack.,meal_snack
+"My strict gluten restriction applies, and I would like fish.",restriction_gluten|pref_fish
+I have a concern about milk allergy and want something filling.,allergy_dairy|filling
+I prefer fish but without peanuts.,pref_fish|avoid_peanuts
+I want food that feels satisfying.,filling
+Peanut-free options preferred.,avoid_peanuts
+Mas gusto ko ng noodles.,pref_noodles
+I do not want milk products.,avoid_dairy
+Gusto ko ng nakakabusog na walang lamang-dagat.,avoid_seafood|filling
+Dairy causes an allergic reaction for me.,allergy_dairy
+I need to avoid shrimp because of my allergy.,allergy_seafood
+Something substantial to eat.,filling
+I need gluten-free food due to a dietary restriction.,restriction_gluten
+I have a seafood allergy.,allergy_seafood
+Breakfast recommendations please.,meal_breakfast
+What is on the breakfast menu?,meal_breakfast
+Show me dinner options.,meal_dinner
+I prefer chicken but without seafood.,pref_chicken|avoid_seafood
+Gusto ko ng isda na mura.,pref_fish|budget_friendly
+I do not want gluten-containing foods.,avoid_gluten
+I am craving fish.,pref_fish
+I prefer fish but without eggs.,pref_fish|avoid_egg
+Gluten is excluded from my diet; rice dishes are my preference.,restriction_gluten|pref_rice
+Pang-almusal sana na walang gluten.,meal_breakfast|avoid_gluten
+Gluten allergy ang tawag ko rito; may food ba for merienda?,meal_snack|allergy_gluten
+I prefer noodles but without milk or cheese.,pref_noodles|avoid_dairy
+I am allergic to eggs; can you find lunch options?,meal_lunch|allergy_egg
+Any food for lunchtime?,meal_lunch
+I have a peanut allergy.,allergy_peanuts
+Vegetables are my preference.,pref_vegetables
+Allergic ako sa hipon.,allergy_seafood
+Murang vegetarian food sana.,diet_vegetarian|budget_friendly
+I prefer dairy-free options.,avoid_dairy
+Please leave out the shrimp.,avoid_seafood
+What can I nibble on between classes?,meal_snack
+I am allergic to seafood.,allergy_seafood
+May kanin ba for snack?,meal_snack|pref_rice
+Hindi ako kumakain ng spicy food.,avoid_spicy
+May dinner meals ba?,meal_dinner
+Allergic ako sa seafood; ano ang puwede for hapunan?,meal_dinner|allergy_seafood
+I am vegan.,diet_vegan
+I prefer eggs but without milk or cheese.,pref_egg|avoid_dairy
+Allergy concern ko ang seafood; budget-friendly food sana.,allergy_seafood|budget_friendly
+My food budget is tight.,budget_friendly
+I report a gluten allergy concern; what is available for lunch?,meal_lunch|allergy_gluten
+I react allergically to egg ingredients.,allergy_egg
+Gusto ko ng murang pagkain.,budget_friendly
+I need a satisfying portion.,filling
+I report an allergy involving seafood; I would like an affordable option.,allergy_seafood|budget_friendly
+"For lunch, please follow my strict no-gluten dietary restriction.",meal_lunch|restriction_gluten
+I believe I react allergically to foods with gluten.,allergy_gluten
+Please show vegetable options.,pref_vegetables
+Show me lunch options.,meal_lunch
+I eat vegetarian food.,diet_vegetarian
+Do not add cream to the dish.,avoid_dairy
+I think I have a gluten allergy.,allergy_gluten
+I am craving chicken.,pref_chicken
+Vegetarian meals only please.,diet_vegetarian
+I say gluten triggers an allergy for me.,allergy_gluten
+Please show affordable dishes containing fish.,pref_fish|budget_friendly
+I prefer fruit but without gluten.,pref_fruit|avoid_gluten
+"Need something filling, but I report an allergy to gluten-containing foods.",allergy_gluten|filling
+I would like a fish dish.,pref_fish
+Please leave peanuts out.,avoid_peanuts
+Gusto ko ng vegan option.,diet_vegan
+Walang mani sana.,avoid_peanuts
+Shellfish allergy is one of my restrictions.,allergy_seafood
+Pang-merienda sana na walang gatas o keso.,meal_snack|avoid_dairy
+Avoid peanuts in the ingredients.,avoid_peanuts
+Please show fish options.,pref_fish
+Puwede bang may itlog ang pagkain?,pref_egg
+Looking for student-budget options.,budget_friendly
+I prefer noodles but without spicy ingredients.,pref_noodles|avoid_spicy
+I am choosing food for supper.,meal_dinner
+Gluten allergy ang tawag ko rito; may food ba for almusal?,meal_breakfast|allergy_gluten
+My allergy list includes shrimp.,allergy_seafood
+Pang-snack ko sana.,meal_snack
+Pakiwasan ang gluten.,avoid_gluten
+I need something for lunch.,meal_lunch
+Gusto ko ng itlog na mura.,pref_egg|budget_friendly
+May sinasabi akong allergy sa gluten.,allergy_gluten
+Any budget-friendly dishes?,budget_friendly
+May allergy ako sa gatas.,allergy_dairy
+I want a filling meal.,filling
+"Pang-merienda ko, gusto ko ng gulay.",meal_snack|pref_vegetables
+Allergic ako sa gatas; ano ang puwede for almusal?,meal_breakfast|allergy_dairy
+"Need something filling, but I report an allergy to peanuts.",allergy_peanuts|filling
+Pang-tanghalian sana na walang gatas o keso.,meal_lunch|avoid_dairy
+I would like a cheap meal.,budget_friendly
+Can you recommend food with egg?,pref_egg
+Milk allergy is one of my restrictions.,allergy_dairy
+Please show noodle options.,pref_noodles
+Allergic ako sa gatas; ano ang puwede for tanghalian?,meal_lunch|allergy_dairy
+Gluten allergy ang tawag ko rito; may food ba for tanghalian?,meal_lunch|allergy_gluten
+I report a gluten allergy concern; what is available for dinner?,meal_dinner|allergy_gluten
+Please note my seafood allergy.,allergy_seafood
+I call it my gluten allergy.,allergy_gluten
+Something for merienda please.,meal_snack
+I am allergic to seafood; can you find lunch options?,meal_lunch|allergy_seafood
+Pang-merienda sana na walang maanghang na sangkap.,meal_snack|avoid_spicy
+Vegetable dishes sound good to me.,pref_vegetables
+Ayoko ng seafood sa pagkain.,avoid_seafood
+"Pang-almusal ko, gusto ko ng pancit.",meal_breakfast|pref_noodles
+May vegetarian option ba para sa merienda?,meal_snack|diet_vegetarian
+Walang itlog sana.,avoid_egg
+Something substantial please.,filling
+May manok ba for breakfast?,meal_breakfast|pref_chicken
+I react allergically to milk products.,allergy_dairy
+I am craving fresh fruit.,pref_fruit
+I want something with eggs.,pref_egg
+Suggest something for my lunch break.,meal_lunch
+I report an allergy involving peanuts; I would like an affordable option.,allergy_peanuts|budget_friendly
+I prefer rice but without eggs.,pref_rice|avoid_egg
+I prefer fruit but without milk or cheese.,pref_fruit|avoid_dairy
+I need to avoid eggs because of my allergy.,allergy_egg
+Something affordable lang.,budget_friendly
+I prefer chicken but without peanuts.,pref_chicken|avoid_peanuts
+Egg meals sound good to me.,pref_egg
+I need to avoid milk because of my allergy.,allergy_dairy
+May manok ba sa menu?,pref_chicken
+May isda ba for breakfast?,meal_breakfast|pref_fish
+Can I get a filling vegetarian dish?,diet_vegetarian|filling
+I am allergic to seafood; can you find breakfast options?,meal_breakfast|allergy_seafood
+I prefer food without seafood.,avoid_seafood
+Do not put shrimp in my meal.,avoid_seafood
+Meals without eggs please.,avoid_egg
+Allergic ako sa seafood; ano ang puwede for almusal?,meal_breakfast|allergy_seafood
+Please note my peanut allergy.,allergy_peanuts
+What can I eat tonight?,meal_dinner
+I prefer eggs but without spicy ingredients.,pref_egg|avoid_spicy
+May gulay ba for breakfast?,meal_breakfast|pref_vegetables
+Pang-hapunan sana na walang maanghang na sangkap.,meal_dinner|avoid_spicy
+Mas gusto ko ng chicken.,pref_chicken
+Do not add eggs to the dish.,avoid_egg
+I am avoiding dairy ingredients.,avoid_dairy
+I prefer gluten-free options.,avoid_gluten
+Please show egg-based options.,pref_egg
+I am allergic to eggs; can you find breakfast options?,meal_breakfast|allergy_egg
+"Pang-merienda ko, gusto ko ng pancit.",meal_snack|pref_noodles
+I am allergic to peanuts; can you find snack options?,meal_snack|allergy_peanuts
+Chicken is my preference.,pref_chicken
+Anything made with eggs?,pref_egg
+Gusto ko ng manok.,pref_chicken
+Allergic daw ako sa gluten.,allergy_gluten
+No cheese please.,avoid_dairy
+I prefer food with fresh fruits.,pref_fruit
+I follow a vegan diet and need dinner.,meal_dinner|diet_vegan
+I prefer chicken but without gluten.,pref_chicken|avoid_gluten
+Lunch recommendations please.,meal_lunch
+Kanin sana na nakakabusog.,pref_rice|filling
+I react allergically to groundnuts.,allergy_peanuts
+Chicken dishes sound good to me.,pref_chicken
+No egg ingredients please.,avoid_egg
+May allergy ako sa itlog.,allergy_egg
+Can you recommend food with noodles?,pref_noodles
+I prefer rice but without gluten.,pref_rice|avoid_gluten
+I follow a vegetarian diet and need breakfast.,meal_breakfast|diet_vegetarian
+I am allergic to milk; can you find breakfast options?,meal_breakfast|allergy_dairy
+Pang-tanghalian sana na walang gluten.,meal_lunch|avoid_gluten
+I prefer vegetables but without peanuts.,pref_vegetables|avoid_peanuts
+Please record my reported gluten allergy.,allergy_gluten
+Yung nakakabusog sana.,filling
+May isda ba sa menu?,pref_fish
+I have a concern about eggs allergy and want something filling.,allergy_egg|filling
+Mas gusto ko ng fruits.,pref_fruit
+No dairy for my meal please.,avoid_dairy
+Pang-lunch ko sana.,meal_lunch
+Puwede bang may kanin ang meal?,pref_rice
+I prefer a hearty meal.,filling
+"Pang-tanghalian ko, gusto ko ng gulay.",meal_lunch|pref_vegetables
+Allergic ako sa gatas; ano ang puwede for merienda?,meal_snack|allergy_dairy
+Please show chicken options.,pref_chicken
+I am allergic to eggs; can you find dinner options?,meal_dinner|allergy_egg
+Shellfish triggers my allergy.,allergy_seafood
+I prefer fish but without milk or cheese.,pref_fish|avoid_dairy
+What can keep me full until my next class?,filling
+"Pang-merienda ko, gusto ko ng kanin.",meal_snack|pref_rice
+I am allergic to peanuts; can you find breakfast options?,meal_breakfast|allergy_peanuts
+Non-spicy meals only please.,avoid_spicy
+May itlog ba for breakfast?,meal_breakfast|pref_egg
+Peanut allergy is one of my restrictions.,allergy_peanuts
+May noodles ba sa menu?,pref_noodles
+Pang-almusal sana na walang mani.,meal_breakfast|avoid_peanuts
+May gulay ba sa menu?,pref_vegetables
+Gusto ko ng prutas na mura.,pref_fruit|budget_friendly
+I need something for dinner.,meal_dinner
+I eat plant-based vegan food.,diet_vegan
+My allergy list includes milk.,allergy_dairy
+May prutas ba sa menu?,pref_fruit
+"Pang-tanghalian ko, gusto ko ng itlog.",meal_lunch|pref_egg
+Please skip seafood ingredients.,avoid_seafood
+Anything with pasta or noodles?,pref_noodles
+I am craving cooked vegetables.,pref_vegetables
+Please avoid gluten ingredients.,avoid_gluten
+Leave milk out of my meal.,avoid_dairy
+Puwede bang pancit ang pagkain?,pref_noodles
+"Pang-hapunan ko, gusto ko ng manok.",meal_dinner|pref_chicken
+May kanin ba for dinner?,meal_dinner|pref_rice
+Please note my milk allergy.,allergy_dairy
+May gulay ba for lunch?,meal_lunch|pref_vegetables
+Pancit sana na nakakabusog.,pref_noodles|filling
+Pang-hapunan sana na walang mani.,meal_dinner|avoid_peanuts
+Allergic ako sa seafood; ano ang puwede for merienda?,meal_snack|allergy_seafood
+May pancit ba for lunch?,meal_lunch|pref_noodles
+Gusto ko ng pancit.,pref_noodles
+Puwede bang chicken ang ulam?,pref_chicken
+Any afternoon snack ideas?,meal_snack
+I prefer non-seafood dishes.,avoid_seafood
+Show me merienda options.,meal_snack
+Pang-merienda sana na walang itlog.,meal_snack|avoid_egg
+Gusto ko ng nakakabusog na walang maanghang na sangkap.,avoid_spicy|filling
+Itlog sana na nakakabusog.,pref_egg|filling
+Tipid meals sana.,budget_friendly
+Any food for the evening?,meal_dinner
+No fish or shellfish please.,avoid_seafood
+Pang-hapunan sana na walang itlog.,meal_dinner|avoid_egg
+Vegan ako.,diet_vegan
+I report an allergic reaction to gluten-containing food.,allergy_gluten
+Walang gluten sana.,avoid_gluten
+I would rather skip wheat-based dishes.,avoid_gluten
+Vegetarian ako.,diet_vegetarian
+"Pang-almusal ko, gusto ko ng prutas.",meal_breakfast|pref_fruit
+I prefer egg-free options.,avoid_egg
+I prefer noodles but without gluten.,pref_noodles|avoid_gluten
+Walang hipon sana.,avoid_seafood
+Mild flavors instead of spicy ones.,avoid_spicy
+May dairy allergy ako.,allergy_dairy
+What is good for lunch today?,meal_lunch
+I prefer eggs but without peanuts.,pref_egg|avoid_peanuts
+May allergy ako sa lamang-dagat.,allergy_seafood
+Gusto ko ng itlog.,pref_egg
+I follow a vegetarian diet.,diet_vegetarian
+I want food that does not cost much.,budget_friendly
+Allergic ako sa mani; ano ang puwede for almusal?,meal_breakfast|allergy_peanuts
+Ayoko ng gatas sa pagkain.,avoid_dairy
+I prefer rice but without seafood.,pref_rice|avoid_seafood
+Allergic ako sa itlog; ano ang puwede for merienda?,meal_snack|allergy_egg
+Allergy concern ko ang gatas; budget-friendly food sana.,allergy_dairy|budget_friendly
+I am avoiding peanuts.,avoid_peanuts
+Mas gusto ko ng egg dishes.,pref_egg
+Please skip groundnuts.,avoid_peanuts
+Fruit is my preference.,pref_fruit
+Ayoko ng maanghang.,avoid_spicy
+Strictly gluten-free ang diet ko.,restriction_gluten
+Prutas sana na nakakabusog.,pref_fruit|filling
+Find a snack for my break.,meal_snack
+I choose not to eat gluten.,avoid_gluten
+I do not want any seafood.,avoid_seafood
+Anything made with chicken?,pref_chicken
+Can you recommend food with chicken?,pref_chicken
+I prefer fish but without gluten.,pref_fish|avoid_gluten
+Anything made with fish?,pref_fish
+"Pang-merienda ko, gusto ko ng itlog.",meal_snack|pref_egg
+I prefer food without dairy.,avoid_dairy
+I prefer food without eggs.,avoid_egg
+What snacks are available?,meal_snack
+May allergy ako sa mani.,allergy_peanuts
+I follow medical advice to avoid gluten.,restriction_gluten
+Pang-hapunan sana na walang lamang-dagat.,meal_dinner|avoid_seafood
+Eggs trigger my allergy.,allergy_egg
+I prefer eggs but without gluten.,pref_egg|avoid_gluten
+Pang-merienda sana na walang lamang-dagat.,meal_snack|avoid_seafood
+I prefer chicken but without eggs.,pref_chicken|avoid_egg
+Please show inexpensive options.,budget_friendly
+Dairy products trigger my allergy.,allergy_dairy
+A filling food option would be good.,filling
+Find me an evening meal.,meal_dinner
+I want a snack.,meal_snack
+I follow a vegan diet.,diet_vegan
+Ano ang puwedeng hapunan?,meal_dinner
+I prefer fully vegan cuisine.,diet_vegan
+I prefer vegetarian cuisine.,diet_vegetarian
+Please note my egg allergy.,allergy_egg
+"Pang-merienda ko, gusto ko ng manok.",meal_snack|pref_chicken
+May manok ba for dinner?,meal_dinner|pref_chicken
+I prefer fruit but without peanuts.,pref_fruit|avoid_peanuts
+I do not want peanuts as toppings.,avoid_peanuts
+I am allergic to milk.,allergy_dairy
+Please leave out wheat flour.,avoid_gluten
+I report an allergy involving eggs; I would like an affordable option.,allergy_egg|budget_friendly
+Ayoko ng mani sa pagkain.,avoid_peanuts
+Busog meal sana.,filling
+I follow a strict gluten-free diet and prefer vegetables.,restriction_gluten|pref_vegetables
+I follow a vegetarian diet and need dinner.,meal_dinner|diet_vegetarian
+I am allergic to peanuts.,allergy_peanuts
+May prutas ba for breakfast?,meal_breakfast|pref_fruit
+Puwede bang gulay ang ulam?,pref_vegetables
+Please skip butter and milk.,avoid_dairy
+I have a concern about seafood allergy and want something filling.,allergy_seafood|filling
+I follow a vegan diet and need lunch.,meal_lunch|diet_vegan
+No peanut ingredients please.,avoid_peanuts
+My allergy list includes eggs.,allergy_egg
+May itlog ba sa menu?,pref_egg
+Avoid gluten in my meal please.,avoid_gluten
+Gusto ko ng vegetarian option.,diet_vegetarian
+Pang-merienda sana na walang mani.,meal_snack|avoid_peanuts
+Gusto ko ng prutas.,pref_fruit
+Pang-almusal sana na walang gatas o keso.,meal_breakfast|avoid_dairy
+I prefer chicken but without milk or cheese.,pref_chicken|avoid_dairy
+May vegan option ba para sa merienda?,meal_snack|diet_vegan
+My diet requires excluding gluten.,restriction_gluten
+I prefer dishes that contain eggs.,pref_egg
+May meryenda ba?,meal_snack
+Recommend a vegetarian dish.,diet_vegetarian
+Can you recommend food with vegetables?,pref_vegetables
+I need an affordable meal.,budget_friendly
+May dietary restriction ako sa gluten.,restriction_gluten
+I prefer fruit but without seafood.,pref_fruit|avoid_seafood
+May prutas ba for snack?,meal_snack|pref_fruit
+Noodle dishes sound good to me.,pref_noodles
+I am allergic to peanuts; can you find lunch options?,meal_lunch|allergy_peanuts
+Allergic ako sa seafood; ano ang puwede for tanghalian?,meal_lunch|allergy_seafood
+I want some fruit.,pref_fruit
+I require gluten-free ingredients.,restriction_gluten
+Vegan meals only please.,diet_vegan
+Show vegetarian options.,diet_vegetarian
+I am craving scrambled eggs.,pref_egg
+Meals without seafood please.,avoid_seafood
+Mas gusto ko ng rice.,pref_rice
+Please show fruit options.,pref_fruit
+May vegan option ba para sa tanghalian?,meal_lunch|diet_vegan
+Noodles are my preference.,pref_noodles
+I need strictly gluten-free food and prefer mild flavors without chili.,restriction_gluten|avoid_spicy
+I am avoiding eggs.,avoid_egg
+Recommend a vegan dish.,diet_vegan
+"Need something filling, but I report an allergy to milk.",allergy_dairy|filling
+I prefer meals without peanuts.,avoid_peanuts
+Strict gluten-free diet ko; may merienda options ba?,meal_snack|restriction_gluten
+Can you recommend a fruit dish?,pref_fruit
+I prefer meals that include rice.,pref_rice
+Pang-almusal sana na walang itlog.,meal_breakfast|avoid_egg
+May peanut allergy ako.,allergy_peanuts
+Fish is my preference.,pref_fish
+Mas gusto ko ng fish.,pref_fish
+I prefer chicken but without spicy ingredients.,pref_chicken|avoid_spicy
+May sulit na pagkain ba?,budget_friendly
+Show vegan options.,diet_vegan
+I report a gluten-related allergy.,allergy_gluten
+Puwede bang may prutas ang pagkain?,pref_fruit
+I follow a vegan diet and need breakfast.,meal_breakfast|diet_vegan
+I react allergically to prawns.,allergy_seafood
+Allergic ako sa mani; ano ang puwede for tanghalian?,meal_lunch|allergy_peanuts
+Anything served with rice?,pref_rice
+I want a noodle dish.,pref_noodles
+I report a gluten allergy concern; what is available for breakfast?,meal_breakfast|allergy_gluten
+Pang-almusal sana na walang lamang-dagat.,meal_breakfast|avoid_seafood
+I want meat-free meals as a vegetarian.,diet_vegetarian
+Pakiwasan ang mani.,avoid_peanuts
+Pang-hapunan sana na walang gluten.,meal_dinner|avoid_gluten
+My dietary restriction excludes gluten; please suggest a filling meal.,restriction_gluten|filling
+Egg dishes cause an allergic reaction for me.,allergy_egg
+Fish dishes sound good to me.,pref_fish
+I prefer vegetables but without seafood.,pref_vegetables|avoid_seafood
+I must avoid gluten in my diet.,restriction_gluten
+I would like a vegetable dish.,pref_vegetables
+Allergic ako sa gatas; ano ang puwede for hapunan?,meal_dinner|allergy_dairy
+May vegan option ba para sa hapunan?,meal_dinner|diet_vegan
+May vegetarian option ba para sa tanghalian?,meal_lunch|diet_vegetarian
+Allergic ako sa mani; ano ang puwede for hapunan?,meal_dinner|allergy_peanuts
+May lunch meals ba?,meal_lunch
+Looking for something to eat this morning.,meal_breakfast
+Allergic ako sa dairy.,allergy_dairy
+Rice is my preference.,pref_rice
+Egg dishes are my preference.,pref_egg
+"Pang-hapunan ko, gusto ko ng itlog.",meal_dinner|pref_egg
+Dinner recommendations please.,meal_dinner
+Keep the meal mild.,avoid_spicy
+My allergy list includes peanuts.,allergy_peanuts
+May manok ba for lunch?,meal_lunch|pref_chicken
+May kanin ba sa menu?,pref_rice
+Ayoko ng gluten sa pagkain.,avoid_gluten
+Anything made mainly with vegetables?,pref_vegetables
+I do not eat animal products because I am vegan.,diet_vegan
+I have a concern about gluten-containing foods allergy and want something filling.,allergy_gluten|filling
+Peanuts cause an allergic reaction for me.,allergy_peanuts
+Pakiwasan ang keso.,avoid_dairy
+My diet is vegetarian.,diet_vegetarian
+I do not want anything containing egg.,avoid_egg
+Pang-tanghalian sana na walang maanghang na sangkap.,meal_lunch|avoid_spicy
+I follow a strict gluten-free diet.,restriction_gluten
+Can you recommend a rice meal?,pref_rice
+Please leave eggs out.,avoid_egg
+I prefer meals with more vegetables.,pref_vegetables
+Gusto kong kumain ng tanghalian.,meal_lunch
+I want something that is not spicy.,avoid_spicy
+Strict gluten-free at vegetarian ang kailangan ko.,restriction_gluten|diet_vegetarian
+I have an egg allergy.,allergy_egg
+Keep the price low please.,budget_friendly
+No hot sauce for me.,avoid_spicy
+Bawal sa diet ko ang gluten.,restriction_gluten
+Allergic ako sa itlog; ano ang puwede for almusal?,meal_breakfast|allergy_egg
+Walang dairy sana.,avoid_dairy
+I do not want chili in my food.,avoid_spicy
+May pancit ba for snack?,meal_snack|pref_noodles
+May allergy ako sa seafood.,allergy_seafood
+I prefer rice but without milk or cheese.,pref_rice|avoid_dairy
+I prefer fruit but without spicy ingredients.,pref_fruit|avoid_spicy
+Allergy concern ko ang mani; budget-friendly food sana.,allergy_peanuts|budget_friendly
+Allergic ako sa itlog; ano ang puwede for hapunan?,meal_dinner|allergy_egg
+I am craving a rice dish.,pref_rice
+May vegetarian choices ba?,diet_vegetarian
+I describe my food restriction as a gluten allergy.,allergy_gluten
+May vegan choices ba?,diet_vegan
+I have a gluten dietary restriction.,restriction_gluten
+Pakiwasan ang itlog.,avoid_egg
+I have to keep gluten out of my meals.,restriction_gluten
+I prefer fruit but without eggs.,pref_fruit|avoid_egg
+Gluten allergy ang tawag ko rito; may food ba for hapunan?,meal_dinner|allergy_gluten
+Anything that includes fruit?,pref_fruit
+Can you recommend food with fish?,pref_fish
+"Pang-almusal ko, gusto ko ng isda.",meal_breakfast|pref_fish
+I prefer fish but without spicy ingredients.,pref_fish|avoid_spicy
+Gusto ko ng nakakabusog na walang gluten.,avoid_gluten|filling
+I am avoiding seafood.,avoid_seafood
+Puwede bang isda ang ulam?,pref_fish
+"Pang-hapunan ko, gusto ko ng gulay.",meal_dinner|pref_vegetables
+I prefer vegetables but without eggs.,pref_vegetables|avoid_egg
+Gusto ko ng kanin.,pref_rice
+I am allergic to eggs.,allergy_egg
+I need a budget-friendly vegetarian option.,diet_vegetarian|budget_friendly
+Please avoid spicy food.,avoid_spicy
+Murang vegan food sana.,diet_vegan|budget_friendly
+I am allergic to eggs; can you find snack options?,meal_snack|allergy_egg
+I prefer noodles but without eggs.,pref_noodles|avoid_egg
+I prefer food without gluten.,avoid_gluten
+I have a dairy allergy.,allergy_dairy
+Please show rice options.,pref_rice
+Allergy concern ko ang gluten; budget-friendly food sana.,allergy_gluten|budget_friendly
+Allergic ako sa eggs.,allergy_egg
+Isda sana na nakakabusog.,pref_fish|filling
+Gusto ko ng gulay.,pref_vegetables
+I prefer noodle-based meals.,pref_noodles
+I prefer rice but without peanuts.,pref_rice|avoid_peanuts
+I would like a chicken dish.,pref_chicken
+Pang-tanghalian sana na walang mani.,meal_lunch|avoid_peanuts
+I prefer noodles but without peanuts.,pref_noodles|avoid_peanuts
+May vegetarian option ba para sa almusal?,meal_breakfast|diet_vegetarian
+I am vegetarian.,diet_vegetarian
+Gusto ko ng isda.,pref_fish
+Ano ang puwedeng pang-tanghalian?,meal_lunch
+My gluten-restricted diet means dinner must be gluten-free.,meal_dinner|restriction_gluten
+Pang-dinner ko sana.,meal_dinner
+Pang-tanghalian sana na walang lamang-dagat.,meal_lunch|avoid_seafood
+Pakiwasan ang lamang-dagat.,avoid_seafood
+Gusto ko ng panghapunan.,meal_dinner
+I am avoiding gluten by preference.,avoid_gluten
+I am allergic to milk; can you find dinner options?,meal_dinner|allergy_dairy
+Gusto ko ng nakakabusog na walang itlog.,avoid_egg|filling
+Gluten-free diet ang kailangan ko at budget meal sana.,restriction_gluten|budget_friendly
+"No gluten because of my strict diet, and I would prefer vegan food.",restriction_gluten|diet_vegan
+Rice-based meals sound good.,pref_rice
+Please leave out the chili.,avoid_spicy
+Fruit-based options sound good.,pref_fruit
+Egg allergy is one of my restrictions.,allergy_egg
+I prefer vegetables but without milk or cheese.,pref_vegetables|avoid_dairy
+I prefer noodles but without seafood.,pref_noodles|avoid_seafood
+I prefer rice but without spicy ingredients.,pref_rice|avoid_spicy
+Allergic ako sa itlog; ano ang puwede for tanghalian?,meal_lunch|allergy_egg
+I prefer vegetables but without spicy ingredients.,pref_vegetables|avoid_spicy
+I prefer eggs but without seafood.,pref_egg|avoid_seafood
+Allergic ako sa peanuts.,allergy_peanuts
+My diet is vegan.,diet_vegan
+I prefer meals featuring chicken.,pref_chicken
+Gusto ko ng nakakabusog.,filling

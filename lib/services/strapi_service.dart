@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -12,9 +11,8 @@ class StrapiService {
   );
 
   static Future<List<Food>> fetchFoodItems() async {
-    final url = Uri.parse('$baseUrl/api/food-items').replace(
-      queryParameters: {'populate': '*'},
-    );
+    final url = Uri.parse('$baseUrl/api/food-items')
+        .replace(queryParameters: {'populate': '*'});
 
     final response = await http.get(
       url,
@@ -38,10 +36,7 @@ class StrapiService {
 
     return data
         .map<Food>(
-          (item) => Food.fromJson(
-            Map<String, dynamic>.from(item),
-            baseUrl,
-          ),
+          (item) => Food.fromJson(Map<String, dynamic>.from(item), baseUrl),
         )
         .toList();
   }

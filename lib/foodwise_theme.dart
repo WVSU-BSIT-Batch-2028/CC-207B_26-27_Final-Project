@@ -20,15 +20,16 @@ class FoodWiseColors {
 
 class FoodWiseTheme {
   static ThemeData get light {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: FoodWiseColors.deepOrange,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: FoodWiseColors.deepOrange,
-      secondary: FoodWiseColors.orange,
-      surface: FoodWiseColors.surface,
-      onSurface: FoodWiseColors.charcoal,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: FoodWiseColors.deepOrange,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: FoodWiseColors.deepOrange,
+          secondary: FoodWiseColors.orange,
+          surface: FoodWiseColors.surface,
+          onSurface: FoodWiseColors.charcoal,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -44,7 +45,10 @@ class FoodWiseTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: FoodWiseColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 17,
+          vertical: 18,
+        ),
         labelStyle: const TextStyle(color: FoodWiseColors.muted),
         hintStyle: const TextStyle(color: Color(0xFFB6A79D)),
         prefixIconColor: FoodWiseColors.deepOrange,
@@ -58,7 +62,10 @@ class FoodWiseTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: FoodWiseColors.orange, width: 1.6),
+          borderSide: const BorderSide(
+            color: FoodWiseColors.orange,
+            width: 1.6,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -75,7 +82,9 @@ class FoodWiseTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(54),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),

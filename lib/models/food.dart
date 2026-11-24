@@ -1,4 +1,3 @@
-
 class Food {
   final int id;
   final String documentId;
@@ -28,10 +27,7 @@ class Food {
     required this.businessAddress,
   });
 
-  factory Food.fromJson(
-    Map<String, dynamic> json,
-    String baseUrl,
-  ) {
+  factory Food.fromJson(Map<String, dynamic> json, String baseUrl) {
     final image = json['image'] as Map<String, dynamic>?;
     final category = json['category'] as Map<String, dynamic>?;
     final business = json['business'] as Map<String, dynamic>?;
@@ -45,8 +41,7 @@ class Food {
       description: json['description']?.toString() ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0,
       isAvailable: json['isAvailable'] == true,
-      caloriesKcal:
-          (json['caloriesKcal'] as num?)?.toDouble(),
+      caloriesKcal: (json['caloriesKcal'] as num?)?.toDouble(),
       nutritionSource: json['nutritionSource']?.toString(),
       imageUrl: imagePath == null
           ? null
