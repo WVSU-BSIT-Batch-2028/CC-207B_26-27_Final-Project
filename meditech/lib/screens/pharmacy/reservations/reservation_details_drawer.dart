@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/branch_reservation.dart';
@@ -234,6 +235,15 @@ class _ReservationDetailsDrawerState
 
     final isPdf = prescription.mimeType.contains('pdf');
 
+    if (url != null && !isPdf) {
+      await showTabletImageViewer(
+        context: context,
+        imageUrl: url,
+        title: 'Prescription · $refNo',
+      );
+      return;
+    }
+
     await showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -242,8 +252,7 @@ class _ReservationDetailsDrawerState
             borderRadius: BorderRadius.circular(12),
           ),
           child: Container(
-            width: 600,
-            constraints: const BoxConstraints(maxHeight: 700),
+            width: 520,
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -252,15 +261,12 @@ class _ReservationDetailsDrawerState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        'Prescription · $refNo',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      'Prescription · $refNo',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A2E22),
                       ),
                     ),
                     IconButton(
@@ -269,44 +275,12 @@ class _ReservationDetailsDrawerState
                     ),
                   ],
                 ),
-                Text(
-                  prescription.displayId,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Flexible(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: url == null
-                        ? _PrescriptionUnavailable(isPdf: isPdf)
-                        : isPdf
-                            ? _PdfPreview(url: url, displayId: prescription.displayId)
-                            : InteractiveViewer(
-                                minScale: 0.5,
-                                maxScale: 5.0,
-                                child: Image.network(
-                                  url,
-                                  fit: BoxFit.contain,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) return child;
-                                    return const Center(
-                                      child: CircularProgressIndicator(),
-                                    );
-                                  },
-                                  errorBuilder: (_, _, _) =>
-                                      const _PrescriptionUnavailable(isPdf: false),
-                                ),
-                              ),
-                  ),
-                ),
                 const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Verify doctor, date, medicine name, and dosage before confirming.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  textAlign: TextAlign.center,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: url == null
+                      ? _PrescriptionUnavailable(isPdf: isPdf)
+                      : _PdfPreview(url: url, displayId: prescription.displayId),
                 ),
               ],
             ),
@@ -372,10 +346,10 @@ class _ReservationDetailsDrawerState
                         children: [
                           Text(
                             reservation.referenceNo,
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.text,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF1A2E22),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -442,44 +416,64 @@ class _ReservationDetailsDrawerState
                         ],
 
                         // Confirm / Reject action buttons (Ph-14, Ph-17)
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: (_isBusy ||
-                                        hasInsufficientStock ||
-                                        !canLicenseActions)
-                                    ? null
-                                    : () => _handleConfirm(reservation),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                        SizedBox(
+                          height: 42,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: (_isBusy ||
+                                          hasInsufficientStock ||
+                                          !canLicenseActions)
+                                      ? null
+                                      : () => _handleConfirm(reservation),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2E6B46),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Confirm reservation',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                child: const Text('Confirm reservation'),
                               ),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: (_isBusy || !canLicenseActions)
-                                    ? null
-                                    : () => _handleReject(reservation),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.danger,
-                                  side: const BorderSide(color: AppColors.danger),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: (_isBusy || !canLicenseActions)
+                                      ? null
+                                      : () => _handleReject(reservation),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFC93B3B),
+                                    side: const BorderSide(
+                                      color: Color(0xFFC93B3B),
+                                      width: 1.2,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Reject',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                child: const Text('Reject'),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                       ] else if (reservation.isConfirmed) ...[
@@ -506,31 +500,62 @@ class _ReservationDetailsDrawerState
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         // Mark ready action button
-                        ElevatedButton(
-                          onPressed: _isBusy
-                              ? null
-                              : () => _handleMarkReady(reservation),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                        SizedBox(
+                          height: 42,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _isBusy
+                                      ? null
+                                      : () => _handleMarkReady(reservation),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2E6B46),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Mark ready for pickup',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: (_isBusy || !canCancel)
+                                      ? null
+                                      : () => _handleCancel(reservation),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFC93B3B),
+                                    side: const BorderSide(
+                                      color: Color(0xFFC93B3B),
+                                      width: 1.2,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Cancel reservation',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          child: const Text('Mark ready for pickup'),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        OutlinedButton(
-                          onPressed: (_isBusy || !canCancel)
-                              ? null
-                              : () => _handleCancel(reservation),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.danger,
-                            side: const BorderSide(color: AppColors.danger),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Cancel reservation'),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                       ] else if (reservation.isReady) ...[
@@ -543,54 +568,84 @@ class _ReservationDetailsDrawerState
                                 'Ask the pharmacist on duty.',
                           ),
                         ] else ...[
-                          const Text(
+                          Text(
                             'Verify pickup code',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.text,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1A2E22),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Row(
                             children: [
                               Expanded(
-                                child: TextField(
-                                  controller: _codeController,
-                                  textCapitalization:
-                                      TextCapitalization.characters,
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter 4-character code',
-                                    errorText: _codeError
-                                        ? 'This code doesn\'t match the reservation.'
-                                        : null,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  height: 42,
+                                  child: TextField(
+                                    controller: _codeController,
+                                    textCapitalization:
+                                        TextCapitalization.characters,
+                                    decoration: InputDecoration(
+                                      hintText: 'Enter 4-character code',
+                                      errorText: _codeError
+                                          ? 'This code doesn\'t match the reservation.'
+                                          : null,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFFD8E8DE),
+                                          width: 1.2,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFFD8E8DE),
+                                          width: 1.2,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFF2E6B46),
+                                          width: 1.5,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
-                              ElevatedButton(
-                                onPressed: _isBusy
-                                    ? null
-                                    : () => _handleVerifyCode(reservation),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
+                              SizedBox(
+                                height: 42,
+                                child: ElevatedButton(
+                                  onPressed: _isBusy
+                                      ? null
+                                      : () => _handleVerifyCode(reservation),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2E6B46),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                  child: Text(
+                                    'Verify',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                child: const Text('Verify'),
                               ),
                             ],
                           ),
@@ -605,38 +660,59 @@ class _ReservationDetailsDrawerState
                         ],
 
                         const SizedBox(height: AppSpacing.sm),
-                        OutlinedButton(
-                          onPressed: (_isBusy || !canCancel)
-                              ? null
-                              : () => _handleCancel(reservation),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.danger,
-                            side: const BorderSide(color: AppColors.danger),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                        SizedBox(
+                          height: 42,
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: (_isBusy || !canCancel)
+                                ? null
+                                : () => _handleCancel(reservation),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFC93B3B),
+                              side: const BorderSide(
+                                color: Color(0xFFC93B3B),
+                                width: 1.2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel reservation',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          child: const Text('Cancel reservation'),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                       ],
 
                       // Medicines section (Ph-14)
-                      const Text(
+                      Text(
                         'Medicines',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1A2E22),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.sm),
                       ...reservation.items.map((item) {
                         return Container(
                           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFD8E8DE),
+                              width: 1.2,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,42 +724,42 @@ class _ReservationDetailsDrawerState
                                   Expanded(
                                     child: Text(
                                       '${item.brandName} ${item.strength} × ${item.quantity}',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.text,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF1A2E22),
                                       ),
                                     ),
                                   ),
                                   Text(
                                     '₱${(item.unitPrice * item.quantity).toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.text,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF1A2E22),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 4),
                               Text(
                                 '${item.genericName} · ${item.dosageForm} · ₱${item.unitPrice.toStringAsFixed(2)} / ${item.unitSold} at submission',
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   color: AppColors.textMuted,
                                 ),
                               ),
                               if (item.currentAvailableStock != null) ...[
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Available now: ${item.currentAvailableStock} ${item.unitSold}s',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                     color: (item.currentAvailableStock! <
                                             item.quantity)
                                         ? AppColors.danger
-                                        : AppColors.primary,
+                                        : const Color(0xFF2E6B46),
                                   ),
                                 ),
                               ],
@@ -694,24 +770,24 @@ class _ReservationDetailsDrawerState
 
                       // Total reported amount
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Total reported amount',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.text,
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1A2E22),
                               ),
                             ),
                             Text(
                               '₱${reservation.totalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1A2E22),
                               ),
                             ),
                           ],
@@ -721,114 +797,102 @@ class _ReservationDetailsDrawerState
 
                       // Uploaded prescription section (Ph-14)
                       if (reservation.prescriptions.isNotEmpty) ...[
-                        const Text(
-                          'Uploaded prescription',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
                         ...reservation.prescriptions.map((rx) {
-                          final isPdf = rx.mimeType.contains('pdf');
                           return Container(
                             margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFD8E8DE),
+                                width: 1.2,
+                              ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Thumbnail area
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(7),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Container(
+                                    width: 76,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF3F5F2),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.description_outlined,
+                                      color: Color(0xFF2E6B46),
+                                      size: 34,
+                                    ),
                                   ),
-                                  child: isPdf
-                                      ? Container(
-                                          height: 120,
-                                          color: AppColors.background,
-                                          child: const Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.picture_as_pdf_outlined,
-                                                size: 48,
-                                                color: AppColors.danger,
-                                              ),
-                                              SizedBox(height: AppSpacing.xs),
-                                              Text(
-                                                'PDF document',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                      : _PrescriptionThumbnail(
-                                          prescription: rx,
-                                          reservationId: widget.reservationId,
-                                        ),
-                                ),
-                                // Footer row: ID + View Full Size button
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm,
-                                    vertical: AppSpacing.xs,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.description_outlined,
-                                        color: AppColors.primary,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: AppSpacing.xs),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
                                           children: [
+                                            const StatusBadge.rx(),
+                                            const SizedBox(width: AppSpacing.xs),
                                             Text(
                                               rx.displayId,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            const Text(
-                                              'Verify doctor, date, medicine, and dosage.',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.textMuted,
+                                              style: GoogleFonts.inter(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                                color: const Color(0xFF1A2E22),
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: () => _viewPrescription(
-                                          rx,
-                                          reservation.referenceNo,
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'Check the doctor, date, medicine, and dosage before confirming.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textMuted,
                                           ),
-                                          visualDensity: VisualDensity.compact,
                                         ),
-                                        icon: const Icon(Icons.open_in_full, size: 14),
-                                        label: const Text('View Full Size'),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 8),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: OutlinedButton(
+                                            onPressed: () => _viewPrescription(
+                                              rx,
+                                              reservation.referenceNo,
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(0xFF2E6B46),
+                                              side: const BorderSide(
+                                                color: Color(0xFFD8E8DE),
+                                                width: 1.2,
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 14,
+                                                vertical: 8,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'View full size',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         }),
@@ -838,11 +902,17 @@ class _ReservationDetailsDrawerState
                       // Closed / Rejection reason banner (Ph-26, Ph-28)
                       if (reservation.closedReason != null) ...[
                         Container(
-                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.dangerLight,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.danger),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.danger,
+                              width: 1.2,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -851,17 +921,18 @@ class _ReservationDetailsDrawerState
                                 reservation.isRejected
                                     ? 'Rejection reason'
                                     : 'Closed reason',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.danger,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 6),
                               Text(
                                 reservation.closedReason!,
-                                style: const TextStyle(
-                                  fontSize: 12,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                   color: AppColors.danger,
                                 ),
                               ),
@@ -873,15 +944,15 @@ class _ReservationDetailsDrawerState
 
                       // Status history section (Ph-14)
                       if (reservation.history.isNotEmpty) ...[
-                        const Text(
+                        Text(
                           'Status history',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF1A2E22),
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
+                        const SizedBox(height: AppSpacing.sm),
                         ...reservation.history.map((event) {
                           return Padding(
                             padding:
@@ -890,14 +961,14 @@ class _ReservationDetailsDrawerState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  width: 8,
-                                  height: 8,
+                                  width: 9,
+                                  height: 9,
                                   margin: const EdgeInsets.only(
                                     top: 5,
                                     right: AppSpacing.sm,
                                   ),
                                   decoration: const BoxDecoration(
-                                    color: AppColors.primary,
+                                    color: Color(0xFF2E6B46),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -909,16 +980,17 @@ class _ReservationDetailsDrawerState
                                       Text(
                                         _statusLabels[event.toStatus] ??
                                             event.toStatus,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                          color: AppColors.text,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: const Color(0xFF1A2E22),
                                         ),
                                       ),
+                                      const SizedBox(height: 2),
                                       Text(
                                         '${_formatTimestamp(event.createdAt)}${event.actorName != null ? ' · ${event.actorName}' : ''}',
                                         style: const TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 12,
                                           color: AppColors.textMuted,
                                         ),
                                       ),
@@ -987,76 +1059,6 @@ class _LicenseRequiredBanner extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// Loads and shows an image thumbnail for a prescription inline in the drawer.
-// Fetches a signed URL lazily on first build.
-class _PrescriptionThumbnail extends ConsumerStatefulWidget {
-  const _PrescriptionThumbnail({
-    required this.prescription,
-    required this.reservationId,
-  });
-
-  final BranchPrescription prescription;
-  final String reservationId;
-
-  @override
-  ConsumerState<_PrescriptionThumbnail> createState() =>
-      _PrescriptionThumbnailState();
-}
-
-class _PrescriptionThumbnailState
-    extends ConsumerState<_PrescriptionThumbnail> {
-  String? _url;
-  bool _loading = true;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUrl();
-  }
-
-  Future<void> _fetchUrl() async {
-    try {
-      final service = ref.read(branchReservationServiceProvider);
-      final url = await service.getPrescriptionUrl(
-        widget.prescription.id,
-        reservationId: widget.reservationId,
-      );
-      if (mounted) setState(() { _url = url; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _error = true; _loading = false; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const SizedBox(
-        height: 160,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-    if (_error || _url == null) {
-      return const _PrescriptionUnavailable(isPdf: false);
-    }
-    return Image.network(
-      _url!,
-      height: 160,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return const SizedBox(
-          height: 160,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      },
-      errorBuilder: (_, _, _) =>
-          const _PrescriptionUnavailable(isPdf: false),
     );
   }
 }

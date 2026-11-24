@@ -11,6 +11,7 @@ const _pharmacyShellPaths = {
   '/stock-alerts',
   '/settings',
   '/employees',
+  '/notifications',
   '/profile',
   '/profile/edit',
 };

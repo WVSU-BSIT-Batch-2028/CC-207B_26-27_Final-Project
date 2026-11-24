@@ -176,14 +176,11 @@ class _MediTechMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
+        Image.asset(
+          'assets/images/Meditech Logo.png',
           width: 36,
           height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: const Icon(Icons.admin_panel_settings, color: AppColors.primary),
+          fit: BoxFit.contain,
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(

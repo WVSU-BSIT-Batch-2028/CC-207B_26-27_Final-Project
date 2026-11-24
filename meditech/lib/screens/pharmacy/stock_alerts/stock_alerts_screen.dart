@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../../models/inventory_item.dart';
 import '../../../models/stock_alert_item.dart';
@@ -278,9 +281,16 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
   void _handleOpenInventory() {
     if (widget.onOpenInventory != null) {
       widget.onOpenInventory!();
+      return;
+    }
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.go('/inventory');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please navigate to the Inventory tab from the sidebar.')),
+        const SnackBar(
+          content: Text('Please navigate to the Inventory tab from the sidebar.'),
+        ),
       );
     }
   }
@@ -296,197 +306,252 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
         value: alertsAsync,
         onRetry: () => ref.refresh(stockAlertsProvider),
         builder: (data) {
-              final lowStockList = data[StockAlertType.lowStock] ?? [];
-              final outOfStockList = data[StockAlertType.outOfStock] ?? [];
-              final expiringList = data[StockAlertType.expiringSoon] ?? [];
-              final notUpdatedList = data[StockAlertType.notUpdated] ?? [];
+          final lowStockList = data[StockAlertType.lowStock] ?? [];
+          final outOfStockList = data[StockAlertType.outOfStock] ?? [];
+          final expiringList = data[StockAlertType.expiringSoon] ?? [];
+          final notUpdatedList = data[StockAlertType.notUpdated] ?? [];
 
-              final currentList = data[activeTab] ?? [];
+          final currentList = data[activeTab] ?? [];
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header Title Area
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.lg,
-                    ),
-                    color: AppColors.surface,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Stock Alerts',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.text,
-                              ),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Title Area (no white box or subtitle)
+                Text(
+                  'Stock Alerts',
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    fontStyle: FontStyle.normal,
+                    color: const Color(0xFF1A2E22),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Category Cards (Ph-30)
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _AlertCategoryCard(
+                          title: 'Low stock',
+                          count: lowStockList.length,
+                          subtitle: '1 up to your low-stock level available',
+                          isSelected: activeTab == StockAlertType.lowStock,
+                          badgeBg: const Color(0xFFFEF3C7),
+                          badgeFg: const Color(0xFFB45309),
+                          onTap: () => ref
+                              .read(selectedAlertTabProvider.notifier)
+                              .selectTab(StockAlertType.lowStock),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Medicines that need action now. Worked out live from your inventory with simple rules; nothing is predicted.',
-                          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _AlertCategoryCard(
+                          title: 'Out of stock',
+                          count: outOfStockList.length,
+                          subtitle: 'None available, or the switch is on',
+                          isSelected: activeTab == StockAlertType.outOfStock,
+                          badgeBg: const Color(0xFFFEE2E2),
+                          badgeFg: const Color(0xFFDC2626),
+                          onTap: () => ref
+                              .read(selectedAlertTabProvider.notifier)
+                              .selectTab(StockAlertType.outOfStock),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _AlertCategoryCard(
+                          title: 'Expiring soon',
+                          count: expiringList.length,
+                          subtitle: 'Nearest expiry within 60 days',
+                          isSelected: activeTab == StockAlertType.expiringSoon,
+                          badgeBg: const Color(0xFFF1F5F9),
+                          badgeFg: const Color(0xFF475569),
+                          onTap: () => ref
+                              .read(selectedAlertTabProvider.notifier)
+                              .selectTab(StockAlertType.expiringSoon),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _AlertCategoryCard(
+                          title: 'Not updated',
+                          count: notUpdatedList.length,
+                          subtitle: 'No stock update in 7 days',
+                          isSelected: activeTab == StockAlertType.notUpdated,
+                          badgeBg: const Color(0xFFDBEAFE),
+                          badgeFg: const Color(0xFF2563EB),
+                          onTap: () => ref
+                              .read(selectedAlertTabProvider.notifier)
+                              .selectTab(StockAlertType.notUpdated),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Table Content Container
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFD8E8DE),
+                      width: 1.5,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A1A2E22),
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 18,
+                        ),
+                        child: _buildSectionSummaryHeader(activeTab),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFE5EBE7)),
+
+                      // Table header
+                      _buildTableHeader(activeTab),
+                      const Divider(height: 1, color: Color(0xFFE5EBE7)),
+
+                      // List of alert items
+                      if (currentList.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Center(
+                            child: Text(
+                              _emptyMessage(activeTab),
+                              style: GoogleFonts.inter(
+                                color: AppColors.textMuted,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: currentList.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1, color: Color(0xFFE5EBE7)),
+                          itemBuilder: (context, index) {
+                            return _buildRow(
+                              context,
+                              currentList[index],
+                              activeTab,
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Explainer footer note (no white box, matching wireframe)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        fontStyle: FontStyle.normal,
+                        color: const Color(0xFF4B5563),
+                        height: 1.5,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: 'How alerts work: ',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            fontStyle: FontStyle.normal,
+                            color: const Color(0xFF1A2E22),
+                          ),
+                        ),
+                        const TextSpan(
+                          text:
+                              'Low stock = 1 up to your low-stock level available · '
+                              'Out of stock = none available, or the Out of Stock switch is on · '
+                              'Expiring soon = nearest expiry within 60 days · '
+                              'Not updated = no stock update in 7 days, so patients see Unconfirmed. '
+                              'Alerts clear on their own once the stock is fixed.',
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 1, color: AppColors.border),
-
-                  // Category Cards (Ph-30)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _AlertCategoryCard(
-                            title: 'Low stock',
-                            count: lowStockList.length,
-                            subtitle: '1 up to your low-stock level available',
-                            isSelected: activeTab == StockAlertType.lowStock,
-                            onTap: () => ref.read(selectedAlertTabProvider.notifier).selectTab(
-                                StockAlertType.lowStock),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _AlertCategoryCard(
-                            title: 'Out of stock',
-                            count: outOfStockList.length,
-                            subtitle: 'None available, or the switch is on',
-                            isSelected: activeTab == StockAlertType.outOfStock,
-                            onTap: () => ref.read(selectedAlertTabProvider.notifier).selectTab(
-                                StockAlertType.outOfStock),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _AlertCategoryCard(
-                            title: 'Expiring soon',
-                            count: expiringList.length,
-                            subtitle: 'Nearest expiry within 60 days',
-                            isSelected: activeTab == StockAlertType.expiringSoon,
-                            onTap: () => ref.read(selectedAlertTabProvider.notifier).selectTab(
-                                StockAlertType.expiringSoon),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _AlertCategoryCard(
-                            title: 'Not updated',
-                            count: notUpdatedList.length,
-                            subtitle: 'No stock update in 7 days',
-                            isSelected: activeTab == StockAlertType.notUpdated,
-                            onTap: () => ref.read(selectedAlertTabProvider.notifier).selectTab(
-                                StockAlertType.notUpdated),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Table Content
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg,
-                                vertical: AppSpacing.md,
-                              ),
-                              child: Text(
-                                _sectionSummary(activeTab),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                            ),
-                            const Divider(height: 1, color: AppColors.border),
-
-                            // Table header
-                            _buildTableHeader(activeTab),
-                            const Divider(height: 1, color: AppColors.border),
-
-                            // List of alert items
-                            Expanded(
-                              child: currentList.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        _emptyMessage(activeTab),
-                                        style: const TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      itemCount: currentList.length,
-                                      separatorBuilder: (context, index) =>
-                                          const Divider(height: 1, color: AppColors.border),
-                                      itemBuilder: (context, index) {
-                                        return _buildRow(
-                                          context,
-                                          currentList[index],
-                                          activeTab,
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Explainer footer note (matching wireframe Ph-30 to Ph-32)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Text(
-                        'How alerts work: Low stock = 1 up to your low-stock level available · '
-                        'Out of stock = none available, or the Out of Stock switch is on · '
-                        'Expiring soon = nearest expiry within 60 days · '
-                        'Not updated = no stock update in 7 days, so patients see Unconfirmed. '
-                        'Alerts clear on their own once the stock is fixed.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
-  String _sectionSummary(StockAlertType tab) {
-    return switch (tab) {
-      StockAlertType.lowStock => 'Low stock  Available stock is from 1 up to the low-stock level',
-      StockAlertType.outOfStock => 'Out of stock  Available stock is 0, or the Out of Stock switch is on',
-      StockAlertType.expiringSoon => 'Expiring soon  Nearest expiry date is within 60 days',
-      StockAlertType.notUpdated => 'Not updated  Stock has not been confirmed or updated in 7 days',
+  Widget _buildSectionSummaryHeader(StockAlertType tab) {
+    final (String title, String description) = switch (tab) {
+      StockAlertType.lowStock => (
+          'Low stock',
+          'Available stock is from 1 up to the low-stock level',
+        ),
+      StockAlertType.outOfStock => (
+          'Out of stock',
+          'Available stock is 0, or the Out of Stock switch is on',
+        ),
+      StockAlertType.expiringSoon => (
+          'Expiring soon',
+          'Nearest expiry date is within 60 days',
+        ),
+      StockAlertType.notUpdated => (
+          'Not updated',
+          'Stock has not been confirmed or updated in 7 days',
+        ),
     };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            fontStyle: FontStyle.normal,
+            color: const Color(0xFF1A2E22),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            description,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              fontStyle: FontStyle.normal,
+              color: const Color(0xFF6B7280),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   String _emptyMessage(StockAlertType tab) {
@@ -494,22 +559,23 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
       StockAlertType.lowStock => 'No items currently at low stock level.',
       StockAlertType.outOfStock => 'No items currently marked out of stock.',
       StockAlertType.expiringSoon => 'No items expiring within 60 days.',
-      StockAlertType.notUpdated => 'All item counts have been updated in the last 7 days.',
+      StockAlertType.notUpdated =>
+        'All item counts have been updated in the last 7 days.',
     };
   }
 
   Widget _buildTableHeader(StockAlertType tab) {
     return Container(
-      color: const Color(0xFFF9FAFB),
+      color: const Color(0xFFFAFBF9),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
+        horizontal: 24,
+        vertical: 14,
       ),
       child: Row(
         children: [
           const Expanded(flex: 3, child: _ColText('MEDICINE')),
-          const SizedBox(width: 80, child: _ColText('STOCK')),
-          const SizedBox(width: 70, child: _ColText('HELD')),
+          const SizedBox(width: 90, child: _ColText('STOCK')),
+          const SizedBox(width: 80, child: _ColText('HELD')),
           Expanded(
             flex: 2,
             child: _ColText(switch (tab) {
@@ -519,18 +585,22 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
               StockAlertType.notUpdated => 'LAST UPDATED',
             }),
           ),
-          const SizedBox(width: 140, child: _ColText('LAST UPDATED')),
-          const SizedBox(width: 130, child: _ColText('ACTION')),
+          const SizedBox(width: 150, child: _ColText('LAST UPDATED')),
+          const SizedBox(width: 140, child: _ColText('ACTION')),
         ],
       ),
     );
   }
 
-  Widget _buildRow(BuildContext context, StockAlertItem item, StockAlertType tab) {
+  Widget _buildRow(
+    BuildContext context,
+    StockAlertItem item,
+    StockAlertType tab,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
+        horizontal: 24,
+        vertical: 18,
       ),
       child: Row(
         children: [
@@ -541,34 +611,41 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
               children: [
                 Text(
                   item.medicineDisplayName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1A2E22),
                   ),
                 ),
+                const SizedBox(height: 3),
                 Text(
                   item.genericName,
                   style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
                   ),
                 ),
               ],
             ),
           ),
           SizedBox(
-            width: 80,
+            width: 90,
             child: Text(
               '${item.stockQuantity}',
-              style: const TextStyle(fontSize: 13, color: AppColors.text),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF1A2E22),
+              ),
             ),
           ),
           SizedBox(
-            width: 70,
+            width: 80,
             child: Text(
               '${item.heldQuantity}',
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+              ),
             ),
           ),
           Expanded(
@@ -576,15 +653,21 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
             child: _buildConditionCell(item, tab),
           ),
           SizedBox(
-            width: 140,
+            width: 150,
             child: Text(
-              _formatDate(item.stockConfirmedAt),
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              _formatUpdated(item.stockConfirmedAt),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+              ),
             ),
           ),
           SizedBox(
-            width: 130,
-            child: _buildActionButton(context, item, tab),
+            width: 140,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildActionButton(context, item, tab),
+            ),
           ),
         ],
       ),
@@ -597,17 +680,15 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
         return Text(
           '${item.availableStock} available · level ${item.lowStockThreshold}',
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.warning,
+            fontSize: 13,
+            color: Color(0xFFB45309),
           ),
         );
       case StockAlertType.outOfStock:
         return Text(
           item.outOfStock ? 'Switch is on' : 'Stock is 0',
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontSize: 13,
             color: AppColors.danger,
           ),
         );
@@ -616,63 +697,100 @@ class _StockAlertsScreenState extends ConsumerState<StockAlertsScreen> {
             ? item.nearestExpiry!.difference(DateTime.now()).inDays
             : 0;
         return Text(
-          '${_formatDate(item.nearestExpiry)} ($days days)',
+          '${_formatExpiryDate(item.nearestExpiry)} ($days days)',
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.warning,
+            fontSize: 13,
+            color: Color(0xFFB45309),
           ),
         );
       case StockAlertType.notUpdated:
         return Text(
-          'Unconfirmed (${_formatDate(item.stockConfirmedAt)})',
+          'Unconfirmed (${_formatUpdated(item.stockConfirmedAt)})',
           style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textMuted,
+            fontSize: 13,
+            color: Color(0xFF6B7280),
           ),
         );
     }
   }
 
-  Widget _buildActionButton(BuildContext context, StockAlertItem item, StockAlertType tab) {
-    switch (tab) {
-      case StockAlertType.lowStock:
-      case StockAlertType.notUpdated:
-        return OutlinedButton(
-          onPressed: () => _handleEditStock(item),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            minimumSize: const Size(0, 32),
-            foregroundColor: AppColors.primary,
+  Widget _buildActionButton(
+    BuildContext context,
+    StockAlertItem item,
+    StockAlertType tab,
+  ) {
+    final (String label, VoidCallback onPressed) = switch (tab) {
+      StockAlertType.lowStock || StockAlertType.notUpdated => (
+          'Edit stock',
+          () => _handleEditStock(item),
+        ),
+      StockAlertType.outOfStock => (
+          'Back in stock',
+          () => _handleBackInStock(item),
+        ),
+      StockAlertType.expiringSoon => (
+          'Open in Inventory',
+          _handleOpenInventory,
+        ),
+    };
+
+    return SizedBox(
+      height: 36,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          foregroundColor: const Color(0xFF2E6B46),
+          backgroundColor: Colors.white,
+          side: const BorderSide(
+            color: Color(0xFF2E6B46),
+            width: 1.2,
           ),
-          child: const Text('Edit stock', style: TextStyle(fontSize: 12)),
-        );
-      case StockAlertType.outOfStock:
-        return OutlinedButton(
-          onPressed: () => _handleBackInStock(item),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            minimumSize: const Size(0, 32),
-            foregroundColor: AppColors.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: const Text('Back in stock', style: TextStyle(fontSize: 12)),
-        );
-      case StockAlertType.expiringSoon:
-        return OutlinedButton(
-          onPressed: _handleOpenInventory,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            minimumSize: const Size(0, 32),
-            foregroundColor: AppColors.primary,
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF2E6B46),
           ),
-          child: const Text('Open in Inventory', style: TextStyle(fontSize: 12)),
-        );
-    }
+        ),
+      ),
+    );
   }
 
-  String _formatDate(DateTime? dt) {
+  String _formatUpdated(DateTime? dt) {
     if (dt == null) return '—';
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    if (sameDay) {
+      return 'Today, ${DateFormat('h:mm a').format(local)}';
+    }
+    return DateFormat('MMM d, h:mm a').format(local);
+  }
+
+  String _formatExpiryDate(DateTime? dt) {
+    if (dt == null) return '—';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 }
@@ -685,10 +803,11 @@ class _ColText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 11,
+      style: GoogleFonts.inter(
+        fontSize: 11.5,
         fontWeight: FontWeight.w700,
-        color: AppColors.textMuted,
+        fontStyle: FontStyle.normal,
+        color: const Color(0xFF6B7280),
         letterSpacing: 0.5,
       ),
     );
@@ -701,6 +820,8 @@ class _AlertCategoryCard extends StatelessWidget {
     required this.count,
     required this.subtitle,
     required this.isSelected,
+    required this.badgeBg,
+    required this.badgeFg,
     required this.onTap,
   });
 
@@ -708,22 +829,34 @@ class _AlertCategoryCard extends StatelessWidget {
   final int count;
   final String subtitle;
   final bool isSelected;
+  final Color badgeBg;
+  final Color badgeFg;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        constraints: const BoxConstraints(minHeight: 112),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 2 : 1,
+            color: isSelected
+                ? const Color(0xFF2E6B46)
+                : const Color(0xFFD8E8DE),
+            width: isSelected ? 2 : 1.5,
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A1A2E22),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,36 +866,43 @@ class _AlertCategoryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? AppColors.primary : AppColors.text,
+                      fontStyle: FontStyle.normal,
+                      color: const Color(0xFF1A2E22),
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primaryLight : const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(12),
+                    color: badgeBg,
+                    shape: BoxShape.circle,
                   ),
                   child: Text(
                     '$count',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? AppColors.primary : AppColors.textMuted,
+                      fontStyle: FontStyle.normal,
+                      color: badgeFg,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textMuted,
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w400,
+                fontStyle: FontStyle.normal,
+                height: 1.4,
+                color: const Color(0xFF6B7280),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

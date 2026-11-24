@@ -41,6 +41,7 @@ class _PharmacyShellScreenState extends ConsumerState<PharmacyShellScreen> {
     if (matchedLocation.startsWith('/inventory')) return 'inventory';
     if (matchedLocation.startsWith('/stock-alerts')) return 'stock_alerts';
     if (matchedLocation.startsWith('/employees')) return 'employees';
+    if (matchedLocation.startsWith('/notifications')) return 'notifications';
     if (matchedLocation.startsWith('/profile')) return 'profile';
     if (matchedLocation.startsWith('/settings')) return 'settings';
     return 'dashboard';
@@ -53,6 +54,7 @@ class _PharmacyShellScreenState extends ConsumerState<PharmacyShellScreen> {
       'inventory' => '/inventory',
       'stock_alerts' => '/stock-alerts',
       'employees' => '/employees',
+      'notifications' => '/notifications',
       _ => '/dashboard',
     };
 
@@ -98,7 +100,7 @@ class _PharmacyShellScreenState extends ConsumerState<PharmacyShellScreen> {
       stockAlertsCount: stockAlertCount,
       selectedNavigationId: selected,
       onNavigationSelected: (id) => _go(context, id),
-      onNotificationsTap: () => context.push('/notifications'),
+      onNotificationsTap: () => context.go('/notifications'),
       onProfileTap: () => context.go('/profile'),
       onSettingsTap: () => context.go('/settings'),
       onLogoutTap: () async {

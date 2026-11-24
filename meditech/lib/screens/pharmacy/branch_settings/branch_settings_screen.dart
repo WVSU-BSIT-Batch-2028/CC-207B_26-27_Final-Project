@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../models/branch_settings.dart';
 import '../../../providers/branch_settings_providers.dart';
-import '../../../utils/app_failure.dart';
-import '../../../utils/pick_profile_image.dart';
 import '../../../providers/pharmacy_staff_providers.dart';
 import '../../../providers/session_providers.dart';
+import '../../../utils/app_failure.dart';
+import '../../../utils/pick_profile_image.dart';
 import '../../../widgets/common/async_view.dart';
-import '../../../widgets/pharmacy/pharmacy_user_profile_card.dart';
+import '../../../widgets/pharmacy/pharmacy_user_profile_card.dart' show PharmacySettingsSectionCard;
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
 
@@ -19,7 +20,8 @@ class BranchSettingsScreen extends ConsumerStatefulWidget {
   const BranchSettingsScreen({super.key});
 
   @override
-  ConsumerState<BranchSettingsScreen> createState() => _BranchSettingsScreenState();
+  ConsumerState<BranchSettingsScreen> createState() =>
+      _BranchSettingsScreenState();
 }
 
 class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
@@ -72,14 +74,20 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Storefront photo updated. Customers will see it on your branch page.')),
+        const SnackBar(
+          content: Text(
+            'Storefront photo updated. Customers will see it on your branch page.',
+          ),
+        ),
       );
     } on AppFailure catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) setState(() => _storefrontUploading = false);
     }
@@ -117,10 +125,15 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     }
   }
 
+  String _formatDateSlash(DateTime dt) {
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    return '$m/$d/${dt.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(branchSettingsProvider);
-    final profile = ref.watch(pharmacyStaffProfileProvider).asData?.value;
     final account = ref.watch(sessionProvider);
     final isOwner = account?.role == 'owner';
     final canEditPrc =
@@ -140,112 +153,113 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
+            child: SizedBox(
+              width: double.infinity,
+              child: SizedBox(
+                width: double.infinity,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xl,
-                        vertical: AppSpacing.lg,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Settings',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Branch address, contact, hours, and pharmacist license on file.',
-                            style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                          ),
-                        ],
+                    // Header Title (matching wireframe: "Branch settings", no white box)
+                    Text(
+                      'Branch settings',
+                      style: GoogleFonts.inter(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        fontStyle: FontStyle.normal,
+                        color: const Color(0xFF1A2E22),
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: 20),
 
-                    if (profile != null) ...[
-                      PharmacyUserProfileCard(
-                        profile: profile,
-                        onChangePassword: () {
-                          if (GoRouter.maybeOf(context) != null) {
-                            context.push('/change-password');
-                          }
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                    ],
-
+                    // Storefront photo card (owner feature retained)
                     if (isOwner) ...[
                       PharmacySettingsSectionCard(
                         title: 'Storefront photo',
                         children: [
                           const Text(
                             'Shown at the top of your branch page in the patient app.',
-                            style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
                           ),
-                          const SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: 14),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: FilledButton.icon(
-                              onPressed: _storefrontUploading ? null : _uploadStorefront,
-                              icon: _storefrontUploading
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.photo_camera_outlined, size: 18),
-                              label: const Text('Upload storefront photo'),
+                            child: SizedBox(
+                              height: 52,
+                              child: ElevatedButton.icon(
+                                onPressed: _storefrontUploading
+                                    ? null
+                                    : _uploadStorefront,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E6B46),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                icon: _storefrontUploading
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.photo_camera_outlined,
+                                        size: 18,
+                                      ),
+                                label: Text(
+                                  'Upload storefront photo',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: 18),
                     ],
 
+                    // Main Branch Details Card (matching wireframe layout)
                     PharmacySettingsSectionCard(
-                      title: 'Branch Details',
                       children: [
                         Row(
                           children: [
                             Expanded(
-                              child: _buildTextField(
+                              child: _buildReadOnlyField(
                                 label: 'Pharmacy name',
-                                initialValue: settings.pharmacyName,
-                                enabled: false,
+                                value: settings.pharmacyName,
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.md),
+                            const SizedBox(width: 16),
                             Expanded(
-                              child: _buildTextField(
+                              child: _buildReadOnlyField(
                                 label: 'Branch name',
-                                initialValue: settings.branchName,
-                                enabled: false,
+                                value: settings.branchName,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: 16),
                         _buildEditableField(
                           label: 'Address',
                           controller: _addressController,
                           enabled: isOwner,
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
@@ -255,7 +269,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                                 enabled: isOwner,
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.md),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: _buildEditableField(
                                 label: 'Operating hours',
@@ -265,43 +279,59 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: 18),
 
-                        // Map location indicator
+                        // Map pin area matching wireframe
                         Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
+                          height: 140,
+                          width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF9FAFB),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
+                            color: const Color(0xFFE9EFEA),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFFD8E8DE),
+                              width: 1.2,
+                            ),
                           ),
-                          child: const Row(
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.location_on_outlined, size: 20, color: AppColors.primary),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Map pin used for patient directions',
-                                  style: TextStyle(fontSize: 13, color: AppColors.text),
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 18,
+                                color: Color(0xFF4B5563),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Map pin used for patient directions (drag to adjust)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF4B5563),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: 14),
 
                         // FDA LTO Note
                         Text(
-                          'FDA License to Operate: ${settings.fdaLto} · verified by Administrator',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          'FDA License to Operate: ${settings.fdaLto} · verified by the Administrator',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF6B7280),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: 18),
 
-                    // Owner PRC License Card
+                    // Your PRC license Card (matching wireframe layout with Save changes inside)
                     PharmacySettingsSectionCard(
-                      title: 'PRC license (pharmacists & owner-pharmacists)',
+                      title:
+                          'Your PRC license (only if you are also a licensed pharmacist)',
                       children: [
                         Row(
                           children: [
@@ -313,21 +343,23 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                                 hintText: '7 digits',
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.md),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'License expiry',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textMuted,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: FontStyle.normal,
+                                      color: const Color(0xFF1A2E22),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   InkWell(
+                                    borderRadius: BorderRadius.circular(10),
                                     onTap: !canEditPrc
                                         ? null
                                         : () async {
@@ -336,29 +368,54 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                                               context: context,
                                               initialDate: _prcExpiry ?? now,
                                               firstDate: now,
-                                              lastDate: now.add(const Duration(days: 365 * 10)),
+                                              lastDate: now.add(
+                                                const Duration(days: 365 * 10),
+                                              ),
                                             );
                                             if (picked != null) {
-                                              setState(() => _prcExpiry = picked);
+                                              setState(
+                                                () => _prcExpiry = picked,
+                                              );
                                             }
                                           },
                                     child: Container(
-                                      height: 40,
-                                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                                      height: 52,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: canEditPrc ? Colors.white : const Color(0xFFF3F4F6),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: AppColors.border),
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: const Color(0xFFD8E8DE),
+                                          width: 1.2,
+                                        ),
                                       ),
                                       alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        _prcExpiry != null
-                                            ? '${_prcExpiry!.month}/${_prcExpiry!.day}/${_prcExpiry!.year}'
-                                            : 'mm/dd/yyyy',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: _prcExpiry != null ? AppColors.text : AppColors.textMuted,
-                                        ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              _prcExpiry != null
+                                                  ? _formatDateSlash(
+                                                      _prcExpiry!,
+                                                    )
+                                                  : 'mm/dd/yyyy',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 14.5,
+                                                color: _prcExpiry != null
+                                                    ? const Color(0xFF1A2E22)
+                                                    : const Color(0xFF9CA3AF),
+                                              ),
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.calendar_today_outlined,
+                                            size: 18,
+                                            color: Color(0xFF4B5563),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -367,28 +424,49 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                             ),
                           ],
                         ),
+                        if (showSave) ...[
+                          const SizedBox(height: 18),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed:
+                                    _isSaving ? null : () => _save(settings),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E6B46),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Save changes',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    if (showSave)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton(
-                          onPressed: _isSaving ? null : () => _save(settings),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Save changes'),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -399,31 +477,41 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildReadOnlyField({
     required String label,
-    required String initialValue,
-    required bool enabled,
+    required String value,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            fontStyle: FontStyle.normal,
+            color: const Color(0xFF1A2E22),
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppColors.border),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFFD8E8DE),
+              width: 1.2,
+            ),
           ),
           alignment: Alignment.centerLeft,
           child: Text(
-            initialValue,
-            style: const TextStyle(fontSize: 13, color: AppColors.text),
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 14.5,
+              color: const Color(0xFF1A2E22),
+            ),
           ),
         ),
       ],
@@ -441,23 +529,64 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            fontStyle: FontStyle.normal,
+            color: const Color(0xFF1A2E22),
+          ),
         ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          enabled: enabled,
-          style: const TextStyle(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hintText,
-            filled: !enabled,
-            fillColor: enabled ? Colors.white : const Color(0xFFF3F4F6),
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: const BorderSide(color: AppColors.border),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 52,
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            style: GoogleFonts.inter(
+              fontSize: 14.5,
+              color: const Color(0xFF1A2E22),
             ),
-            isDense: true,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: GoogleFonts.inter(
+                fontSize: 14.5,
+                color: const Color(0xFF9CA3AF),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14.5,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD8E8DE),
+                  width: 1.2,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD8E8DE),
+                  width: 1.2,
+                ),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD8E8DE),
+                  width: 1.2,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFF2E6B46),
+                  width: 1.5,
+                ),
+              ),
+            ),
           ),
         ),
       ],

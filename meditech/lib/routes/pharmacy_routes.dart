@@ -75,6 +75,10 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
             path: '/employees',
             builder: (context, state) => const EmployeesScreen(),
           ),
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationListScreen(embedded: true),
+          ),
         ],
       ),
       GoRoute(
@@ -99,10 +103,6 @@ final pharmacyRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/change-password',
         builder: (context, state) => const ChangePasswordScreen(),
-      ),
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const NotificationListScreen(),
       ),
       GoRoute(
         path: '/activity-log',
