@@ -4,11 +4,9 @@ import '../utils/app_feedback.dart';
 import '../widgets/feedback_banner.dart';
 import '../foodwise_theme.dart';
 import '../services/auth_service.dart';
-
-import 'auth/welcome_screen.dart';
-
 import 'profile_settings_screen.dart';
 import 'dietary_settings_screen.dart';
+import 'auth/welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Future<Map<String, dynamic>?> profileFuture;
@@ -48,8 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
+              backgroundColor: FoodWiseColors.error,
+              foregroundColor: FoodWiseColors.surface,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Sign out'),
@@ -94,18 +92,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Text(
             'Profile',
             style: TextStyle(
-              fontSize: 27,
+              fontSize: FoodWiseTypeSize.pageTitle,
               color: FoodWiseColors.charcoal,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: FoodWiseSpacing.lg),
           FutureBuilder<Map<String, dynamic>?>(
             future: widget.profileFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
-                  padding: EdgeInsets.all(32),
+                  padding: EdgeInsets.all(FoodWiseSpacing.section),
                   child: Center(
                     child: CircularProgressIndicator(
                       color: FoodWiseColors.orange,
@@ -136,8 +134,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
+                  color: FoodWiseColors.surface,
+                  borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
                   border: Border.all(color: FoodWiseColors.border),
                 ),
                 child: Column(
@@ -160,7 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       name.isEmpty ? 'Student' : name,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: FoodWiseTypeSize.profileTitle,
                         fontWeight: FontWeight.w900,
                         color: FoodWiseColors.charcoal,
                       ),
@@ -169,17 +167,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       role.isEmpty ? 'STUDENT' : role.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: FoodWiseTypeSize.caption,
                         fontWeight: FontWeight.w700,
                         color: FoodWiseColors.muted,
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _signingOut
+                          ? null
+                          : () => _openSettings(const ProfileSettingsScreen()),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit profile'),
                     ),
                   ],
                 ),
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: FoodWiseSpacing.xxl),
           _heading('Account'),
           _tile(
             icon: Icons.manage_accounts_outlined,
@@ -187,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Manage your personal and account information',
             onTap: () => _openSettings(const ProfileSettingsScreen()),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: FoodWiseSpacing.xl),
           _heading('Personalization'),
           _tile(
             icon: Icons.restaurant_menu_rounded,
@@ -195,12 +201,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Manage your food preferences',
             onTap: () => _openSettings(const DietarySettingsScreen()),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: FoodWiseSpacing.xxl),
           _heading('Session'),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red.shade700,
-              side: BorderSide(color: Colors.red.shade300),
+              foregroundColor: FoodWiseColors.error,
+              side: BorderSide(color: FoodWiseColors.errorBorder),
               minimumSize: const Size.fromHeight(52),
             ),
             onPressed: _signingOut ? null : _confirmLogout,
@@ -231,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     child: Text(
       title,
       style: const TextStyle(
-        fontSize: 15,
+        fontSize: FoodWiseTypeSize.button,
         color: FoodWiseColors.charcoal,
         fontWeight: FontWeight.w800,
       ),
@@ -243,9 +249,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) => Material(
-    color: Colors.white,
+    color: FoodWiseColors.surface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(FoodWiseRadius.control),
       side: const BorderSide(color: FoodWiseColors.border),
     ),
     child: ListTile(

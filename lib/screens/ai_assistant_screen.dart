@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../foodwise_theme.dart';
 import '../utils/app_feedback.dart';
 import '../widgets/feedback_banner.dart';
 
@@ -27,16 +28,8 @@ class AiAssistantScreen extends StatefulWidget {
 }
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
-  // Match FoodWiseColors for custom surfaces and const widgets.
+  // Custom surfaces and text use the shared FoodWise theme.
   // Standard Material widgets inherit FoodWiseTheme.light from MaterialApp.
-  static const _primary = Color(0xFFE96B10);
-  static const _charcoal = Color(0xFF30251F);
-  static const _background = Color(0xFFFFF8F1);
-  static const _surface = Color(0xFFFFFFFF);
-  static const _lightOrange = Color(0xFFFFE7D1);
-  static const _paleOrange = Color(0xFFFFF1E5);
-  static const _muted = Color(0xFF88786E);
-  static const _border = Color(0xFFF0DFD2);
 
   final _text = TextEditingController();
   final _ai = FoodWiseAiService();
@@ -86,14 +79,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, updateDialog) => AlertDialog(
-          backgroundColor: _surface,
-          surfaceTintColor: Colors.transparent,
+          backgroundColor: FoodWiseColors.surface,
+          surfaceTintColor: FoodWiseColors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
           ),
           title: const Text(
             'My dietary preferences',
-            style: TextStyle(color: _charcoal, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: FoodWiseColors.charcoal,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           content: SizedBox(
             width: 460,
@@ -104,9 +100,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 children: [
                   const Text(
                     'Choose only preferences and restrictions you want FoodWise to remember. You can change them anytime.',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: FoodWiseTypeSize.supporting),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: FoodWiseSpacing.md),
                   for (final section in [
                     (
                       'Foods I like',
@@ -145,15 +141,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                           FilterChip(
                             label: Text(_friendly(label)),
                             selected: editing.contains(label),
-                            selectedColor: _lightOrange,
-                            backgroundColor: _paleOrange,
-                            checkmarkColor: _primary,
+                            selectedColor: FoodWiseColors.lightOrange,
+                            backgroundColor: FoodWiseColors.paleOrange,
+                            checkmarkColor: FoodWiseColors.deepOrange,
                             side: BorderSide(
                               color: editing.contains(label)
-                                  ? _primary
-                                  : _border,
+                                  ? FoodWiseColors.deepOrange
+                                  : FoodWiseColors.border,
                             ),
-                            labelStyle: const TextStyle(color: _charcoal),
+                            labelStyle: const TextStyle(
+                              color: FoodWiseColors.charcoal,
+                            ),
                             onSelected: (on) => updateDialog(() {
                               if (on) {
                                 if (label == 'diet_vegan') {
@@ -174,7 +172,10 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   ],
                   const Text(
                     'This is self-reported information, not a medical diagnosis. FoodWise never guarantees that a meal is allergy-safe; verify ingredients and cross-contact with the seller.',
-                    style: TextStyle(color: _primary, fontSize: 12),
+                    style: TextStyle(
+                      color: FoodWiseColors.deepOrange,
+                      fontSize: FoodWiseTypeSize.caption,
+                    ),
                   ),
                 ],
               ),
@@ -359,11 +360,11 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Widget _panel({required Widget child}) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(FoodWiseSpacing.xl),
     decoration: BoxDecoration(
-      color: _surface,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: _border),
+      color: FoodWiseColors.surface,
+      borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
+      border: Border.all(color: FoodWiseColors.border),
     ),
     child: child,
   );
@@ -371,15 +372,22 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Widget _pill(String label, {Color? color}) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: BoxDecoration(
-      color: color == null ? _paleOrange : color.withValues(alpha: .10),
-      borderRadius: BorderRadius.circular(30),
+      color: color == null
+          ? FoodWiseColors.paleOrange
+          : color.withValues(alpha: .10),
+      borderRadius: BorderRadius.circular(FoodWiseRadius.pill),
       border: Border.all(
-        color: color == null ? _border : color.withValues(alpha: .28),
+        color: color == null
+            ? FoodWiseColors.border
+            : color.withValues(alpha: .28),
       ),
     ),
     child: Text(
       label.replaceAll('_', ' '),
-      style: const TextStyle(fontSize: 12, color: _charcoal),
+      style: const TextStyle(
+        fontSize: FoodWiseTypeSize.caption,
+        color: FoodWiseColors.charcoal,
+      ),
     ),
   );
 
@@ -394,17 +402,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             height: 92,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: _lightOrange,
-              borderRadius: BorderRadius.circular(16),
+              color: FoodWiseColors.lightOrange,
+              borderRadius: BorderRadius.circular(FoodWiseRadius.control),
             ),
             child: meal.imageUrl != null
                 ? Image.network(
                     meal.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.restaurant, size: 35, color: _primary),
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.restaurant,
+                      size: 35,
+                      color: FoodWiseColors.deepOrange,
+                    ),
                   )
-                : const Icon(Icons.restaurant, size: 35, color: _primary),
+                : const Icon(
+                    Icons.restaurant,
+                    size: 35,
+                    color: FoodWiseColors.deepOrange,
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -414,69 +429,87 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 Text(
                   meal.name,
                   style: const TextStyle(
-                    fontSize: 17,
+                    fontSize: FoodWiseTypeSize.cardTitle,
                     fontWeight: FontWeight.bold,
-                    color: _charcoal,
+                    color: FoodWiseColors.charcoal,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: FoodWiseSpacing.xs),
                 Text(
                   '${meal.business} · ${meal.category}',
-                  style: const TextStyle(fontSize: 12, color: _muted),
+                  style: const TextStyle(
+                    fontSize: FoodWiseTypeSize.caption,
+                    color: FoodWiseColors.muted,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: FoodWiseSpacing.sm),
                 Text(
                   '₱${meal.price.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 17,
-                    color: _primary,
+                    fontSize: FoodWiseTypeSize.cardTitle,
+                    color: FoodWiseColors.deepOrange,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 if (meal.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: FoodWiseSpacing.sm),
                   Text(
                     meal.description,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: _charcoal),
+                    style: const TextStyle(
+                      fontSize: FoodWiseTypeSize.supporting,
+                      color: FoodWiseColors.charcoal,
+                    ),
                   ),
                 ],
                 if (item.reasons.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: FoodWiseSpacing.sm),
                   Text(
                     item.reasons.take(2).join(' · '),
-                    style: const TextStyle(color: _charcoal, fontSize: 12),
+                    style: const TextStyle(
+                      color: FoodWiseColors.charcoal,
+                      fontSize: FoodWiseTypeSize.caption,
+                    ),
                   ),
                 ],
                 if (meal.ingredients.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: FoodWiseSpacing.sm),
                   Text(
                     'Ingredients (seller-reported): ${meal.ingredients}',
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: _charcoal),
+                    style: const TextStyle(
+                      fontSize: FoodWiseTypeSize.caption,
+                      color: FoodWiseColors.charcoal,
+                    ),
                   ),
                 ],
                 if (meal.containsAllergens.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Contains (seller-reported): ${meal.containsAllergens.join(', ')}',
-                    style: const TextStyle(fontSize: 12, color: _primary),
+                    style: const TextStyle(
+                      fontSize: FoodWiseTypeSize.caption,
+                      color: FoodWiseColors.deepOrange,
+                    ),
                   ),
                 ],
                 if (meal.mayContainAllergens.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     'May contain: ${meal.mayContainAllergens.join(', ')}',
-                    style: const TextStyle(fontSize: 12, color: _primary),
+                    style: const TextStyle(
+                      fontSize: FoodWiseTypeSize.caption,
+                      color: FoodWiseColors.deepOrange,
+                    ),
                   ),
                 ],
                 if (meal.allergenNotes.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     meal.allergenNotes,
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: FoodWiseTypeSize.caption),
                   ),
                 ],
                 if (item.needsIngredientVerification) ...[
@@ -484,12 +517,19 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 16, color: _primary),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: FoodWiseColors.deepOrange,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           item.verificationMessage,
-                          style: const TextStyle(fontSize: 12, color: _primary),
+                          style: const TextStyle(
+                            fontSize: FoodWiseTypeSize.caption,
+                            color: FoodWiseColors.deepOrange,
+                          ),
                         ),
                       ),
                     ],
@@ -510,25 +550,29 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [_lightOrange, _paleOrange],
+        colors: [FoodWiseColors.lightOrange, FoodWiseColors.paleOrange],
       ),
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: _border),
+      borderRadius: BorderRadius.circular(FoodWiseRadius.dialog),
+      border: Border.all(color: FoodWiseColors.border),
     ),
     child: const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
           radius: 25,
-          backgroundColor: _surface,
-          child: Icon(Icons.auto_awesome_rounded, color: _primary, size: 26),
+          backgroundColor: FoodWiseColors.surface,
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            color: FoodWiseColors.deepOrange,
+            size: 26,
+          ),
         ),
         SizedBox(height: 14),
         Text(
           'FOODWISE AI',
           style: TextStyle(
-            color: _charcoal,
-            fontSize: 11,
+            color: FoodWiseColors.charcoal,
+            fontSize: FoodWiseTypeSize.overline,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.5,
           ),
@@ -537,16 +581,20 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         Text(
           'What sounds good today?',
           style: TextStyle(
-            fontSize: 27,
-            color: _charcoal,
+            fontSize: FoodWiseTypeSize.pageTitle,
+            color: FoodWiseColors.charcoal,
             fontWeight: FontWeight.w800,
             height: 1.15,
           ),
         ),
-        SizedBox(height: 8),
+        SizedBox(height: FoodWiseSpacing.sm),
         Text(
           'Tell FoodWise what you want in English, Filipino, or Taglish. We’ll search real published menu listings.',
-          style: TextStyle(color: _charcoal, fontSize: 13, height: 1.5),
+          style: TextStyle(
+            color: FoodWiseColors.charcoal,
+            fontSize: FoodWiseTypeSize.supporting,
+            height: 1.5,
+          ),
         ),
       ],
     ),
@@ -582,14 +630,18 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.tune_rounded, color: _primary, size: 22),
+                      const Icon(
+                        Icons.tune_rounded,
+                        color: FoodWiseColors.deepOrange,
+                        size: 22,
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
                           'My saved dietary preferences',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: _charcoal,
+                            color: FoodWiseColors.charcoal,
                           ),
                         ),
                       ),
@@ -605,7 +657,10 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   if (_saved.labels.isEmpty)
                     const Text(
                       'Nothing saved yet. Choose foods you like and any restrictions to reuse them for future searches.',
-                      style: TextStyle(fontSize: 12, color: _muted),
+                      style: TextStyle(
+                        fontSize: FoodWiseTypeSize.caption,
+                        color: FoodWiseColors.muted,
+                      ),
                     )
                   else
                     Wrap(
@@ -617,10 +672,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       ],
                     ),
                   if (_saved.restrictions.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: FoodWiseSpacing.sm),
                     const Text(
                       'Saved restrictions are always applied to your searches. Food listings remain seller-reported and require verification.',
-                      style: TextStyle(color: _primary, fontSize: 12),
+                      style: TextStyle(
+                        color: FoodWiseColors.deepOrange,
+                        fontSize: FoodWiseTypeSize.caption,
+                      ),
                     ),
                   ],
                 ],
@@ -634,29 +692,29 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   const Text(
                     'Find your next meal',
                     style: TextStyle(
-                      color: _charcoal,
-                      fontSize: 18,
+                      color: FoodWiseColors.charcoal,
+                      fontSize: FoodWiseTypeSize.subtitle,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: FoodWiseSpacing.md),
                   TextField(
                     controller: _text,
                     maxLines: 3,
                     minLines: 2,
                     textInputAction: TextInputAction.done,
-                    style: const TextStyle(color: _charcoal),
+                    style: const TextStyle(color: FoodWiseColors.charcoal),
                     decoration: const InputDecoration(
                       hintText: 'e.g. Gusto ko ng chicken and rice for lunch, under ₱150',
-                      fillColor: _background,
+                      fillColor: FoodWiseColors.background,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: FoodWiseSpacing.md),
                   const Text(
                     'Try asking',
                     style: TextStyle(
-                      color: _muted,
-                      fontSize: 12,
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.caption,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -671,21 +729,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         'Vegetarian dinner please',
                       ])
                         ActionChip(
-                          backgroundColor: _paleOrange,
-                          side: const BorderSide(color: _border),
+                          backgroundColor: FoodWiseColors.paleOrange,
+                          side: const BorderSide(color: FoodWiseColors.border),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              FoodWiseRadius.compact,
+                            ),
                           ),
                           avatar: const Icon(
                             Icons.auto_awesome_rounded,
                             size: 15,
-                            color: _primary,
+                            color: FoodWiseColors.deepOrange,
                           ),
                           label: Text(
                             sample,
                             style: const TextStyle(
-                              fontSize: 11,
-                              color: _charcoal,
+                              fontSize: FoodWiseTypeSize.overline,
+                              color: FoodWiseColors.charcoal,
                             ),
                           ),
                           onPressed: () => setState(() => _text.text = sample),
@@ -706,12 +766,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: FoodWiseSpacing.md),
             if (_busy)
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(color: _primary),
+                  padding: EdgeInsets.all(FoodWiseSpacing.xl),
+                  child: CircularProgressIndicator(
+                    color: FoodWiseColors.deepOrange,
+                  ),
                 ),
               ),
             if (_error != null) ...[
@@ -724,19 +786,22 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 ),
                 onAction: _initialize,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: FoodWiseSpacing.md),
             ],
             if (_requestFeedback != null) ...[
               FeedbackBanner(
                 feedback: _requestFeedback!,
                 onDismiss: () => setState(() => _requestFeedback = null),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: FoodWiseSpacing.md),
             ],
             if (!_busy && _error == null)
               Text(
                 '${_meals.length} available food listings from Strapi · ${_ai.modelReady ? 'On-device AI loaded' : 'Explicit interpretation fallback'}',
-                style: const TextStyle(fontSize: 12, color: _charcoal),
+                style: const TextStyle(
+                  fontSize: FoodWiseTypeSize.caption,
+                  color: FoodWiseColors.charcoal,
+                ),
               ),
             if (result != null && !_busy && _error == null) ...[
               const SizedBox(height: 18),
@@ -747,9 +812,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                     const Text(
                       'Understood from your request',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: FoodWiseTypeSize.bodyLarge,
                         fontWeight: FontWeight.bold,
-                        color: _charcoal,
+                        color: FoodWiseColors.charcoal,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -767,26 +832,28 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       ],
                     ),
                     if (suggestions.isNotEmpty) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: FoodWiseSpacing.lg),
                       const Text(
                         'Optional AI suggestions (tap to apply)',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: FoodWiseTypeSize.supporting,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: FoodWiseSpacing.xs),
                       for (final suggestion in suggestions)
                         CheckboxListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          activeColor: _primary,
+                          activeColor: FoodWiseColors.deepOrange,
                           value: _acceptedSuggestions.contains(
                             suggestion.label,
                           ),
                           title: Text(
                             '${suggestion.label.replaceAll('_', ' ')} · ${(suggestion.score * 100).toStringAsFixed(0)}% model score',
-                            style: const TextStyle(fontSize: 13),
+                            style: const TextStyle(
+                              fontSize: FoodWiseTypeSize.supporting,
+                            ),
                           ),
                           onChanged: (checked) => setState(() {
                             if (checked == true) {
@@ -802,44 +869,54 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 ),
               ),
               if (needsVerification) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: FoodWiseSpacing.md),
                 _panel(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.shield_outlined, color: _primary),
-                          SizedBox(width: 8),
+                          Icon(
+                            Icons.shield_outlined,
+                            color: FoodWiseColors.deepOrange,
+                          ),
+                          SizedBox(width: FoodWiseSpacing.sm),
                           Expanded(
                             child: Text(
                               'Dietary requirements need verification',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: _charcoal,
+                                color: FoodWiseColors.charcoal,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: FoodWiseSpacing.sm),
                       Text(
                         'In this request: ${[...restrictions, if (hasDietaryPattern) ...result.detectedLabels.where((x) => x.startsWith('diet_'))].join(', ')}\nSaved requirements: ${_saved.restrictions.map(_friendly).join(', ')}',
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(
+                          fontSize: FoodWiseTypeSize.caption,
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: FoodWiseSpacing.sm),
                       const Text(
                         'Ingredient and allergen information is supplied by businesses and may be incomplete. These are menu options to verify, NOT confirmed allergy-safe foods. Ask the seller about ingredients and cross-contact.',
-                        style: TextStyle(fontSize: 12, color: _primary),
+                        style: TextStyle(
+                          fontSize: FoodWiseTypeSize.caption,
+                          color: FoodWiseColors.deepOrange,
+                        ),
                       ),
                       if (restrictions.isNotEmpty || hasDietaryPattern)
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
-                          activeColor: _primary,
+                          activeColor: FoodWiseColors.deepOrange,
                           value: _restrictionsConfirmed,
                           title: const Text(
                             'The restrictions stated in this request are correct',
-                            style: TextStyle(fontSize: 12),
+                            style: TextStyle(
+                              fontSize: FoodWiseTypeSize.caption,
+                            ),
                           ),
                           onChanged: (checked) => setState(() {
                             _restrictionsConfirmed = checked ?? false;
@@ -850,7 +927,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: FoodWiseSpacing.xl),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -860,16 +937,19 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                           ? 'Menu options to verify'
                           : 'Matching meals',
                       style: const TextStyle(
-                        fontSize: 21,
+                        fontSize: FoodWiseTypeSize.sectionLarge,
                         fontWeight: FontWeight.w800,
-                        color: _charcoal,
+                        color: FoodWiseColors.charcoal,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     '${_matches.length} results',
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                    style: const TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.caption,
+                    ),
                   ),
                 ],
               ),
@@ -889,10 +969,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               if (_matches.length > 30)
                 Text(
                   'Showing the top 30 of ${_matches.length} matches.',
-                  style: const TextStyle(fontSize: 12, color: _muted),
+                  style: const TextStyle(
+                    fontSize: FoodWiseTypeSize.caption,
+                    color: FoodWiseColors.muted,
+                  ),
                 ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: FoodWiseSpacing.xxl),
           ],
         ),
       ),
@@ -903,12 +986,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     }
 
     return Scaffold(
-      backgroundColor: _background,
+      backgroundColor: FoodWiseColors.background,
       appBar: AppBar(
-        backgroundColor: _background,
-        foregroundColor: _charcoal,
+        backgroundColor: FoodWiseColors.background,
+        foregroundColor: FoodWiseColors.charcoal,
         elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: FoodWiseColors.transparent,
         title: const Text(
           'AI Meal Assistant',
           style: TextStyle(fontWeight: FontWeight.bold),

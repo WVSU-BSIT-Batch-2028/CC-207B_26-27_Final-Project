@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../foodwise_theme.dart';
+
 import 'dietary_settings_screen.dart';
 import 'profile_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  static const _background = Color(0xFFFFF8F1);
-  static const _surface = Color(0xFFFFFFFF);
-  static const _primary = Color(0xFFE96B10);
-  static const _lightOrange = Color(0xFFFFE7D1);
-  static const _charcoal = Color(0xFF30251F);
-  static const _muted = Color(0xFF88786E);
-  static const _border = Color(0xFFF0DFD2);
 
   void _open(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -26,16 +20,16 @@ class SettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: _surface,
-      borderRadius: BorderRadius.circular(20),
+      color: FoodWiseColors.surface,
+      borderRadius: BorderRadius.circular(FoodWiseRadius.large),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(FoodWiseRadius.large),
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _border),
+            borderRadius: BorderRadius.circular(FoodWiseRadius.large),
+            border: Border.all(color: FoodWiseColors.border),
           ),
           child: Row(
             children: [
@@ -43,10 +37,10 @@ class SettingsScreen extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: _lightOrange,
-                  borderRadius: BorderRadius.circular(15),
+                  color: FoodWiseColors.lightOrange,
+                  borderRadius: BorderRadius.circular(FoodWiseRadius.brand),
                 ),
-                child: Icon(icon, color: _primary, size: 26),
+                child: Icon(icon, color: FoodWiseColors.deepOrange, size: 26),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -56,17 +50,17 @@ class SettingsScreen extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: _charcoal,
-                        fontSize: 16,
+                        color: FoodWiseColors.charcoal,
+                        fontSize: FoodWiseTypeSize.bodyLarge,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: FoodWiseSpacing.xs),
                     Text(
                       description,
                       style: const TextStyle(
-                        color: _muted,
-                        fontSize: 12,
+                        color: FoodWiseColors.muted,
+                        fontSize: FoodWiseTypeSize.caption,
                         height: 1.4,
                       ),
                     ),
@@ -74,16 +68,20 @@ class SettingsScreen extends StatelessWidget {
                     Text(
                       detail,
                       style: const TextStyle(
-                        color: _primary,
-                        fontSize: 11,
+                        color: FoodWiseColors.deepOrange,
+                        fontSize: FoodWiseTypeSize.overline,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, color: _muted, size: 25),
+              const SizedBox(width: FoodWiseSpacing.sm),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: FoodWiseColors.muted,
+                size: 25,
+              ),
             ],
           ),
         ),
@@ -94,11 +92,11 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _background,
+      backgroundColor: FoodWiseColors.background,
       appBar: AppBar(
-        backgroundColor: _background,
-        foregroundColor: _charcoal,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: FoodWiseColors.background,
+        foregroundColor: FoodWiseColors.charcoal,
+        surfaceTintColor: FoodWiseColors.transparent,
         title: const Text(
           'Settings',
           style: TextStyle(fontWeight: FontWeight.w800),
@@ -114,8 +112,8 @@ class SettingsScreen extends StatelessWidget {
                 const Text(
                   'Make FoodWise yours.',
                   style: TextStyle(
-                    color: _charcoal,
-                    fontSize: 28,
+                    color: FoodWiseColors.charcoal,
+                    fontSize: FoodWiseTypeSize.pageLarge,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
                   ),
@@ -123,14 +121,18 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 7),
                 const Text(
                   'Manage your account separately from the food preferences used to personalize your meal recommendations.',
-                  style: TextStyle(color: _muted, height: 1.5, fontSize: 13),
+                  style: TextStyle(
+                    color: FoodWiseColors.muted,
+                    height: 1.5,
+                    fontSize: FoodWiseTypeSize.supporting,
+                  ),
                 ),
                 const SizedBox(height: 25),
                 const Text(
                   'ACCOUNT',
                   style: TextStyle(
-                    color: _muted,
-                    fontSize: 11,
+                    color: FoodWiseColors.muted,
+                    fontSize: FoodWiseTypeSize.overline,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
                   ),
@@ -147,8 +149,8 @@ class SettingsScreen extends StatelessWidget {
                 const Text(
                   'PERSONALIZATION',
                   style: TextStyle(
-                    color: _muted,
-                    fontSize: 11,
+                    color: FoodWiseColors.muted,
+                    fontSize: FoodWiseTypeSize.overline,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
                   ),
@@ -161,20 +163,20 @@ class SettingsScreen extends StatelessWidget {
                   detail: 'Favorite foods · Eating pattern · Foods to avoid · Allergies',
                   onTap: () => _open(context, const DietarySettingsScreen()),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: FoodWiseSpacing.xxl),
                 Container(
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1E5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _border),
+                    color: FoodWiseColors.paleOrange,
+                    borderRadius: BorderRadius.circular(FoodWiseRadius.control),
+                    border: Border.all(color: FoodWiseColors.border),
                   ),
                   child: const Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.lightbulb_outline_rounded,
-                        color: _primary,
+                        color: FoodWiseColors.deepOrange,
                         size: 21,
                       ),
                       SizedBox(width: 10),
@@ -182,8 +184,8 @@ class SettingsScreen extends StatelessWidget {
                         child: Text(
                           'Your dietary settings are shared with the AI Meal Assistant. Profile information is managed separately and does not determine which meals are recommended.',
                           style: TextStyle(
-                            color: _charcoal,
-                            fontSize: 12,
+                            color: FoodWiseColors.charcoal,
+                            fontSize: FoodWiseTypeSize.caption,
                             height: 1.5,
                           ),
                         ),
@@ -196,7 +198,10 @@ class SettingsScreen extends StatelessWidget {
                   child: Text(
                     'FoodWise · Good food. Smart choices. Better days.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: _muted, fontSize: 11),
+                    style: TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.overline,
+                    ),
                   ),
                 ),
               ],

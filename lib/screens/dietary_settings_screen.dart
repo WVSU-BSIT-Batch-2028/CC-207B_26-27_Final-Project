@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../foodwise_theme.dart';
 import '../utils/app_feedback.dart';
 import '../widgets/feedback_banner.dart';
 
@@ -15,15 +16,6 @@ class DietarySettingsScreen extends StatefulWidget {
 }
 
 class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
-  static const _background = Color(0xFFFFF8F1);
-  static const _surface = Color(0xFFFFFFFF);
-  static const _primary = Color(0xFFE96B10);
-  static const _lightOrange = Color(0xFFFFE7D1);
-  static const _paleOrange = Color(0xFFFFF1E5);
-  static const _charcoal = Color(0xFF30251F);
-  static const _muted = Color(0xFF88786E);
-  static const _border = Color(0xFFF0DFD2);
-
   static const _likedFoods = <String, String>{
     'pref_chicken': 'Chicken',
     'pref_fish': 'Fish',
@@ -169,7 +161,7 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _surface,
+        backgroundColor: FoodWiseColors.surface,
         title: const Text('Discard unsaved changes?'),
         content: const Text('Your last saved dietary settings will be kept.'),
         actions: [
@@ -214,9 +206,9 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: _surface,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: _border),
+      color: FoodWiseColors.surface,
+      borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
+      border: Border.all(color: FoodWiseColors.border),
     ),
     child: child,
   );
@@ -228,12 +220,12 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: _lightOrange,
-          borderRadius: BorderRadius.circular(14),
+          color: FoodWiseColors.lightOrange,
+          borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
         ),
-        child: Icon(icon, color: _primary, size: 23),
+        child: Icon(icon, color: FoodWiseColors.deepOrange, size: 23),
       ),
-      const SizedBox(width: 12),
+      const SizedBox(width: FoodWiseSpacing.md),
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,15 +233,19 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: FoodWiseTypeSize.bodyLarge,
                 fontWeight: FontWeight.w800,
-                color: _charcoal,
+                color: FoodWiseColors.charcoal,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: FoodWiseSpacing.xs),
             Text(
               description,
-              style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
+              style: const TextStyle(
+                color: FoodWiseColors.muted,
+                fontSize: FoodWiseTypeSize.supporting,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -279,15 +275,20 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
                 onSelected: _savingPreferences
                     ? null
                     : (value) => _toggle(option.key, value),
-                selectedColor: _lightOrange,
-                backgroundColor: _paleOrange,
-                checkmarkColor: _primary,
-                labelStyle: const TextStyle(color: _charcoal, fontSize: 13),
+                selectedColor: FoodWiseColors.lightOrange,
+                backgroundColor: FoodWiseColors.paleOrange,
+                checkmarkColor: FoodWiseColors.deepOrange,
+                labelStyle: const TextStyle(
+                  color: FoodWiseColors.charcoal,
+                  fontSize: FoodWiseTypeSize.supporting,
+                ),
                 side: BorderSide(
-                  color: _editing.contains(option.key) ? _primary : _border,
+                  color: _editing.contains(option.key)
+                      ? FoodWiseColors.deepOrange
+                      : FoodWiseColors.border,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(FoodWiseRadius.compact),
                 ),
               ),
           ],
@@ -310,10 +311,13 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
-            activeColor: _primary,
+            activeColor: FoodWiseColors.deepOrange,
             title: Text(
               option.value,
-              style: const TextStyle(color: _charcoal, fontSize: 14),
+              style: const TextStyle(
+                color: FoodWiseColors.charcoal,
+                fontSize: FoodWiseTypeSize.body,
+              ),
             ),
             value: _editing.contains(option.key),
             onChanged: _savingPreferences
@@ -324,19 +328,27 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
         Container(
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            color: _paleOrange,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _border),
+            color: FoodWiseColors.paleOrange,
+            borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
+            border: Border.all(color: FoodWiseColors.border),
           ),
           child: const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.info_outline_rounded, color: _primary, size: 20),
+              Icon(
+                Icons.info_outline_rounded,
+                color: FoodWiseColors.deepOrange,
+                size: 20,
+              ),
               SizedBox(width: 9),
               Expanded(
                 child: Text(
                   'FoodWise uses self-reported settings and seller-provided menu information. It cannot guarantee that a meal is allergy-safe. Always confirm ingredients and cross-contact with the seller.',
-                  style: TextStyle(color: _charcoal, fontSize: 12, height: 1.5),
+                  style: TextStyle(
+                    color: FoodWiseColors.charcoal,
+                    fontSize: FoodWiseTypeSize.caption,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],
@@ -349,7 +361,9 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
   Widget _dietaryContent() {
     if (_loadingPreferences) {
       return _panel(
-        child: const Center(child: CircularProgressIndicator(color: _primary)),
+        child: const Center(
+          child: CircularProgressIndicator(color: FoodWiseColors.deepOrange),
+        ),
       );
     }
 
@@ -388,7 +402,7 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
             message: _dietaryFeedback!,
             kind: _dietaryFeedbackKind,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: FoodWiseSpacing.md),
         ],
         _chipSection(
           icon: Icons.favorite_border_rounded,
@@ -396,21 +410,21 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
           description: 'Choose foods you enjoy.',
           options: _likedFoods,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: FoodWiseSpacing.md),
         _chipSection(
           icon: Icons.eco_outlined,
           title: 'Eating pattern',
           description: 'Optional. Leave both unselected if neither applies.',
           options: _eatingPatterns,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: FoodWiseSpacing.md),
         _chipSection(
           icon: Icons.no_food_outlined,
           title: 'Foods to avoid',
           description: 'Select foods you prefer not to eat. Use the allergy section for known allergies.',
           options: _avoidFoods,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: FoodWiseSpacing.md),
         _allergySection(),
       ],
     );
@@ -424,11 +438,11 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
         if (!didPop && !_savingPreferences) _requestLeave();
       },
       child: Scaffold(
-        backgroundColor: _background,
+        backgroundColor: FoodWiseColors.background,
         appBar: AppBar(
-          backgroundColor: _background,
-          foregroundColor: _charcoal,
-          surfaceTintColor: Colors.transparent,
+          backgroundColor: FoodWiseColors.background,
+          foregroundColor: FoodWiseColors.charcoal,
+          surfaceTintColor: FoodWiseColors.transparent,
           title: const Text(
             'Dietary Settings',
             style: TextStyle(fontWeight: FontWeight.w800),
@@ -446,15 +460,15 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
                   const Text(
                     'Personalize your meals',
                     style: TextStyle(
-                      fontSize: 27,
-                      color: _charcoal,
+                      fontSize: FoodWiseTypeSize.pageTitle,
+                      color: FoodWiseColors.charcoal,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 6),
                   const Text(
                     'Tell FoodWise what you enjoy, what you avoid, and which allergies or restrictions the AI Meal Assistant should consider.',
-                    style: TextStyle(color: _muted, height: 1.5),
+                    style: TextStyle(color: FoodWiseColors.muted, height: 1.5),
                   ),
                   const SizedBox(height: 18),
                   _dietaryContent(),
@@ -470,8 +484,10 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
                   decoration: const BoxDecoration(
-                    color: _surface,
-                    border: Border(top: BorderSide(color: _border)),
+                    color: FoodWiseColors.surface,
+                    border: Border(
+                      top: BorderSide(color: FoodWiseColors.border),
+                    ),
                   ),
                   child: Center(
                     heightFactor: 1,
@@ -494,11 +510,13 @@ class _DietarySettingsScreenState extends State<DietarySettingsScreen> {
                               : 'Save dietary settings',
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: _primary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: FoodWiseColors.deepOrange,
+                          foregroundColor: FoodWiseColors.surface,
                           minimumSize: const Size.fromHeight(54),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(
+                              FoodWiseRadius.control,
+                            ),
                           ),
                         ),
                       ),

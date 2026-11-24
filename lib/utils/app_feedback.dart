@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../foodwise_theme.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum FeedbackType { success, info, warning, error }
@@ -19,10 +22,10 @@ class FeedbackData {
   });
 
   Color get color => switch (type) {
-    FeedbackType.success => const Color(0xFF166534),
-    FeedbackType.info => const Color(0xFF1D4ED8),
-    FeedbackType.warning => const Color(0xFF92400E),
-    FeedbackType.error => const Color(0xFFB91C1C),
+    FeedbackType.success => FoodWiseColors.success,
+    FeedbackType.info => FoodWiseColors.info,
+    FeedbackType.warning => FoodWiseColors.warning,
+    FeedbackType.error => FoodWiseColors.error,
   };
   IconData get icon => switch (type) {
     FeedbackType.success => Icons.check_circle_outline_rounded,
@@ -199,12 +202,14 @@ class AppFeedback {
         behavior: SnackBarBehavior.floating,
         backgroundColor: feedback.color,
         duration: const Duration(seconds: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
+        ),
         content: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(feedback.icon, color: Colors.white),
-            const SizedBox(width: 12),
+            Icon(feedback.icon, color: FoodWiseColors.surface),
+            const SizedBox(width: FoodWiseSpacing.md),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -213,14 +218,14 @@ class AppFeedback {
                   Text(
                     feedback.title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: FoodWiseColors.surface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     feedback.message,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: FoodWiseColors.surface),
                   ),
                 ],
               ),
@@ -230,7 +235,7 @@ class AppFeedback {
         action: feedback.actionLabel != null && onAction != null
             ? SnackBarAction(
                 label: feedback.actionLabel!,
-                textColor: Colors.white,
+                textColor: FoodWiseColors.surface,
                 onPressed: onAction,
               )
             : null,

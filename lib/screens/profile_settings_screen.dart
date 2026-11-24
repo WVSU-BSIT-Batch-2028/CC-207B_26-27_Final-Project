@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../foodwise_theme.dart';
+
 import 'package:image_picker/image_picker.dart';
 
 import '../utils/app_feedback.dart';
@@ -18,15 +21,6 @@ class ProfileSettingsScreen extends StatefulWidget {
 }
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
-  static const _background = Color(0xFFFFF8F1);
-  static const _surface = Color(0xFFFFFFFF);
-  static const _primary = Color(0xFFE96B10);
-  static const _lightOrange = Color(0xFFFFE7D1);
-  static const _paleOrange = Color(0xFFFFF1E5);
-  static const _charcoal = Color(0xFF30251F);
-  static const _muted = Color(0xFF88786E);
-  static const _border = Color(0xFFF0DFD2);
-
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
 
@@ -229,8 +223,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final shouldRemove = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: FoodWiseColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(FoodWiseRadius.large),
+        ),
         title: const Text('Remove profile photo?'),
         content: const Text(
           'Your profile will show your initials instead. You can add another photo anytime.',
@@ -242,7 +238,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: _primary),
+            style: FilledButton.styleFrom(
+              backgroundColor: FoodWiseColors.deepOrange,
+            ),
             child: const Text('Remove photo'),
           ),
         ],
@@ -287,13 +285,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       height: 104,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
-        color: _lightOrange,
+        color: FoodWiseColors.lightOrange,
         shape: BoxShape.circle,
       ),
       child: Text(
         initial,
         style: const TextStyle(
-          color: _primary,
+          color: FoodWiseColors.deepOrange,
           fontSize: 38,
           fontWeight: FontWeight.w800,
         ),
@@ -335,11 +333,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 width: 104,
                 height: 104,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.42),
+                  color: FoodWiseColors.shadow.withValues(alpha: 0.42),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(
+                    color: FoodWiseColors.surface,
+                  ),
                 ),
               ),
           ],
@@ -362,10 +362,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 _uploadingAvatar ? 'Uploading photo...' : 'Change photo',
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: _primary,
-                side: const BorderSide(color: _border),
+                foregroundColor: FoodWiseColors.deepOrange,
+                side: const BorderSide(color: FoodWiseColors.border),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(FoodWiseRadius.compact),
                 ),
               ),
             ),
@@ -375,7 +375,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 icon: const Icon(Icons.delete_outline_rounded, size: 18),
                 label: Text(_removingAvatar ? 'Removing...' : 'Remove'),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF9A3D32),
+                  foregroundColor: FoodWiseColors.error,
                 ),
               ),
           ],
@@ -383,7 +383,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         const SizedBox(height: 3),
         const Text(
           'JPG, PNG, or WebP · Maximum 5 MB',
-          style: TextStyle(color: _muted, fontSize: 11),
+          style: TextStyle(
+            color: FoodWiseColors.muted,
+            fontSize: FoodWiseTypeSize.overline,
+          ),
         ),
       ],
     );
@@ -399,7 +402,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _surface,
+        backgroundColor: FoodWiseColors.surface,
         title: const Text('Discard unsaved changes?'),
         content: const Text(
           'Your last saved profile information will be kept.',
@@ -436,9 +439,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          backgroundColor: _surface,
+          backgroundColor: FoodWiseColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
           ),
           title: const Text('Change email address'),
           content: SizedBox(
@@ -449,9 +452,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               children: [
                 const Text(
                   'Enter the new email address for your FoodWise account. Supabase may send a confirmation link before the change takes effect.',
-                  style: TextStyle(color: _muted, height: 1.45, fontSize: 13),
+                  style: TextStyle(
+                    color: FoodWiseColors.muted,
+                    height: 1.45,
+                    fontSize: FoodWiseTypeSize.supporting,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: FoodWiseSpacing.lg),
                 TextField(
                   controller: controller,
                   keyboardType: TextInputType.emailAddress,
@@ -465,7 +472,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const SizedBox(height: 10),
                   Text(
                     errorText!,
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                    style: const TextStyle(
+                      color: FoodWiseColors.error,
+                      fontSize: FoodWiseTypeSize.caption,
+                    ),
                   ),
                 ],
               ],
@@ -554,9 +564,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          backgroundColor: _surface,
+          backgroundColor: FoodWiseColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
           ),
           title: const Text('Change password'),
           content: SizedBox(
@@ -568,9 +578,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 children: [
                   const Text(
                     'Verify your current password, then choose a new password for your account.',
-                    style: TextStyle(color: _muted, fontSize: 13, height: 1.45),
+                    style: TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.supporting,
+                      height: 1.45,
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: FoodWiseSpacing.lg),
                   TextField(
                     controller: currentController,
                     obscureText: obscureCurrent,
@@ -589,7 +603,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: FoodWiseSpacing.md),
                   TextField(
                     controller: newController,
                     obscureText: obscureNew,
@@ -607,7 +621,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: FoodWiseSpacing.md),
                   TextField(
                     controller: confirmController,
                     obscureText: obscureConfirm,
@@ -629,13 +643,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const SizedBox(height: 10),
                   const Text(
                     'Use at least 8 characters. Avoid reusing your current password.',
-                    style: TextStyle(color: _muted, fontSize: 12),
+                    style: TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.caption,
+                    ),
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 10),
                     Text(
                       errorText!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      style: const TextStyle(
+                        color: FoodWiseColors.error,
+                        fontSize: FoodWiseTypeSize.caption,
+                      ),
                     ),
                   ],
                 ],
@@ -860,9 +880,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: _surface,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: _border),
+      color: FoodWiseColors.surface,
+      borderRadius: BorderRadius.circular(FoodWiseRadius.panel),
+      border: Border.all(color: FoodWiseColors.border),
     ),
     child: child,
   );
@@ -874,12 +894,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: _lightOrange,
-          borderRadius: BorderRadius.circular(14),
+          color: FoodWiseColors.lightOrange,
+          borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
         ),
-        child: Icon(icon, color: _primary, size: 23),
+        child: Icon(icon, color: FoodWiseColors.deepOrange, size: 23),
       ),
-      const SizedBox(width: 12),
+      const SizedBox(width: FoodWiseSpacing.md),
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -887,15 +907,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: FoodWiseTypeSize.bodyLarge,
                 fontWeight: FontWeight.w800,
-                color: _charcoal,
+                color: FoodWiseColors.charcoal,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: FoodWiseSpacing.xs),
             Text(
               description,
-              style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
+              style: const TextStyle(
+                color: FoodWiseColors.muted,
+                fontSize: FoodWiseTypeSize.supporting,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -915,23 +939,26 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     padding: const EdgeInsets.only(top: 12),
     child: Row(
       children: [
-        Icon(icon, color: _muted, size: 18),
+        Icon(icon, color: FoodWiseColors.muted, size: 18),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: _muted, fontSize: 13),
+            style: const TextStyle(
+              color: FoodWiseColors.muted,
+              fontSize: FoodWiseTypeSize.supporting,
+            ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: FoodWiseSpacing.sm),
         Flexible(
           child: Text(
             value.isEmpty ? 'Not provided' : value,
             textAlign: TextAlign.end,
             style: const TextStyle(
-              color: _charcoal,
+              color: FoodWiseColors.charcoal,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: FoodWiseTypeSize.supporting,
             ),
           ),
         ),
@@ -942,7 +969,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   Widget _profileSection() {
     if (_loadingProfile) {
       return _panel(
-        child: const Center(child: CircularProgressIndicator(color: _primary)),
+        child: const Center(
+          child: CircularProgressIndicator(color: FoodWiseColors.deepOrange),
+        ),
       );
     }
 
@@ -1002,7 +1031,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             ),
           ),
           if (_hasPhoneColumn) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: FoodWiseSpacing.md),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
@@ -1026,11 +1055,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             icon: const Icon(Icons.alternate_email_rounded),
             label: const Text('Change email address'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: _primary,
-              side: const BorderSide(color: _border),
+              foregroundColor: FoodWiseColors.deepOrange,
+              side: const BorderSide(color: FoodWiseColors.border),
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
               ),
             ),
           ),
@@ -1048,11 +1077,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               _savingProfile ? 'Saving profile...' : 'Save profile information',
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
+              backgroundColor: FoodWiseColors.deepOrange,
+              foregroundColor: FoodWiseColors.surface,
               minimumSize: const Size.fromHeight(50),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(FoodWiseRadius.feedback),
               ),
             ),
           ),
@@ -1060,7 +1089,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             const SizedBox(height: 9),
             const Text(
               'Phone number editing is unavailable because your current profiles table does not return a phone column.',
-              style: TextStyle(color: _muted, fontSize: 11, height: 1.4),
+              style: TextStyle(
+                color: FoodWiseColors.muted,
+                fontSize: FoodWiseTypeSize.overline,
+                height: 1.4,
+              ),
             ),
           ],
           if (_profileFeedback != null)
@@ -1087,7 +1120,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           'Password & security',
           'Protect your FoodWise account.',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: FoodWiseSpacing.lg),
         Row(
           children: [
             const Expanded(
@@ -1097,31 +1130,35 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   Text(
                     'Change password',
                     style: TextStyle(
-                      color: _charcoal,
+                      color: FoodWiseColors.charcoal,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  SizedBox(height: FoodWiseSpacing.xs),
                   Text(
                     'Verify your current password before setting a new one.',
-                    style: TextStyle(color: _muted, fontSize: 12, height: 1.4),
+                    style: TextStyle(
+                      color: FoodWiseColors.muted,
+                      fontSize: FoodWiseTypeSize.caption,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: FoodWiseSpacing.sm),
             IconButton.filledTonal(
               onPressed: _showChangePasswordDialog,
               tooltip: 'Change password',
               style: IconButton.styleFrom(
-                foregroundColor: _primary,
-                backgroundColor: _paleOrange,
+                foregroundColor: FoodWiseColors.deepOrange,
+                backgroundColor: FoodWiseColors.paleOrange,
               ),
               icon: const Icon(Icons.arrow_forward_rounded),
             ),
           ],
         ),
-        const Divider(height: 24, color: _border),
+        const Divider(height: 24, color: FoodWiseColors.border),
         TextButton.icon(
           onPressed: (_sendingResetEmail || _resetCooldownRemaining > 0)
               ? null
@@ -1141,8 +1178,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 : 'Send password reset email',
           ),
           style: TextButton.styleFrom(
-            foregroundColor: _primary,
-            disabledForegroundColor: _muted,
+            foregroundColor: FoodWiseColors.deepOrange,
+            disabledForegroundColor: FoodWiseColors.muted,
             alignment: Alignment.centerLeft,
           ),
         ),
@@ -1150,7 +1187,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           padding: EdgeInsets.only(left: 12),
           child: Text(
             'We’ll send reset instructions to your current account email address.',
-            style: TextStyle(color: _muted, fontSize: 12, height: 1.4),
+            style: TextStyle(
+              color: FoodWiseColors.muted,
+              fontSize: FoodWiseTypeSize.caption,
+              height: 1.4,
+            ),
           ),
         ),
         if (_securityFeedback != null)
@@ -1177,11 +1218,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         if (!didPop && !_isSaving) _requestLeave();
       },
       child: Scaffold(
-        backgroundColor: _background,
+        backgroundColor: FoodWiseColors.background,
         appBar: AppBar(
-          backgroundColor: _background,
-          foregroundColor: _charcoal,
-          surfaceTintColor: Colors.transparent,
+          backgroundColor: FoodWiseColors.background,
+          foregroundColor: FoodWiseColors.charcoal,
+          surfaceTintColor: FoodWiseColors.transparent,
           title: const Text(
             'Profile Settings',
             style: TextStyle(fontWeight: FontWeight.w800),
@@ -1198,15 +1239,15 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const Text(
                     'Your account',
                     style: TextStyle(
-                      fontSize: 27,
-                      color: _charcoal,
+                      fontSize: FoodWiseTypeSize.pageTitle,
+                      color: FoodWiseColors.charcoal,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 6),
                   const Text(
                     'Manage your personal information and account security.',
-                    style: TextStyle(color: _muted, height: 1.5),
+                    style: TextStyle(color: FoodWiseColors.muted, height: 1.5),
                   ),
                   const SizedBox(height: 18),
                   _profileSection(),
