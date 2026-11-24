@@ -17,7 +17,14 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Inter',
-      fontFamilyFallback: const ['sans-serif'],
+      fontFamilyFallback: const [
+        'Inter',
+        'Segoe UI',
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'Roboto',
+        'sans-serif',
+      ],
       colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary).copyWith(
         primary: AppColors.primary,
         onPrimary: Colors.white,

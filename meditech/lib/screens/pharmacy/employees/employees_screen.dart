@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../models/employee.dart';
 import '../../../providers/employee_providers.dart';
@@ -29,6 +30,10 @@ class EmployeesScreen extends ConsumerStatefulWidget {
 }
 
 class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
+  final GlobalKey _filterButtonKey = GlobalKey();
+  final GlobalKey _stackKey = GlobalKey();
+  double _filterTop = 140;
+  double _filterLeft = 400;
   String _search = '';
   String? _roleFilter;
   bool? _activeFilter;
@@ -36,6 +41,21 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
   String? _selectedId;
   bool _offline = false;
   bool _busyAction = false;
+
+  void _toggleFilters() {
+    if (!_showFilters) {
+      final renderBox =
+          _filterButtonKey.currentContext?.findRenderObject() as RenderBox?;
+      final stackBox =
+          _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && stackBox != null && renderBox.hasSize) {
+        final offset = renderBox.localToGlobal(Offset.zero, ancestor: stackBox);
+        _filterTop = offset.dy + renderBox.size.height + 8;
+        _filterLeft = offset.dx;
+      }
+    }
+    setState(() => _showFilters = !_showFilters);
+  }
 
   Future<void> _runAction(Future<void> Function() work) async {
     setState(() {
@@ -305,6 +325,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
         children: [
           Expanded(
             child: Stack(
+              key: _stackKey,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
@@ -315,21 +336,61 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const Expanded(
-                              child: Text(
-                                'Employees',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.text,
-                                ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Employees',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF1A2E22),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Manage team members, roles, PRC licenses, and permissions.',
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.textMuted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            FilledButton.icon(
-                              onPressed: _busyAction ? null : _addEmployee,
-                              icon: const Icon(Icons.person_add_alt_1, size: 18),
-                              label: const Text('Add employee'),
+                            SizedBox(
+                              height: 44,
+                              child: ElevatedButton.icon(
+                                onPressed: _busyAction ? null : _addEmployee,
+                                icon: const Icon(
+                                  Icons.person_add_alt_1,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                label: Text(
+                                  'Add employee',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E6B46),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -343,6 +404,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                           builder: (items) {
                             final filtered = _applyFilters(items);
                             return TabletDataTable<Employee>(
+                              filterButtonKey: _filterButtonKey,
                               searchHint: 'Search...',
                               searchQuery: _search,
                               onSearchChanged: (v) => setState(() => _search = v),
@@ -350,7 +412,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                               filteredCount: filtered.length,
                               countLabel: 'staff',
                               activeFilterCount: filterCount,
-                              onFiltersTap: () => setState(() => _showFilters = !_showFilters),
+                              onFiltersTap: _toggleFilters,
                               columns: const [
                                 TabletColumn(title: 'Employee', flex: 2),
                                 TabletColumn(
@@ -416,10 +478,16 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                     ],
                   ),
                 ),
-                if (_showFilters)
+                if (_showFilters) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () => setState(() => _showFilters = false),
+                    ),
+                  ),
                   Positioned(
-                    top: 80,
-                    left: AppSpacing.lg + 160,
+                    top: _filterTop,
+                    left: _filterLeft,
                     child: TabletFilterPanel(
                       title: 'Filter employees',
                       activeFilterCount: filterCount,
@@ -475,6 +543,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),
@@ -541,22 +610,77 @@ class _EmployeeDetailsDrawer extends StatelessWidget {
       onClose: onClose,
       actions: employee.isOwner
           ? [
-              FilledButton(
-                onPressed: busy ? null : onUpdateLicense,
-                child: const Text('Update my license'),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: busy ? null : onUpdateLicense,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E6B46),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Update my license',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ]
           : [
-              OutlinedButton(
-                onPressed: busy ? null : onResetPassword,
-                child: const Text('Reset password'),
+              SizedBox(
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: busy ? null : onResetPassword,
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(
+                      color: Color(0xFFD8E8DE),
+                      width: 1.2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Reset password',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1A2E22),
+                    ),
+                  ),
+                ),
               ),
-              FilledButton(
-                onPressed: busy ? null : onToggleActive,
-                style: employee.isActive
-                    ? FilledButton.styleFrom(backgroundColor: AppColors.danger)
-                    : null,
-                child: Text(employee.isActive ? 'Deactivate' : 'Reactivate'),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: busy ? null : onToggleActive,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: employee.isActive
+                        ? AppColors.danger
+                        : const Color(0xFF2E6B46),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    employee.isActive ? 'Deactivate' : 'Reactivate',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ],
       child: Column(
@@ -582,10 +706,28 @@ class _EmployeeDetailsDrawer extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           if (onEditProfile != null) ...[
-            FilledButton.icon(
-              onPressed: busy ? null : onEditProfile,
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Edit profile'),
+            SizedBox(
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: busy ? null : onEditProfile,
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.white),
+                label: Text(
+                  'Edit profile',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E6B46),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -613,19 +755,57 @@ class _EmployeeDetailsDrawer extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             const Divider(),
             const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: busy ? null : onChangeRole,
-              icon: const Icon(Icons.swap_horiz, size: 18),
-              label: Text(
-                employee.isPharmacist ? 'Change role to Staff' : 'Promote to Pharmacist',
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: busy ? null : onChangeRole,
+                icon: const Icon(Icons.swap_horiz, size: 18, color: Color(0xFF1A2E22)),
+                label: Text(
+                  employee.isPharmacist ? 'Change role to Staff' : 'Promote to Pharmacist',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A2E22),
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(
+                    color: Color(0xFFD8E8DE),
+                    width: 1.2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
             if (employee.isPharmacist) ...[
               const SizedBox(height: AppSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: busy ? null : onUpdateLicense,
-                icon: const Icon(Icons.verified_user_outlined, size: 18),
-                label: const Text('Update / verify PRC license'),
+              SizedBox(
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onUpdateLicense,
+                  icon: const Icon(Icons.verified_user_outlined, size: 18, color: Color(0xFF1A2E22)),
+                  label: Text(
+                    'Update / verify PRC license',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1A2E22),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(
+                      color: Color(0xFFD8E8DE),
+                      width: 1.2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],

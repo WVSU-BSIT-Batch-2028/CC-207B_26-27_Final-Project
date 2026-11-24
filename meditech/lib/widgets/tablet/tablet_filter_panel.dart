@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Popover/anchored filter panel used beside the Filters button in tablet tables
 class TabletFilterPanel extends StatelessWidget {
@@ -18,7 +19,7 @@ class TabletFilterPanel extends StatelessWidget {
     required this.onApply,
     this.activeFilterCount = 0,
     this.onClose,
-    this.width = 340,
+    this.width = 320,
   });
 
   @override
@@ -27,12 +28,12 @@ class TabletFilterPanel extends StatelessWidget {
       width: width,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.5),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 18,
+            color: Color(0x181A2E22),
+            blurRadius: 20,
             offset: Offset(0, 8),
           ),
         ],
@@ -43,7 +44,7 @@ class TabletFilterPanel extends StatelessWidget {
         children: [
           // Filter Header with Reset link
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -51,10 +52,10 @@ class TabletFilterPanel extends StatelessWidget {
                   child: Text(
                     title,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A2E22),
                     ),
                   ),
                 ),
@@ -62,47 +63,50 @@ class TabletFilterPanel extends StatelessWidget {
                   onPressed: onReset,
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    foregroundColor: const Color(0xFF4B5563),
+                    foregroundColor: const Color(0xFF2E6B46),
+                    padding: EdgeInsets.zero,
                   ),
-                  child: const Text('Reset', style: TextStyle(fontSize: 13)),
+                  child: Text(
+                    'Reset',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2E6B46),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
           // Body content (filter checkboxes, pills, radios)
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: content,
             ),
           ),
 
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
           // Action button
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
             child: ElevatedButton(
               onPressed: onApply,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E6B3E),
+                backgroundColor: const Color(0xFF2E6B46),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: 0,
               ),
               child: Text(
-                activeFilterCount > 0
-                    ? 'Show results ($activeFilterCount)'
-                    : 'Show results',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                'Show results',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),

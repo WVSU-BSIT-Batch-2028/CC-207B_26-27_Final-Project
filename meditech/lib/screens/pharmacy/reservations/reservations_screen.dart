@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'reservation_details_drawer.dart';
@@ -156,40 +157,145 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Header title & count
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          // Header row: Title & Count on left, Search Bar & Filters button on right (matching Figma)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 650;
+                              final searchAndFilter = Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text(
-                                    'Reservations',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.text,
+                                  // Search Bar (oval rounded input)
+                                  SizedBox(
+                                    width: isNarrow ? 200 : (constraints.maxWidth < 800 ? 240 : 340),
+                                    height: 42,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.2),
+                                      ),
+                                      child: TextField(
+                                        onChanged: (q) => setState(() => _searchQuery = q),
+                                        decoration: const InputDecoration(
+                                          hintText: 'References or patient name',
+                                          hintStyle: TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF9CA3AF),
+                                          ),
+                                          prefixIcon: Icon(
+                                            Icons.search,
+                                            size: 18,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 11,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    '${filtered.length} of ${allReservations.length} reservations',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.textMuted,
+                                  const SizedBox(width: 12),
+                                  // Filter Button (dark green pill with filter icon)
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        setState(() => _showFilters = !_showFilters),
+                                    icon: const Icon(
+                                      Icons.filter_alt_outlined,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                    label: Text(
+                                      _activeFilterCount > 0
+                                          ? 'Filters ($_activeFilterCount)'
+                                          : 'Filters',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2E6B46),
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(0, 42),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      elevation: 0,
                                     ),
                                   ),
                                 ],
-                              ),
-                            ],
+                              );
+
+                              if (isNarrow) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Reservations',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF1A2E22),
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${filtered.length} of ${allReservations.length} reservations',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    searchAndFilter,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Reservations',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF1A2E22),
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${filtered.length} of ${allReservations.length} reservations',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  searchAndFilter,
+                                ],
+                              );
+                            },
                           ),
-                          const SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: AppSpacing.lg),
 
                           // Table
                           Expanded(
                             child: TabletDataTable<BranchReservation>(
-                              searchHint: 'Reference or patient name',
+                              showControls: false,
+                              searchHint: 'References or patient name',
                               searchQuery: _searchQuery,
                               onSearchChanged: (q) => setState(() => _searchQuery = q),
                               totalCount: allReservations.length,
@@ -238,12 +344,12 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                                   // Reference column
                                   Text(
                                     item.referenceNo,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w800,
                                       fontSize: 14,
                                       color: isSelected
                                           ? AppColors.primary
-                                          : AppColors.text,
+                                          : const Color(0xFF1A2E22),
                                     ),
                                   ),
 
@@ -255,10 +361,10 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                                         child: Text(
                                           item.customerName,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w800,
                                             fontSize: 14,
-                                            color: AppColors.text,
+                                            color: const Color(0xFF1A2E22),
                                           ),
                                         ),
                                       ),
@@ -361,16 +467,16 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'STATUS',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
-              color: AppColors.textMuted,
+              color: const Color(0xFF6B7280),
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: 6),
 
           // Status Checkboxes with counts (Ph-13)
           ..._statusOptions.map((statusKey) {
@@ -387,15 +493,16 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                 });
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       child: Checkbox(
                         value: isChecked,
-                        activeColor: AppColors.primary,
+                        activeColor: const Color(0xFF2E6B46),
+                        side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -410,21 +517,23 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _statusLabels[statusKey] ?? statusKey,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: AppColors.text,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF4B5563),
                         ),
                       ),
                     ),
                     Text(
                       '$count',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF6B7280),
                       ),
                     ),
                   ],
@@ -433,65 +542,30 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
             );
           }),
 
-          const SizedBox(height: AppSpacing.md),
-          const Text(
+          const SizedBox(height: 16),
+          Text(
             'REQUESTED',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
-              color: AppColors.textMuted,
+              color: const Color(0xFF6B7280),
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: 10),
 
-          // Requested date filter chips
-          Wrap(
-            spacing: 8,
+          // Requested date filter pills matching Figma
+          Row(
             children: [
-              ChoiceChip(
-                label: const Text('Any time'),
-                selected: _dateFilter == RequestedDateFilter.anyTime,
-                selectedColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: _dateFilter == RequestedDateFilter.anyTime
-                      ? Colors.white
-                      : AppColors.text,
-                  fontSize: 12,
-                ),
-                onSelected: (_) => setState(
-                    () => _dateFilter = RequestedDateFilter.anyTime),
-              ),
-              ChoiceChip(
-                label: const Text('Today'),
-                selected: _dateFilter == RequestedDateFilter.today,
-                selectedColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: _dateFilter == RequestedDateFilter.today
-                      ? Colors.white
-                      : AppColors.text,
-                  fontSize: 12,
-                ),
-                onSelected: (_) =>
-                    setState(() => _dateFilter = RequestedDateFilter.today),
-              ),
-              ChoiceChip(
-                label: const Text('Last 7 days'),
-                selected: _dateFilter == RequestedDateFilter.last7Days,
-                selectedColor: AppColors.primary,
-                labelStyle: TextStyle(
-                  color: _dateFilter == RequestedDateFilter.last7Days
-                      ? Colors.white
-                      : AppColors.text,
-                  fontSize: 12,
-                ),
-                onSelected: (_) => setState(
-                    () => _dateFilter = RequestedDateFilter.last7Days),
-              ),
+              _buildDatePill('Any time', RequestedDateFilter.anyTime),
+              const SizedBox(width: 8),
+              _buildDatePill('Today', RequestedDateFilter.today),
+              const SizedBox(width: 8),
+              _buildDatePill('Last 7 days', RequestedDateFilter.last7Days),
             ],
           ),
 
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 18),
           // Only reservations with Rx medicines toggle
           InkWell(
             onTap: () => setState(() => _onlyRx = !_onlyRx),
@@ -500,11 +574,12 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: 20,
+                    height: 20,
                     child: Checkbox(
                       value: _onlyRx,
-                      activeColor: AppColors.primary,
+                      activeColor: const Color(0xFF2E6B46),
+                      side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -512,13 +587,14 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                           setState(() => _onlyRx = val ?? false),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  const Expanded(
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Text(
                       'Only reservations with Rx medicines',
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: AppColors.text,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF4B5563),
                       ),
                     ),
                   ),
@@ -527,6 +603,33 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDatePill(String label, RequestedDateFilter filter) {
+    final isSelected = _dateFilter == filter;
+    return InkWell(
+      onTap: () => setState(() => _dateFilter = filter),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2E6B46) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF2E6B46) : const Color(0xFFD1D5DB),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF4B5563),
+          ),
+        ),
       ),
     );
   }

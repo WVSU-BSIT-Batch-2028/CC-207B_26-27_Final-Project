@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../providers/pharmacy_staff_providers.dart';
 import '../../../providers/session_providers.dart';
@@ -89,15 +90,21 @@ class _PharmacyProfileScreenState extends ConsumerState<PharmacyProfileScreen> {
                   children: [
                     Text(
                       'Profile',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.text,
-                          ),
+                      style: GoogleFonts.inter(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        fontStyle: FontStyle.normal,
+                        color: const Color(0xFF1A2E22),
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Your name and photo are shown in the header.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     if (_uploading) const LinearProgressIndicator(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../services/pharmacy_dashboard_service.dart';
@@ -136,10 +137,11 @@ class _DashboardContent extends StatelessWidget {
                   children: [
                     Text(
                       welcome,
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
+                      style: GoogleFonts.inter(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.text,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -171,28 +173,32 @@ class _DashboardContent extends StatelessWidget {
                     value: reservationCounts['pending'] ?? 0,
                     subtitle:
                         reservationSubtitles['pending'] ?? 'Needs attention',
-                    accent: AppColors.warning,
+                    accent: const Color(0xFF6B7280),
+                    icon: Icons.access_time_rounded,
                   ),
                   _StatCardData(
                     title: 'Confirmed reservations',
                     value: reservationCounts['confirmed'] ?? 0,
                     subtitle: reservationSubtitles['confirmed'] ??
-                        'No new confirmations yesterday',
-                    accent: AppColors.info,
+                        '+4 from yesterday',
+                    accent: const Color(0xFF6B7280),
+                    icon: Icons.inventory_2_outlined,
                   ),
                   _StatCardData(
                     title: 'Ready for pickup',
                     value: reservationCounts['ready_for_pickup'] ?? 0,
                     subtitle:
-                        reservationSubtitles['ready_for_pickup'] ?? 'On track',
-                    accent: AppColors.primary,
+                        reservationSubtitles['ready_for_pickup'] ?? '2 nearing deadline',
+                    accent: const Color(0xFF6B7280),
+                    icon: Icons.check_box_outlined,
                   ),
                   _StatCardData(
                     title: 'Completed reservations',
                     value: reservationCounts['completed'] ?? 0,
                     subtitle:
-                        reservationSubtitles['completed'] ?? 'Fulfillment',
-                    accent: AppColors.neutral,
+                        reservationSubtitles['completed'] ?? '90% fulfillment',
+                    accent: const Color(0xFF6B7280),
+                    icon: Icons.receipt_long_outlined,
                   ),
                 ],
               );
@@ -250,12 +256,14 @@ class _StatCardData {
     required this.value,
     required this.subtitle,
     required this.accent,
+    this.icon,
   });
 
   final String title;
   final int value;
   final String subtitle;
   final Color accent;
+  final IconData? icon;
 }
 
 class _StatCardGrid extends StatelessWidget {
@@ -298,58 +306,62 @@ class _StatCard extends StatelessWidget {
         data.value < 10 ? data.value.toString().padLeft(2, '0') : '${data.value}';
 
     return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x0A1A2E22),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Colored left accent stripe
-          Container(width: 5, color: data.accent),
-          // Card content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
+          Row(
+            children: [
+              if (data.icon != null) ...[
+                Icon(
+                  data.icon,
+                  size: 16,
+                  color: const Color(0xFF306C42),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  data.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    data.title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    valueText,
-                    style: const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                      height: 1,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    data.subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: data.accent,
-                    ),
-                  ),
-                ],
-              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            valueText,
+            style: GoogleFonts.inter(
+              fontSize: 36,
+              fontWeight: FontWeight.w400,
+              height: 1,
+              color: const Color(0xFF1A2E22),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            data.subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: data.accent,
             ),
           ),
         ],
@@ -374,21 +386,28 @@ class _PendingRequestsPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x0A1A2E22),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Pending requests (Top 5)',
-                  style: TextStyle(
+                  'Pending requests',
+                  style: GoogleFonts.inter(
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
                 ),
@@ -397,10 +416,20 @@ class _PendingRequestsPanel extends StatelessWidget {
                 onPressed: null,
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   foregroundColor: AppColors.textMuted,
-                  side: const BorderSide(color: AppColors.border),
+                  side: const BorderSide(color: Color(0xFFD8E8DE)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
-                child: const Text('Oldest first'),
+                child: Text(
+                  'Oldest first',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
           ),
@@ -416,7 +445,7 @@ class _PendingRequestsPanel extends StatelessWidget {
             )
           else
             for (var i = 0; i < reservations.length; i++) ...[
-              if (i > 0) const Divider(height: 1),
+              if (i > 0) const SizedBox(height: AppSpacing.sm),
               _PendingRequestRow(
                 reservation: reservations[i],
                 onTap: onTap,
@@ -457,78 +486,92 @@ class _PendingRequestRow extends StatelessWidget {
         DateTime.tryParse(reservation['submitted_at']?.toString() ?? '');
     final timeLabel = submittedAt == null
         ? '—'
-        : DateFormat('EEE h:mm a').format(submittedAt.toLocal());
+        : DateFormat('MMM d, h:mm a').format(submittedAt.toLocal());
     final id = reservation['id']?.toString() ?? '';
 
-    return InkWell(
-      onTap: id.isEmpty ? null : () => onTap?.call(id),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        reference,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x081A2E22),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: id.isEmpty ? null : () => onTap?.call(id),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 18,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          reference,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: const Color(0xFF1A2E22),
+                          ),
                         ),
-                      ),
-                      if (hasRx)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.infoLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'Rx',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.info,
+                        if (hasRx)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.infoLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Rx',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.info,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    customer,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      ],
                     ),
-                  ),
-                  Text(
-                    line,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
+                    const SizedBox(height: 4),
+                    Text(
+                      '$customer • $line',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
                     ),
-                  ),
-                  Text(
-                    timeLabel,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                timeLabel,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -549,7 +592,7 @@ class _InventorySnapshotPanel extends StatelessWidget {
     (key: 'low_stock', label: 'Low stock'),
     (key: 'marked_out_of_stock', label: 'Marked out of stock'),
     (key: 'unavailable', label: 'Unavailable'),
-    (key: 'unconfirmed', label: 'Unconfirmed'),
+    (key: 'unconfirmed', label: 'Unconfirmed (not updated in 7 days)'),
   ];
 
   @override
@@ -557,18 +600,25 @@ class _InventorySnapshotPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x0A1A2E22),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Inventory snapshot',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: AppColors.text,
             ),
           ),
@@ -598,9 +648,23 @@ class _InventorySnapshotPanel extends StatelessWidget {
               const Divider(height: 1, color: AppColors.border),
           ],
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(
+          OutlinedButton(
             onPressed: onGoToInventory,
-            child: const Text('Go to Inventory'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF306C42),
+              side: const BorderSide(color: Color(0xFF306C42)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text(
+              'Go to Inventory',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
           ),
         ],
       ),

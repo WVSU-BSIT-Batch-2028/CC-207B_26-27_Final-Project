@@ -52,7 +52,7 @@ class TabletFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
+      backgroundColor: const Color(0xFFF4F6F3),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

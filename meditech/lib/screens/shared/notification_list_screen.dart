@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/app_notification.dart';
@@ -10,17 +11,25 @@ import '../../widgets/theme/app_spacing.dart';
 
 // The signed-in person's notifications, newest first
 class NotificationListScreen extends ConsumerStatefulWidget {
-  const NotificationListScreen({super.key, this.onOpen});
+  const NotificationListScreen({
+    super.key,
+    this.onOpen,
+    this.embedded = false,
+  });
 
   // Customer app opens the linked reservation. Other apps only mark the row read.
   final void Function(AppNotification item)? onOpen;
+
+  // True when rendered inside the Pharmacy tablet shell (sidebar + top header)
+  final bool embedded;
 
   @override
   ConsumerState<NotificationListScreen> createState() =>
       _NotificationListScreenState();
 }
 
-class _NotificationListScreenState extends ConsumerState<NotificationListScreen> {
+class _NotificationListScreenState
+    extends ConsumerState<NotificationListScreen> {
   static const _recentLimit = 4;
   bool _showAll = false;
   bool _bulkBusy = false;
@@ -75,18 +84,65 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear notifications?'),
-        content: const Text(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        title: Text(
+          'Clear notifications?',
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF1A2E22),
+          ),
+        ),
+        content: Text(
           'This removes all notifications from your list. This cannot be undone.',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            color: const Color(0xFF4B5563),
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+          SizedBox(
+            height: 40,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1A2E22),
+                side: const BorderSide(color: Color(0xFFD8E8DE)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9),
+                ),
+              ),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear all'),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9),
+                ),
+              ),
+              child: Text(
+                'Clear all',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -113,13 +169,24 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
       data: (items) => items.where((item) => item.isUnread).length,
       orElse: () => 0,
     );
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-      ),
+      backgroundColor:
+          widget.embedded ? const Color(0xFFF4F6F3) : AppColors.background,
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(
+                'Notifications',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A2E22),
+                ),
+              ),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+            ),
       body: AsyncView<List<AppNotification>>(
         value: list,
         isEmpty: (items) => items.isEmpty,
@@ -128,93 +195,120 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
         builder: (items) {
           final visible = _showAll ? items : items.take(_recentLimit).toList();
           final canExpand = items.length > _recentLimit;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                ),
-                child: Row(
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header row matching wireframe: "Notifications" on left, actions on right
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Recent',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
+                        widget.embedded ? 'Notifications' : 'Recent',
+                        style: GoogleFonts.inter(
+                          fontSize: widget.embedded ? 28 : 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1A2E22),
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ),
                     if (canExpand)
                       TextButton(
-                        onPressed: () => setState(() => _showAll = !_showAll),
-                        child: Text(_showAll ? 'Show recent' : 'View all'),
+                        onPressed: () =>
+                            setState(() => _showAll = !_showAll),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF2E6B46),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                        ),
+                        child: Text(
+                          _showAll ? 'Show recent' : 'View all',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF2E6B46),
+                          ),
+                        ),
                       ),
+                    if (unreadCount > 0) ...[
+                      const SizedBox(width: 4),
+                      TextButton(
+                        onPressed: _bulkBusy ? null : _markAllRead,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF2E6B46),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                        ),
+                        child: _bulkBusy
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                'Mark all as read',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2E6B46),
+                                ),
+                              ),
+                      ),
+                    ],
+                    if (items.isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      TextButton(
+                        onPressed: _bulkBusy ? null : _clearAll,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFC93B3B),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                        ),
+                        child: Text(
+                          'Clear all',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFC93B3B),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    0,
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                  ),
+                const SizedBox(height: 18),
+
+                // Notification cards list (full width left-to-right)
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: visible.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final item = visible[index];
                     return _NotificationCard(
                       item: item,
                       onTap: () => _open(item),
-                      onMarkRead: item.isUnread ? () => _markRead(item.id) : null,
+                      onMarkRead:
+                          item.isUnread ? () => _markRead(item.id) : null,
                       onDelete: () => _delete(item.id),
                     );
                   },
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (unreadCount > 0)
-                      OutlinedButton.icon(
-                        onPressed: _bulkBusy ? null : _markAllRead,
-                        icon: _bulkBusy
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.done_all_outlined, size: 18),
-                        label: const Text('Mark all as read'),
-                      ),
-                    if (unreadCount > 0) const SizedBox(height: AppSpacing.sm),
-                    OutlinedButton.icon(
-                      onPressed: items.isNotEmpty && !_bulkBusy ? _clearAll : null,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.danger,
-                        side: const BorderSide(color: AppColors.danger),
-                      ),
-                      label: const Text('Clear notifications'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -224,13 +318,13 @@ class _NotificationListScreenState extends ConsumerState<NotificationListScreen>
 
 class _NotificationTone {
   const _NotificationTone({
-    required this.background,
-    required this.foreground,
+    required this.iconBackground,
+    required this.iconForeground,
     required this.icon,
   });
 
-  final Color background;
-  final Color foreground;
+  final Color iconBackground;
+  final Color iconForeground;
   final IconData icon;
 }
 
@@ -240,30 +334,30 @@ _NotificationTone _toneFor(String type) {
     case 'reservation_confirmed':
     case 'reservation_completed':
       return const _NotificationTone(
-        background: AppColors.primaryLight,
-        foreground: AppColors.primary,
+        iconBackground: Color(0xFFE6F4EA),
+        iconForeground: Color(0xFF2E6B46),
         icon: Icons.check_circle_outline,
       );
     case 'new_reservation':
     case 'reservation_reminder':
       return const _NotificationTone(
-        background: AppColors.warningLight,
-        foreground: AppColors.warning,
-        icon: Icons.schedule,
+        iconBackground: Color(0xFFFEF3D6),
+        iconForeground: Color(0xFFD97706),
+        icon: Icons.receipt_long_outlined,
       );
     case 'reservation_expired':
     case 'reservation_cancelled':
     case 'reservation_rejected':
       return const _NotificationTone(
-        background: AppColors.neutralLight,
-        foreground: AppColors.neutral,
+        iconBackground: Color(0xFFF3F4F6),
+        iconForeground: Color(0xFF6B7280),
         icon: Icons.cancel_outlined,
       );
     default:
       return const _NotificationTone(
-        background: Color(0xFFF7F8F7),
-        foreground: AppColors.primary,
-        icon: Icons.notifications_none,
+        iconBackground: Color(0xFFFEF3D6),
+        iconForeground: Color(0xFFD97706),
+        icon: Icons.receipt_long_outlined,
       );
   }
 }
@@ -281,120 +375,155 @@ class _NotificationCard extends StatelessWidget {
   final VoidCallback? onMarkRead;
   final VoidCallback onDelete;
 
+  String _formatTime(DateTime createdAt) {
+    final local = createdAt.toLocal();
+    final now = DateTime.now();
+    final isToday = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    if (isToday) {
+      return DateFormat('h:mm a').format(local);
+    }
+    return DateFormat('MMM d · h:mm a').format(local);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = _toneFor(item.type);
-    final when = DateFormat('MMM d, yyyy · h:mm a').format(item.createdAt.toLocal());
+    final timeStr = _formatTime(item.createdAt);
 
-    return Material(
-      color: tone.background,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.white,
-                child: Icon(tone.icon, size: 18, color: tone.foreground),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: TextStyle(
-                              fontWeight: item.isUnread
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: AppColors.text,
-                              fontSize: 15,
-                            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFD8E8DE),
+          width: 1.4,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A1A2E22),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Circular soft yellow/green icon badge
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tone.iconBackground,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    tone.icon,
+                    size: 20,
+                    color: tone.iconForeground,
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Main notification message
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: GoogleFonts.inter(
+                          fontWeight: item.isUnread
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: const Color(0xFF1A2E22),
+                          fontSize: 14.5,
+                        ),
+                      ),
+                      if (item.body.trim().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          item.body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF6B7280),
+                            height: 1.3,
                           ),
                         ),
-                        if (item.isUnread)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 4),
-                            child: Icon(
-                              Icons.circle,
-                              size: 8,
-                              color: AppColors.primary,
-                            ),
-                          ),
                       ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.body,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      when,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Column(
-                children: [
-                  if (onMarkRead != null)
-                    IconButton(
-                      tooltip: 'Mark as read',
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      onPressed: onMarkRead,
-                      icon: const Icon(
-                        Icons.check_circle_outline,
-                        color: AppColors.primary,
-                        size: 22,
-                      ),
-                    )
-                  else
-                    const SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: Icon(
-                        Icons.check_circle,
-                        size: 20,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  IconButton(
-                    tooltip: 'Remove',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    onPressed: onDelete,
-                    icon: const Icon(
-                      Icons.close,
-                      size: 20,
-                      color: AppColors.danger,
+                const SizedBox(width: 12),
+
+                // Right side: Time + Red/Orange unread dot + existing Mark Read & Delete actions
+                Text(
+                  timeStr,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                if (item.isUnread)
+                  Container(
+                    width: 9,
+                    height: 9,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE65100),
+                      shape: BoxShape.circle,
                     ),
                   ),
-                ],
-              ),
-            ],
+                if (onMarkRead != null)
+                  IconButton(
+                    tooltip: 'Mark as read',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: onMarkRead,
+                    icon: const Icon(
+                      Icons.check_circle_outline,
+                      color: Color(0xFF2E6B46),
+                      size: 19,
+                    ),
+                  ),
+                IconButton(
+                  tooltip: 'Remove',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

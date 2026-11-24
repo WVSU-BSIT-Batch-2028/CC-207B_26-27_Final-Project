@@ -146,22 +146,14 @@ function parseExpiry(value: unknown): string | null {
   let text = "";
 
   if (typeof value === "number" && Number.isFinite(value)) {
-    // Excel stores dates as serial numbers.
-    const parsedDate = XLSX.SSF.parse_date_code(value);
-
-    if (
-      !parsedDate ||
-      !parsedDate.y ||
-      !parsedDate.m ||
-      !parsedDate.d
-    ) {
-      return null;
-    }
-
+    // Excel stores dates as serial numbers (days since 1899-12-30).
+    const utcMs = Math.round((value - 25569) * 86400 * 1000);
+    const d = new Date(utcMs);
+    if (Number.isNaN(d.getTime())) return null;
     text = [
-      String(parsedDate.y).padStart(4, "0"),
-      String(parsedDate.m).padStart(2, "0"),
-      String(parsedDate.d).padStart(2, "0"),
+      String(d.getUTCFullYear()).padStart(4, "0"),
+      String(d.getUTCMonth() + 1).padStart(2, "0"),
+      String(d.getUTCDate()).padStart(2, "0"),
     ].join("-");
   } else if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) return null;
@@ -194,6 +186,21 @@ function makeMedicineKey(brandName: string, strength: string): string {
   return normalize(`${brandName} ${strength}`);
 }
 
+function classifyHeader(raw: unknown): string {
+  const h = normalizeHeader(raw).replace(/[_\-]+/g, " ");
+  if (h.includes("medicine") || h.includes("brand")) return "medicine";
+  if (h.includes("low") || h.includes("threshold")) return "threshold";
+  if (h.includes("stock") || h.includes("qty") || h.includes("quantity")) return "stock";
+  if (h.includes("price") || h.includes("cost")) return "price";
+  if (h.includes("expiry") || h.includes("expiration") || h.includes("date")) return "expiry";
+  return "";
+}
+
+function isHeaderLikeRow(cells: unknown[]): boolean {
+  const classified = new Set(cells.map(classifyHeader));
+  return classified.has("medicine") && classified.has("stock") && classified.has("price");
+}
+
 function parseRows(
   sourceRows: unknown[][],
   catalogue: CatalogueMedicine[],
@@ -202,27 +209,27 @@ function parseRows(
     throw new Error("The file has a header but no data rows.");
   }
 
-  const headers = sourceRows[0].map(normalizeHeader);
-
-  const requiredHeaders = [
-    "medicine (brand and strength)",
-    "stock quantity",
-    "price per unit",
-  ];
-
-  for (const header of requiredHeaders) {
-    if (!headers.includes(header)) {
-      throw new Error(`Missing required column: ${header}`);
-    }
-  }
+  const headerTypes = sourceRows[0].map(classifyHeader);
 
   const headerIndexes = {
-    medicine: headers.indexOf("medicine (brand and strength)"),
-    stock: headers.indexOf("stock quantity"),
-    price: headers.indexOf("price per unit"),
-    threshold: headers.indexOf("low-stock threshold"),
-    expiry: headers.indexOf("nearest expiry date"),
+    medicine: headerTypes.indexOf("medicine"),
+    stock: headerTypes.indexOf("stock"),
+    price: headerTypes.indexOf("price"),
+    threshold: headerTypes.indexOf("threshold"),
+    expiry: headerTypes.indexOf("expiry"),
   };
+
+  if (headerIndexes.medicine < 0) {
+    throw new Error("Missing required column: medicine (brand and strength)");
+  }
+  if (headerIndexes.stock < 0) {
+    throw new Error("Missing required column: stock_quantity");
+  }
+  if (headerIndexes.price < 0) {
+    throw new Error("Missing required column: price_per_unit");
+  }
+
+  const headers = sourceRows[0].map(normalizeHeader);
 
   const catalogueByLabel = new Map<string, string[]>();
 
@@ -237,7 +244,7 @@ function parseRows(
     catalogueByLabel.set(key, existing);
   }
 
-  const dataRows = sourceRows.slice(1);
+  const dataRows = sourceRows.slice(1).filter((r) => !isHeaderLikeRow(r));
 
   if (dataRows.length > MAX_ROWS) {
     throw new Error(`The file exceeds the ${MAX_ROWS}-row limit.`);

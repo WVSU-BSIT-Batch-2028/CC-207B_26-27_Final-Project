@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Priority level determining whether a column is displayed on narrower widths
 enum TabletColumnPriority {
@@ -46,6 +47,8 @@ class TabletDataTable<T> extends StatelessWidget {
   final ValueChanged<Set<String>>? onSelectionChanged;
   final List<Widget>? bulkActions;
   final Widget? emptyState;
+  final bool showControls;
+  final Key? filterButtonKey;
 
   const TabletDataTable({
     super.key,
@@ -68,6 +71,8 @@ class TabletDataTable<T> extends StatelessWidget {
     this.onSelectionChanged,
     this.bulkActions,
     this.emptyState,
+    this.showControls = true,
+    this.filterButtonKey,
   });
 
   bool _isColumnVisible(TabletColumn col, double availableWidth) {
@@ -113,27 +118,35 @@ class TabletDataTable<T> extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Top Controls Bar (Search, Filter, Count, Action buttons)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                children: [
+            if (showControls)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
                   // Search Input
                   Expanded(
                     flex: 3,
                     child: Container(
-                      height: 42,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFFD8E8DE),
+                          width: 1.2,
+                        ),
                       ),
                       child: TextField(
                         onChanged: onSearchChanged,
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          color: const Color(0xFF1A2E22),
+                        ),
                         decoration: InputDecoration(
                           hintText: searchHint,
-                          hintStyle: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF9CA3AF),
+                          hintStyle: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            color: const Color(0xFF9CA3AF),
                           ),
                           prefixIcon: const Icon(
                             Icons.search,
@@ -143,7 +156,7 @@ class TabletDataTable<T> extends StatelessWidget {
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
-                            vertical: 10,
+                            vertical: 12,
                           ),
                         ),
                       ),
@@ -151,59 +164,60 @@ class TabletDataTable<T> extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
 
-                  // Filter Button
-                  OutlinedButton.icon(
-                    onPressed: onFiltersTap,
-                    icon: Icon(
-                      Icons.filter_list,
-                      size: 18,
-                      color: activeFilterCount > 0
-                          ? const Color(0xFF1E6B3E)
-                          : const Color(0xFF4B5563),
-                    ),
-                    label: Text(
-                      activeFilterCount > 0
-                          ? 'Filters ($activeFilterCount)'
-                          : 'Filters',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: activeFilterCount > 0
-                            ? const Color(0xFF1E6B3E)
-                            : const Color(0xFF374151),
+                  // Filter Button (fixed width so expanding from "Filters" to "Filters (1)" never shifts the search bar or count)
+                  SizedBox(
+                    height: 44,
+                    width: 132,
+                    child: ElevatedButton.icon(
+                      key: filterButtonKey,
+                      onPressed: onFiltersTap,
+                      icon: const Icon(
+                        Icons.filter_alt_outlined,
+                        size: 18,
+                        color: Colors.white,
                       ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 42),
-                      side: BorderSide(
-                        color: activeFilterCount > 0
-                            ? const Color(0xFF1E6B3E)
-                            : const Color(0xFFD1D5DB),
+                      label: Text(
+                        activeFilterCount > 0
+                            ? 'Filters ($activeFilterCount)'
+                            : 'Filters',
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E6B46),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
                       ),
-                      backgroundColor: activeFilterCount > 0
-                          ? const Color(0xFFE8F5E9)
-                          : Colors.white,
                     ),
                   ),
 
                   const SizedBox(width: 16),
 
-                  // Count display
-                  Text(
-                    '$filteredCount of $totalCount $countLabel',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6B7280),
+                  // Count display + Spacer wrapped in Expanded(flex: 2) so Search (flex: 3) and Filter Button never move when count text changes
+                  Expanded(
+                    flex: 2,
+                    child: Row(
+                      children: [
+                        Text(
+                          '$filteredCount of $totalCount $countLabel',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Extra action buttons (e.g. + Add entry, Import)
+                        ...?headerActions,
+                      ],
                     ),
                   ),
-
-                  const Spacer(),
-
-                  // Extra action buttons (e.g. + Add entry, Import)
-                  ...?headerActions,
                 ],
               ),
             ),
@@ -249,8 +263,18 @@ class TabletDataTable<T> extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFD8E8DE),
+                    width: 1.2,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A1A2E22),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: items.isEmpty
@@ -274,8 +298,8 @@ class TabletDataTable<T> extends StatelessWidget {
                                 color: Color(0xFFF9FAFB),
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: Color(0xFFE5E7EB),
-                                    width: 1,
+                                    color: Color(0xFFD8E8DE),
+                                    width: 1.2,
                                   ),
                                 ),
                               ),
@@ -349,7 +373,7 @@ class TabletDataTable<T> extends StatelessWidget {
                                 itemCount: items.length,
                                 separatorBuilder: (_, _) => const Divider(
                                   height: 1,
-                                  color: Color(0xFFF3F4F6),
+                                  color: Color(0xFFEDF2EE),
                                 ),
                                 itemBuilder: (context, index) {
                                   final item = items[index];

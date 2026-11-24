@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../common/network_avatar_image.dart';
 
@@ -39,9 +40,9 @@ class TabletHeader extends StatelessWidget {
     return Container(
       height: 64,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: Color(0xFFF9FAFB),
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          bottom: BorderSide(color: Color(0xFFC5D5C9), width: 1),
         ),
       ),
       child: Row(
@@ -60,20 +61,22 @@ class TabletHeader extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1F2937),
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1A2E22),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: const Color(0xFF6B7280),
                         fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -84,27 +87,39 @@ class TabletHeader extends StatelessWidget {
             ),
           ),
 
-          // Notification bell
+          // Notification bell icon with circle background and unread badge
           Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Color(0xFF4B5563)),
-                tooltip: 'Notifications',
-                onPressed: onNotificationsTap,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFC5D5C9), width: 1),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: Color(0xFF4B5563), size: 20),
+                  tooltip: 'Notifications',
+                  onPressed: onNotificationsTap,
+                  padding: EdgeInsets.zero,
+                ),
               ),
               if (unreadNotifications > 0)
                 Positioned(
-                  right: 8,
-                  top: 10,
+                  right: -2,
+                  top: -2,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
                       color: Color(0xFFE65100),
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
                     child: Center(
                       child: Text(
                         unreadNotifications > 99 ? '99+' : '$unreadNotifications',
@@ -166,17 +181,26 @@ class TabletHeader extends StatelessWidget {
                     children: [
                       Text(
                         userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: Color(0xFF1F2937),
+                          color: const Color(0xFF1A2E22),
                         ),
                       ),
-                      Text(
-                        userRole,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF6B7280),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDDE6E1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          userRole,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF306C42),
+                          ),
                         ),
                       ),
                     ],

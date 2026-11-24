@@ -1,13 +1,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'add_inventory_drawer.dart';
 import 'edit_inventory_drawer.dart';
 import 'import/inventory_import_upload_screen.dart';
 
 import '../../../models/inventory_item.dart';
 import '../../../providers/inventory_providers.dart';
+import '../../../providers/stock_alerts_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/tablet/tablet_data_table.dart';
@@ -34,6 +37,10 @@ class InventoryScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+  final GlobalKey _filterButtonKey = GlobalKey();
+  final GlobalKey _stackKey = GlobalKey();
+  double _filterTop = 135;
+  double _filterLeft = 400;
   String _search = '';
   String _listing = 'all';
   final Set<String> _availability = {};
@@ -42,6 +49,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   bool _onlyRx = false;
   bool _showFilters = false;
   bool _busy = false;
+
+  void _toggleFilters() {
+    if (!_showFilters) {
+      final renderBox =
+          _filterButtonKey.currentContext?.findRenderObject() as RenderBox?;
+      final stackBox =
+          _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && stackBox != null && renderBox.hasSize) {
+        final offset = renderBox.localToGlobal(Offset.zero, ancestor: stackBox);
+        _filterTop = offset.dy + renderBox.size.height + 8;
+        _filterLeft = offset.dx;
+      }
+    }
+    setState(() => _showFilters = !_showFilters);
+  }
 
   static const _availabilityLabels = {
     'available': 'Available',
@@ -116,6 +138,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       await action();
       _selectedIds.clear();
       ref.invalidate(inventoryProvider);
+      ref.invalidate(stockAlertsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Inventory updated.')));
@@ -238,17 +261,48 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  // Opens the import screen while preserving an optional parent callback.
+  // Opens the add inventory drawer while preserving an optional parent callback.
+  Future<void> _openAddEntry() async {
+    if (widget.onAddEntry != null) {
+      widget.onAddEntry!();
+      return;
+    }
+
+    final screenSize = MediaQuery.of(context).size;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close add inventory drawer',
+      barrierColor: Colors.black54,
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            elevation: 16,
+            color: AppColors.surface,
+            child: SizedBox(
+              width: screenSize.width < 460 ? screenSize.width : 460,
+              height: screenSize.height,
+              child: const AddInventoryDrawer(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Opens the import modal dialog while preserving an optional parent callback.
   void _openImport() {
     if (widget.onImportTap != null) {
       widget.onImportTap!();
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => InventoryImportUploadScreen(),
-      ),
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      builder: (_) => InventoryImportUploadScreen(),
     );
   }
 
@@ -277,6 +331,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         final tableHeight = (constraints.maxHeight - 250).clamp(420.0, 2000.0);
 
         return Stack(
+          key: _stackKey,
           children: [
             Positioned.fill(
               child: SingleChildScrollView(
@@ -285,42 +340,96 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Inventory',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
+                                style: GoogleFonts.inter(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1A2E22),
+                                  letterSpacing: -0.5,
                                 ),
                               ),
-                              SizedBox(height: AppSpacing.xs),
-                              Text(
+                              const SizedBox(height: 4),
+                              const Text(
                                 'MediTech isn\'t connected to your POS. '
                                 'Update stock here, or import a CSV or Excel '
                                 'file.',
                                 style: TextStyle(
                                   color: AppColors.textMuted,
-                                  fontSize: 12,
+                                  fontSize: 13,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: _openImport,
-                          icon: const Icon(Icons.upload_file_outlined),
-                          label: const Text('Import CSV/Excel'),
+                        SizedBox(
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            onPressed: _openImport,
+                            icon: const Icon(
+                              Icons.upload_outlined,
+                              size: 18,
+                              color: Color(0xFF1A2E22),
+                            ),
+                            label: Text(
+                              'Import CSV/Excel',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1A2E22),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(
+                                color: Color(0xFFD8E8DE),
+                                width: 1.2,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        FilledButton.icon(
-                          onPressed: widget.onAddEntry,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add inventory entry'),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton.icon(
+                            onPressed: _openAddEntry,
+                            icon: const Icon(
+                              Icons.add,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              'Add inventory entry',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2E6B46),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -328,13 +437,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     SizedBox(
                       height: tableHeight,
                       child: TabletDataTable<InventoryItem>(
+                        filterButtonKey: _filterButtonKey,
                         searchHint: 'Search medicine',
                         onSearchChanged: (v) => setState(() => _search = v),
                         totalCount: all.length,
                         filteredCount: shown.length,
                         countLabel: 'medicines',
-                        onFiltersTap: () =>
-                            setState(() => _showFilters = !_showFilters),
+                        onFiltersTap: _toggleFilters,
                         activeFilterCount: _activeFilterCount,
                         selectable: true,
                         selectedIds: _selectedIds,
@@ -467,8 +576,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 ),
               ),
               Positioned(
-                top: 150,
-                right: AppSpacing.lg,
+                top: _filterTop,
+                left: _filterLeft,
                 child: TabletFilterPanel(
                   title: 'Filter inventory',
                   activeFilterCount: _activeFilterCount,
@@ -605,73 +714,200 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   // The pills and checkboxes inside the filter panel
   Widget _filterContent(List<InventoryItem> all) {
+    // Count items per availability
+    final availCounts = <String, int>{};
+    for (final key in _availabilityLabels.keys) {
+      availCounts[key] = all.where((i) => i.availability == key).length;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'LISTING STATUS',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textMuted,
+        Text(
+          'AVAILABILITY',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: const Color(0xFF6B7280),
           ),
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final value in ['all', 'active', 'inactive'])
-              ChoiceChip(
-                label: Text(value[0].toUpperCase() + value.substring(1)),
-                selected: _listing == value,
-                onSelected: (_) => setState(() => _listing = value),
+        const SizedBox(height: 6),
+        for (final entry in _availabilityLabels.entries)
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (_availability.contains(entry.key)) {
+                  _availability.remove(entry.key);
+                } else {
+                  _availability.add(entry.key);
+                }
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: Checkbox(
+                      value: _availability.contains(entry.key),
+                      activeColor: const Color(0xFF2E6B46),
+                      side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      onChanged: (checked) => setState(() {
+                        if (checked == true) {
+                          _availability.add(entry.key);
+                        } else {
+                          _availability.remove(entry.key);
+                        }
+                      }),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF4B5563),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${availCounts[entry.key] ?? 0}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
               ),
-          ],
+            ),
+          ),
+        const SizedBox(height: 4),
+        InkWell(
+          onTap: () => setState(() => _onlyOutOfStock = !_onlyOutOfStock),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Checkbox(
+                    value: _onlyOutOfStock,
+                    activeColor: const Color(0xFF2E6B46),
+                    side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: (v) => setState(() => _onlyOutOfStock = v == true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Only medicines marked out of stock',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF4B5563),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        InkWell(
+          onTap: () => setState(() => _onlyRx = !_onlyRx),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Checkbox(
+                    value: _onlyRx,
+                    activeColor: const Color(0xFF2E6B46),
+                    side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: (v) => setState(() => _onlyRx = v == true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Only Rx medicines',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF4B5563),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'AVAILABILITY',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textMuted,
+        Text(
+          'LISTING STATUS',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: const Color(0xFF6B7280),
           ),
         ),
-        for (final entry in _availabilityLabels.entries)
-          CheckboxListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(entry.value),
-            secondary: Text(
-              '${all.where((i) => i.availability == entry.key).length}',
-            ),
-            value: _availability.contains(entry.key),
-            onChanged: (checked) => setState(() {
-              if (checked == true) {
-                _availability.add(entry.key);
-              } else {
-                _availability.remove(entry.key);
-              }
-            }),
-          ),
-        CheckboxListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          title: const Text('Only medicines marked out of stock'),
-          value: _onlyOutOfStock,
-          onChanged: (v) => setState(() => _onlyOutOfStock = v == true),
-        ),
-        CheckboxListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          title: const Text('Only Rx medicines'),
-          value: _onlyRx,
-          onChanged: (v) => setState(() => _onlyRx = v == true),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _buildListingPill('All', 'all'),
+            const SizedBox(width: 8),
+            _buildListingPill('Active', 'active'),
+            const SizedBox(width: 8),
+            _buildListingPill('Inactive', 'inactive'),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildListingPill(String label, String value) {
+    final isSelected = _listing == value;
+    return InkWell(
+      onTap: () => setState(() => _listing = value),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2E6B46) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF2E6B46) : const Color(0xFFD1D5DB),
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : const Color(0xFF4B5563),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -850,14 +1086,25 @@ class _ExplainerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFD8E8DE), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A1A2E22),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1A2E22),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
