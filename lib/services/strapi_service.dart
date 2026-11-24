@@ -21,12 +21,18 @@ class StrapiService {
       headers: {'Accept': 'application/json'},
     );
 
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Strapi error: ${response.statusCode} - ${response.body}',
-      );
+    // Validate HTTP status BEFORE decoding the response.
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final message = switch (response.statusCode) {
+        404 => 'Food items endpoint not found (404).',
+        500 => 'Strapi server error (500). Please try again later.',
+        _ => 'Failed to load food items. HTTP status: ${response.statusCode}.',
+      };
+
+      throw Exception(message);
     }
 
+    // Decode the response only if the HTTP request was successful.
     final decoded = jsonDecode(response.body);
     final List<dynamic> data = decoded['data'];
 
