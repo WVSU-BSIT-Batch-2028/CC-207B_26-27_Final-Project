@@ -44,10 +44,24 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: customerRootNavigatorKey,
     refreshListenable: refresh,
     redirect: (context, state) {
-      return redirectForPasswordChange(
-        ref.read(sessionProvider),
-        state.matchedLocation,
-      );
+      final account = ref.read(sessionProvider);
+      final location = state.matchedLocation;
+
+      // Force password change before anything else
+      final pwRedirect = redirectForPasswordChange(account, location);
+      if (pwRedirect != null) return pwRedirect;
+
+      // Signed-in customers should not linger on auth/landing pages
+      if (account != null) {
+        if (location == '/' ||
+            location == '/sign-in' ||
+            location == '/sign-up' ||
+            location == '/login') {
+          return '/home';
+        }
+      }
+
+      return null;
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
@@ -141,9 +155,11 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra;
           if (extra is! ReservationSubmittedArgs) {
-            return const Scaffold(
-              body: Center(child: Text('Reservation submitted')),
-            );
+            // Extra lost — navigate to reservations tab
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) context.go('/home');
+            });
+            return const Scaffold(body: SizedBox.shrink());
           }
           return ReservationSubmittedScreen(
             reservationId: extra.reservationId,
@@ -163,9 +179,11 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final medicine = state.extra;
           if (medicine is! MedicineSearchResult) {
-            return const Scaffold(
-              body: Center(child: Text('Medicine not found.')),
-            );
+            // Extra lost (back navigation / deep link) — return to search
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) context.go('/home');
+            });
+            return const Scaffold(body: SizedBox.shrink());
           }
           return MedicineDetailsScreen(medicine: medicine);
         },
@@ -175,9 +193,10 @@ final customerRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra;
           if (extra is! DirectionsArgs) {
-            return const Scaffold(
-              body: Center(child: Text('Directions unavailable.')),
-            );
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) context.go('/home');
+            });
+            return const Scaffold(body: SizedBox.shrink());
           }
           return DirectionsScreen(
             pharmacyName: extra.pharmacyName,

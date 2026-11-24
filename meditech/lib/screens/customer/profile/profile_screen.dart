@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../models/customer_profile_overview.dart';
 import '../../../providers/cart_providers.dart';
+import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/notification_providers.dart';
 import '../../../providers/profile_providers.dart';
 import '../../../providers/reservation_providers.dart';
@@ -149,6 +150,8 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     await ref.read(sessionProvider.notifier).signOut();
     if (!context.mounted) return;
+    // Reset to home tab so the next sign-in always starts there
+    ref.read(customerTabProvider.notifier).select(0);
     context.go('/');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.invalidate(cartProvider);
