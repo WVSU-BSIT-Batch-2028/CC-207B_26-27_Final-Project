@@ -20,6 +20,7 @@ enum _LoadStatus { loading, ready, error }
 /// [onBack] returns to the Patients list.
 /// [onViewFullRecord] opens the patient's full record.
 /// [onAddConsultationNote] opens the consultation notes form.
+/// [onEditInfo] opens the Edit Patient Info form (age, allergies, ...).
 class PatientDetailsScreen extends StatefulWidget {
   const PatientDetailsScreen({
     super.key,
@@ -27,12 +28,14 @@ class PatientDetailsScreen extends StatefulWidget {
     required this.onBack,
     required this.onViewFullRecord,
     required this.onAddConsultationNote,
+    required this.onEditInfo,
   });
 
   final Patient patient;
   final VoidCallback onBack;
   final VoidCallback onViewFullRecord;
   final VoidCallback onAddConsultationNote;
+  final VoidCallback onEditInfo;
 
   @override
   State<PatientDetailsScreen> createState() =>
@@ -231,6 +234,13 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             icon: Icons.note_add_outlined,
             inverted: true,
             onPressed: widget.onAddConsultationNote,
+          ),
+          gap,
+          H360Button(
+            label: 'Edit Patient Info',
+            icon: Icons.edit_outlined,
+            inverted: true,
+            onPressed: widget.onEditInfo,
           ),
         ];
     }

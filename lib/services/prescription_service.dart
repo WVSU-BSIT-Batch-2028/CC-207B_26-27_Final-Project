@@ -42,10 +42,10 @@ class PrescriptionActivity {
 ///   reminders/{patientId}_{rxId}       the patient's saved reminder
 ///   doseLogs/{patientId}_{yyyy-MM-dd}  prescription ids taken that day
 ///
-/// `patientId` is the signed-in patient's uid, unless the patient's
-/// `users/{uid}` document has a `patientId` field (for example "PAT-101").
-/// That link lets a demo patient account see prescriptions the doctor wrote
-/// for a patient in the doctor's (still mock) Patients list.
+/// `patientId` is always the patient's uid (the same id as `users/{uid}`),
+/// like in every other collection, so the patient and the doctor read the
+/// same documents and the security rules can compare it with the signed-in
+/// user.
 class PrescriptionService {
   PrescriptionService._();
 
@@ -99,27 +99,9 @@ class PrescriptionService {
     }
   }
 
-  String? _cachedUid;
-  String? _cachedPatientKey;
-
-  /// The id this patient's documents use: the `patientId` field on
-  /// `users/{uid}` when it exists, otherwise the uid. Cached per user.
-  Future<String> _patientKey() async {
-    final uid = _requireUid();
-    if (_cachedUid == uid && _cachedPatientKey != null) {
-      return _cachedPatientKey!;
-    }
-
-    final doc = await _db.collection('users').doc(uid).get();
-    final linked = doc.data()?['patientId'];
-    final key = (linked is String && linked.trim().isNotEmpty)
-        ? linked.trim()
-        : uid;
-
-    _cachedUid = uid;
-    _cachedPatientKey = key;
-    return key;
-  }
+  /// The id this patient's documents use: the signed-in patient's uid.
+  /// (Kept async so the callers did not have to change.)
+  Future<String> _patientKey() async => _requireUid();
 
   /// Runs a Firestore action and turns Firebase errors into friendly ones.
   Future<T> _guard<T>(String fallback, Future<T> Function() action) async {
@@ -160,7 +142,7 @@ class PrescriptionService {
     final list = <Prescription>[];
     for (final doc in docs) {
       try {
-        list.add(prescriptionFromData(doc.id, doc.data()));
+        list.add(prescriptionFromData(doc.id, _named(doc.data())));
       } catch (e) {
         debugPrint('Skipped invalid prescription ${doc.id}: $e');
       }
@@ -188,7 +170,7 @@ class PrescriptionService {
         final key = await _patientKey();
         final snap =
             await _prescriptions.where('patientId', isEqualTo: key).get();
-        return _toPrescriptions(snap.docs);
+        return _toPrescriptions(await _withDoctorNames(snap.docs));
       },
     );
   }
@@ -218,12 +200,34 @@ class PrescriptionService {
 
   /// Saves (or undoes) "taken today" for a prescription. Home's checklist
   /// reads the same record, so both stay in step.
+  ///
+  /// A dose can only be marked taken while the prescription is running:
+  /// not before its start date, and not after it ended (undo is always
+  /// allowed). Every screen goes through here, so the rule always holds.
   Future<void> setTakenToday(String prescriptionId, bool taken) async {
     _failIfDemoError();
 
     return _guard("We couldn't save that. Please try again.", () async {
       final key = await _patientKey();
       final now = DateTime.now();
+
+      if (taken) {
+        final rxDoc = await _prescriptions.doc(prescriptionId).get();
+        final data = rxDoc.data();
+        if (!rxDoc.exists || data == null) {
+          throw const PrescriptionException('We could not find this prescription.');
+        }
+        final p = prescriptionFromData(rxDoc.id, data);
+        if (!p.hasStartedOn(now)) {
+          throw PrescriptionException(
+            'This medicine starts on ${formatLongDate(p.startDate)}. '
+            'You can mark it as taken from that day.',
+          );
+        }
+        if (!p.isActiveOn(now)) {
+          throw const PrescriptionException('This prescription has already ended.');
+        }
+      }
 
       await _doseLogs.doc(_doseLogId(key, now)).set({
         'patientId': key,
@@ -266,12 +270,20 @@ class PrescriptionService {
 
         final ref = _refillRequests.doc(_linkedId(key, prescriptionId));
         final existing = await ref.get();
-        if (existing.exists &&
-            refillRequestFromData(existing.data()!).status ==
-                RefillStatus.pending) {
-          throw const PrescriptionException(
-            'You already have a refill request waiting for review.',
-          );
+        if (existing.exists) {
+          final status = refillRequestFromData(existing.data()!).status;
+          if (status == RefillStatus.pending) {
+            throw const PrescriptionException(
+              'You already have a refill request waiting for review.',
+            );
+          }
+          // The Firestore rules only let a patient re-send a DECLINED request,
+          // so say it clearly instead of showing "Permission denied".
+          if (status == RefillStatus.approved) {
+            throw const PrescriptionException(
+              'Your refill for this medicine was already approved.',
+            );
+          }
         }
 
         await ref.set({
@@ -279,7 +291,7 @@ class PrescriptionService {
           'patientId': key,
           'doctorId': data['doctorId'],
           'patientUid': _requireUid(),
-          'patientName': _patientName(),
+          'patientName': await _patientName(),
           'medicineTitle': prescription.title,
           'status': RefillStatus.pending.name,
           'requestedAt': FieldValue.serverTimestamp(),
@@ -290,6 +302,32 @@ class PrescriptionService {
           prescriptionId: prescriptionId,
           requestedAt: DateTime.now(),
         );
+      },
+    );
+  }
+
+  /// The signed-in patient's refill requests that the doctor has answered
+  /// (approved or declined), for the Notifications screen.
+  Future<List<({String id, String medicineTitle, RefillStatus status, DateTime at})>>
+      fetchMyAnsweredRefills() async {
+    return _guard(
+      "We couldn't load your refill updates. Check your connection and try again.",
+      () async {
+        final key = await _patientKey();
+        final snap =
+            await _refillRequests.where('patientId', isEqualTo: key).get();
+        return [
+          for (final doc in snap.docs)
+            if (refillRequestFromData(doc.data()).status != RefillStatus.pending)
+              (
+                id: doc.id,
+                medicineTitle:
+                    (doc.data()['medicineTitle'] as String?) ?? 'your medicine',
+                status: refillRequestFromData(doc.data()).status,
+                at: (doc.data()['answeredAt'] as Timestamp?)?.toDate() ??
+                    refillRequestFromData(doc.data()).requestedAt,
+              ),
+        ];
       },
     );
   }
@@ -318,10 +356,35 @@ class PrescriptionService {
     );
   }
 
+  /// Every reminder the signed-in patient saved (for ReminderScheduler).
+  /// Damaged documents are skipped.
+  Future<List<ReminderSetting>> fetchAllReminders() async {
+    _failIfDemoError();
+
+    return _guard(
+      "We couldn't load your reminders. Check your connection and try again.",
+      () async {
+        final key = await _patientKey();
+        final snap = await _reminders.where('patientId', isEqualTo: key).get();
+        final list = <ReminderSetting>[];
+        for (final doc in snap.docs) {
+          final raw = doc.data()['reminder'];
+          if (raw is! Map) continue;
+          try {
+            list.add(ReminderSetting.fromJson(Map<String, dynamic>.from(raw)));
+          } catch (_) {
+            debugPrint('Skipped invalid reminder ${doc.id}');
+          }
+        }
+        return list;
+      },
+    );
+  }
+
   /// Saves the reminder (replaces any earlier one for the same prescription).
   ///
-  /// NOTE: this only stores the settings. Real phone notifications need a
-  /// package such as flutter_local_notifications (not added yet).
+  /// The settings are stored here; ReminderScheduler shows the popup (and a
+  /// browser notification) at the right time while the app is open.
   Future<void> saveReminder(ReminderSetting reminder) async {
     _failIfDemoError();
 
@@ -375,13 +438,21 @@ class PrescriptionService {
 
         final snap =
             await _prescriptions.where('patientId', isEqualTo: key).get();
-        final log = await _doseLogs.doc(_doseLogId(key, today)).get();
-        final taken = _ids(log.data()?['takenIds']).toSet();
+        // Which were already taken today. If this small read fails, the list
+        // still shows (all unticked) instead of disappearing.
+        var taken = <String>{};
+        try {
+          final log = await _doseLogs.doc(_doseLogId(key, today)).get();
+          taken = _ids(log.data()?['takenIds']).toSet();
+        } on FirebaseException catch (e) {
+          debugPrint("Today's dose log not loaded: ${e.code}");
+        }
 
         final doses = <MedicationDose>[];
         for (final doc in snap.docs) {
           try {
             final p = prescriptionFromData(doc.id, doc.data());
+            // Only medicines being taken today: started, and not finished.
             if (!p.isActiveOn(today) || p.startDate.isAfter(today)) continue;
 
             final times = (doc.data()['timesPerDay'] as num?)?.toInt() ?? 1;
@@ -408,18 +479,78 @@ class PrescriptionService {
   // Doctor: used by the Patients tab (PatientsService calls these)
   // ---------------------------------------------------------------------------
 
+  /// The signed-in user's full name: `users/{uid}.fullName` first (doctor
+  /// accounts made in the Firebase console have no Auth display name), then
+  /// the Auth display name. Empty if neither exists.
+  Future<String> _signedInName() async {
+    final user = _auth.currentUser;
+    if (user == null) return '';
+    try {
+      final profile = await _auth.getUserProfile(user.uid);
+      final fullName = (profile?['fullName'] as String?)?.trim() ?? '';
+      if (fullName.isNotEmpty) return fullName;
+    } on Exception {
+      // Fall back to the display name below.
+    }
+    return user.displayName?.trim() ?? '';
+  }
+
   /// The signed-in patient's name, saved on a refill request so the doctor's
   /// notification can say who asked.
-  String _patientName() {
-    final name = _auth.currentUser?.displayName?.trim() ?? '';
+  Future<String> _patientName() async {
+    final name = await _signedInName();
     return name.isEmpty ? 'A patient' : name;
   }
 
   /// The name written on prescriptions, e.g. "Dr. Maria Santos".
-  String _doctorName() {
-    final name = _auth.currentUser?.displayName?.trim() ?? '';
+  Future<String> _doctorName() async => _withTitle(await _signedInName());
+
+  /// "Maria Santos" -> "Dr. Maria Santos"; empty -> "Doctor".
+  String _withTitle(String name) {
     if (name.isEmpty) return 'Doctor';
     return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
+  }
+
+  /// Prescriptions saved before this fix say only "Doctor". This fills in
+  /// the real name from the doctor's `users/{doctorId}` document (the rules
+  /// let any signed-in user read doctor accounts). One read per doctor.
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _withDoctorNames(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) async {
+    final missing = <String>{
+      for (final doc in docs)
+        if (_needsDoctorName(doc.data()) && doc.data()['doctorId'] is String)
+          doc.data()['doctorId'] as String,
+    };
+    if (missing.isEmpty) return docs;
+
+    for (final id in missing) {
+      if (_doctorNames.containsKey(id)) continue;
+      try {
+        final user = await _db.collection('users').doc(id).get();
+        _doctorNames[id] =
+            _withTitle((user.data()?['fullName'] as String?)?.trim() ?? '');
+      } on FirebaseException {
+        _doctorNames[id] = 'Doctor';
+      }
+    }
+    return docs;
+  }
+
+  /// Doctor names found by [_withDoctorNames], by doctor uid.
+  final Map<String, String> _doctorNames = {};
+
+  bool _needsDoctorName(Map<String, dynamic> data) {
+    final name = (data['doctorName'] as String?)?.trim() ?? '';
+    return name.isEmpty || name == 'Doctor';
+  }
+
+  /// [data] with the looked-up doctor name when the saved one is missing.
+  Map<String, dynamic> _named(Map<String, dynamic> data) {
+    final id = data['doctorId'];
+    if (!_needsDoctorName(data) || id is! String) return data;
+    final name = _doctorNames[id];
+    return name == null ? data : {...data, 'doctorName': name};
   }
 
   /// Every prescription written for [patientId], newest first.
@@ -463,7 +594,7 @@ class PrescriptionService {
             prescription,
             patientId: patientId,
             doctorId: doctorId,
-            doctorName: _doctorName(),
+            doctorName: await _doctorName(),
           ),
           'createdAt': FieldValue.serverTimestamp(),
         });

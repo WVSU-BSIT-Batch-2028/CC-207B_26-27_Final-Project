@@ -8,7 +8,7 @@
 // are left out on purpose (the project rules say no downloading or sharing of
 // records as PDF). List it under Known Limitations / Future Enhancements.
 //
-// WHERE THE DATA COMES FROM: RecordsService.fetchConsultationDetail (mock).
+// WHERE THE DATA COMES FROM: RecordsService.fetchConsultationDetail (Firestore).
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_tokens.dart';

@@ -85,6 +85,14 @@ class Prescription {
     return today.isBefore(endDate);
   }
 
+  /// True once the first day of the treatment has arrived. Before that the
+  /// medicine cannot be marked as taken and no reminder pops up.
+  bool hasStartedOn(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    return !start.isAfter(today);
+  }
+
   /// True when a refill date is set and that day has arrived.
   ///
   /// Used by Prescription Details to enable or disable "Request Refill".

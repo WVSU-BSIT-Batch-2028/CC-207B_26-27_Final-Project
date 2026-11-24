@@ -63,12 +63,13 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   bool _saving = false;
 
   /// The choices for Frequency: times per day -> text in the dropdown.
+  /// The key is saved as `timesPerDay`, so it must match the text
+  /// (it used to be one off: "Once a day" saved 2 and the patient saw "2x a day").
   static const Map<int, String> _frequencies = {
-    1: 'Take as needed',
-    2: 'Once a day',
-    3: 'Twice a day',
-    4: '3 times a day',
-    5: '4 times a day',
+    1: 'Once a day',
+    2: 'Twice a day',
+    3: '3 times a day',
+    4: '4 times a day',
   };
 
   /// The choices for Duration, in days.
@@ -112,8 +113,14 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         timesPerDay: _timesPerDay!,
         durationDays: days,
         startDate: _startDate,
-        // The patient can refill when the course ends.
-        refillDate: _startDate.add(Duration(days: days)),
+        // The refill opens 2 days before the course ends (at least 1 day
+        // after the start), while the prescription is still active: the
+        // patient's "Request Refill" button is on the active prescription.
+        refillDate: DateTime(
+          _startDate.year,
+          _startDate.month,
+          _startDate.day + (days - 2 < 1 ? 1 : days - 2),
+        ),
         notes: notes.isEmpty ? null : notes,
       );
       await PatientsService.instance

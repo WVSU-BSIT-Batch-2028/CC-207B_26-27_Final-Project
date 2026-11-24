@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/menu_tile.dart';
+import '../../widgets/dialog_frame.dart';
 
 /// Personal Information for both roles. Read-only until "Edit" is pressed;
 /// saving validates the form and stores the values.
@@ -114,7 +115,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       gender: _gender,
       address: _address.text.trim(),
     );
-    await ProfileService.instance.save(widget.role, updated);
+    try {
+      await ProfileService.instance.save(widget.role, updated);
+    } catch (_) {
+      // Firestore refused or no internet: keep the form open so they can retry.
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("We couldn't save your information. Check your connection and try again.")),
+      );
+      return;
+    }
     if (!mounted) return;
 
     setState(() {
@@ -139,7 +150,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => DialogFrame(child: AlertDialog(
           title: const Text('Change Password'),
           content: SingleChildScrollView(
             child: Form(
@@ -244,7 +255,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   : const Text('Update Password'),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

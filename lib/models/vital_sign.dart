@@ -37,6 +37,10 @@ class VitalSign {
   final String unit;
   final List<VitalReading> readings; // oldest first
 
+  /// False until the patient adds a first reading. Screens check this
+  /// before using [latest].
+  bool get hasReadings => readings.isNotEmpty;
+
   VitalReading get latest => readings.last;
 
   /// The last 7 readings (used for the trend line).
@@ -45,9 +49,11 @@ class VitalSign {
 
   List<double> get trend => [for (final r in recent) r.value];
 
-  String get value => vitalValueText(type, latest);
+  /// "--" when there is no reading yet.
+  String get value => hasReadings ? vitalValueText(type, latest) : '--';
 
-  VitalStatus get status => vitalStatusOf(type, latest);
+  VitalStatus get status =>
+      hasReadings ? vitalStatusOf(type, latest) : VitalStatus.normal;
 
   VitalSign withReading(VitalReading reading) => VitalSign(
         type: type,

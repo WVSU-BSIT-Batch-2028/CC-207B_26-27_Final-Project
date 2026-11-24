@@ -110,7 +110,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
     final query = _query.toLowerCase();
 
     return _inSelectedStatus.where((patient) {
-      final condition = patient.condition ?? '';
+      final condition = patient.condition;
 
       final matchesCondition = _condition == null || condition == _condition;
 

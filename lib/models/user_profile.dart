@@ -34,21 +34,10 @@ class UserProfile {
         address: address ?? this.address,
       );
 
-  /// Sample data (fictional) used until the real backend exists.
+  /// Empty starting values. The real name and email come from the signed-in
+  /// account; the user fills in the rest in Personal Information.
   static UserProfile defaultsFor(UserRole role) {
-    if (role == UserRole.doctor) {
-      return const UserProfile(
-        fullName: 'Dr. Michael Santos',
-        email: 'michael.santos@example.com',
-        mobile: '09123456789',
-        gender: 'Male',
-        address: 'Sta. Barbara, Iloilo',
-      );
-    }
-    return const UserProfile(
-      fullName: 'Jahna Reyes',
-      email: 'jahna.reyes@example.com',
-    );
+    return const UserProfile(fullName: '', email: '');
   }
 }
 

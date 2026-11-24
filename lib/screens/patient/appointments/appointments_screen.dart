@@ -11,6 +11,7 @@ import '../../../widgets/h360_card.dart';
 import '../../../widgets/section_header.dart';
 import '../../../widgets/state_views.dart';
 import 'edit_appointment_screen.dart';
+import '../../../widgets/dialog_frame.dart';
 
 enum _LoadStatus { loading, ready, error }
 
@@ -200,7 +201,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
+        return DialogFrame(child: AlertDialog(
           title: const Text('Cancel Appointment?'),
           content: Text(
             'Are you sure you want to cancel your appointment with '
@@ -220,7 +221,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               child: const Text('Cancel Appointment'),
             ),
           ],
-        );
+        ));
       },
     );
 
@@ -782,18 +783,11 @@ class _PatientAppointmentDetailsDialog extends StatelessWidget {
     final remainingRequests = appointment.remainingEditRequests;
     final maximumRequests = AppointmentService.maximumEditRequests;
 
+    // Colour, corners and outline come from the dialog theme (AppTheme).
     return Dialog(
-      backgroundColor: AppColors.surface,
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 480,
+          maxWidth: AppSizes.detailDialog,
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         child: SingleChildScrollView(

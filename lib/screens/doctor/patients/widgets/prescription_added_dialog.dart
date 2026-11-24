@@ -18,15 +18,10 @@ class PrescriptionAddedDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Colour, corners and outline come from the dialog theme (AppTheme).
     return Dialog(
-      backgroundColor: AppColors.surface,
-      insetPadding: const EdgeInsets.all(AppSpacing.lg),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: AppColors.border),
-      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
+        constraints: const BoxConstraints(maxWidth: AppSizes.confirmDialog),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(

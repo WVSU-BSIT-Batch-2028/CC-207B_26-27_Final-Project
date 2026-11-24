@@ -18,7 +18,7 @@ import 'personal_info_screen.dart';
 import 'preference_sheets.dart';
 
 /// Profile tab for BOTH roles:
-/// Personal Information, Notifications, Language, App Theme, Help & Support, and Log Out.
+/// Personal Information, Notifications, App Theme, Help & Support, and Log Out.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.role});
 
@@ -126,12 +126,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.notifications_none_rounded,
                   title: 'Notifications',
                   onTap: () => _push(NotificationsScreen(role: role)),
-                ),
-                MenuTile(
-                  icon: Icons.language_rounded,
-                  title: 'Language',
-                  subtitle: 'English',
-                  onTap: () => showLanguageSheet(context),
                 ),
                 ListenableBuilder(
                   listenable: ThemeController.instance,

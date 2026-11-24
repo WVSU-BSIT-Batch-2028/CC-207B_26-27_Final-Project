@@ -9,8 +9,8 @@
 // prescriptions, pull down to refresh, tap the back arrow to return to
 // Patient Details.
 //
-// WHERE THE DATA COMES FROM: PatientsService.fetchPatientRecord (mock for
-// now). Vitals are VitalSign objects, the same model the patient's Home uses.
+// WHERE THE DATA COMES FROM: PatientsService.fetchPatientRecord (Firestore:
+// patientProfiles and vitalReadings). Vitals are VitalSign objects, the same model the patient's Home uses.
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';

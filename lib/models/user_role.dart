@@ -1,5 +1,5 @@
 /// Which side of Health360 is being viewed.
-/// There is no login yet, so the role gate lets you pick one (demo access).
+/// Saved as `role` in `users/{uid}`; decides which shell opens after login.
 enum UserRole { patient, doctor }
 
 extension UserRoleX on UserRole {

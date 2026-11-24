@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/constants/clinic_hours.dart';
 import '../models/appointment.dart';
 import '../models/appointment_status.dart';
 import '../models/user_role.dart';
@@ -25,7 +26,9 @@ class AppointmentService {
   static const Duration changeRequestWindow = Duration(hours: 24);
   static const int maximumEditRequests = 2;
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  /// A getter (not a field) so the service can be created even when Firebase
+  /// is not set up (START_ROUTE bypass); it only fails when it is used.
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
   CollectionReference<Map<String, dynamic>> get _appointments =>
@@ -186,6 +189,9 @@ class AppointmentService {
         'Please select a future appointment date and time.',
       );
     }
+
+    final hoursError = ClinicHours.validate(dateTime);
+    if (hoursError != null) throw AppointmentException(hoursError);
 
     final uid = _requireSignedIn();
 
@@ -545,6 +551,9 @@ class AppointmentService {
           );
         }
 
+        final hoursError = ClinicHours.validate(dateTime);
+        if (hoursError != null) throw AppointmentException(hoursError);
+
         final request = AppointmentChangeRequest(
           doctorId: doctorId.trim(),
           doctorName: doctorName,
@@ -604,20 +613,6 @@ class AppointmentService {
         );
       }
 
-      // Resolve the linked patient ID if the account uses one.
-      String? linkedPatientId;
-
-      if (role == UserRole.patient) {
-        final userDocument =
-            await _firestore.collection('users').doc(uid).get();
-
-        final patientIdValue = userDocument.data()?['patientId'];
-
-        if (patientIdValue is String) {
-          linkedPatientId = patientIdValue;
-        }
-      }
-
       final reference = _appointments.doc(appointmentId);
 
       return await _firestore.runTransaction<Appointment>(
@@ -637,11 +632,7 @@ class AppointmentService {
 
           // Patients may update only appointments linked to their account.
           if (role == UserRole.patient) {
-            final ownsAppointment = appointment.patientId == uid ||
-                (linkedPatientId != null &&
-                    appointment.patientId == linkedPatientId);
-
-            if (!ownsAppointment) {
+            if (appointment.patientId != uid) {
               throw const AppointmentException(
                 'You do not have permission to update this appointment.',
               );
@@ -659,10 +650,18 @@ class AppointmentService {
 
           final updatedAppointment = update(appointment);
 
-          transaction.update(
-            reference,
+          // Write only the fields that really changed. The security rules
+          // check `affectedKeys()`, and rewriting every field could change an
+          // untouched timestamp by a few microseconds (web vs desktop clocks),
+          // which the rules would then reject as an extra changed field.
+          final changes = _changedFields(
+            _toFirestore(appointment),
             _toFirestore(updatedAppointment),
           );
+
+          if (changes.isNotEmpty) {
+            transaction.update(reference, changes);
+          }
 
           return updatedAppointment;
         },
@@ -764,6 +763,29 @@ class AppointmentService {
           ? null
           : _changeRequestToFirestore(appointment.changeRequest!),
     };
+  }
+
+  /// The entries of [after] whose value differs from [before].
+  Map<String, dynamic> _changedFields(
+    Map<String, dynamic> before,
+    Map<String, dynamic> after,
+  ) {
+    return {
+      for (final entry in after.entries)
+        if (!_sameValue(before[entry.key], entry.value)) entry.key: entry.value,
+    };
+  }
+
+  /// Compares two Firestore values, including nested maps (changeRequest).
+  bool _sameValue(Object? a, Object? b) {
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final key in a.keys) {
+        if (!b.containsKey(key) || !_sameValue(a[key], b[key])) return false;
+      }
+      return true;
+    }
+    return a == b;
   }
 
   Map<String, dynamic> _changeRequestToFirestore(

@@ -6,10 +6,13 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../models/prescription.dart';
 import '../../../models/reminder_setting.dart';
+import '../../../services/browser_notifier.dart';
 import '../../../services/prescription_service.dart';
+import '../../../services/reminder_scheduler.dart';
 import '../../../widgets/h360_button.dart';
 import '../../../widgets/h360_card.dart';
 import '../../../widgets/state_views.dart';
+import '../../../widgets/dialog_frame.dart';
 
 /// Loading status of the saved reminder.
 enum _LoadStatus { loading, ready, error }
@@ -163,9 +166,14 @@ class _SetReminderScreenState extends State<SetReminderScreen> {
       customMinute: isCustom ? _customTime?.minute : null,
     );
 
+    // Ask the browser for permission during the tap (ignored if already answered).
+    if (reminder.notificationsEnabled) BrowserNotifier.requestPermission();
+
     setState(() => _saving = true);
     try {
       await PrescriptionService.instance.saveReminder(reminder);
+      // The scheduler reads the new reminder, so it pops up at the right time.
+      await ReminderScheduler.instance.reload();
       if (!mounted) return;
       setState(() => _saving = false);
 
@@ -188,7 +196,7 @@ class _SetReminderScreenState extends State<SetReminderScreen> {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => DialogFrame(child: AlertDialog(
                 icon: const Icon(
           Icons.check_circle_rounded,
           color: AppColors.success,
@@ -202,57 +210,8 @@ class _SetReminderScreenState extends State<SetReminderScreen> {
             child: const Text('OK'),
           ),
         ],
-      ),
+      )),
     );
-  }
-
-  /// Demo of the pop-up the patient would get when a dose is due.
-  /// Large text on purpose (older users). Taken saves today's dose.
-  Future<void> _previewReminder() async {
-    final taken = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(Icons.alarm_rounded, color: AppColors.primary, size: 44),
-        title: const Text("It's time to take", textAlign: TextAlign.center),
-        content: Text(
-          _rx.title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: AppColors.navy,
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Remind Me Later'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Taken'),
-          ),
-        ],
-      ),
-    );
-
-    // Dismissed by tapping outside: do nothing.
-    if (taken == null || !mounted) return;
-
-    if (!taken) {
-      _showMessage("Okay, we'll remind you again in 10 minutes. (Demo)");
-      return;
-    }
-
-    try {
-      await PrescriptionService.instance.setTakenToday(_rx.id, true);
-      if (!mounted) return;
-      _showMessage('${_rx.title} marked as taken.');
-    } on PrescriptionException catch (e) {
-      if (!mounted) return;
-      _showMessage(e.message);
-    }
   }
 
   /// Shows a short message at the bottom of the screen.
@@ -354,6 +313,7 @@ class _SetReminderScreenState extends State<SetReminderScreen> {
                   groupValue: _mode,
                   activeColor: AppColors.primary,
                   title: const Text('Every 8 Hours'),
+                  subtitle: const Text('At 8:00 AM, 4:00 PM and 12:00 AM'),
                   onChanged: (value) {
                     if (value != null) setState(() => _mode = value);
                   },
@@ -433,21 +393,20 @@ class _SetReminderScreenState extends State<SetReminderScreen> {
               value: _notificationsEnabled,
               activeThumbColor: AppColors.primary,
               title: const Text('Enable Notifications'),
-              subtitle: const Text('Get a reminder when a dose is due.'),
-              onChanged: (value) =>
-                  setState(() => _notificationsEnabled = value),
+              subtitle: const Text(
+                'A reminder pops up while Health360 is open. In Chrome you can also allow notifications when the tab is in the background.',
+              ),
+              onChanged: (value) {
+                setState(() => _notificationsEnabled = value);
+                // Ask the browser now: it only allows the prompt after a tap.
+                if (value) BrowserNotifier.requestPermission();
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
 
           // Save
           H360Button(label: 'Save', isLoading: _saving, onPressed: _save),
-          const SizedBox(height: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: _previewReminder,
-            icon: const Icon(Icons.alarm_rounded),
-            label: const Text('Preview reminder (demo)'),
-          ),
         ],
       ),
     );

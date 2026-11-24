@@ -17,12 +17,15 @@ flutter test
 
 Flutter 3.22+ (Dart 3.3+) is required. Android/iOS can be added later with `--platforms android,ios`.
 
-## Checking both sides (no login yet)
+## Accounts and login
 
-- The app opens on a **role gate**: *Continue as Patient* or *Continue as Doctor*.
-- From either **Profile** tab, tap **Switch view (demo)** to jump to the other side. **Log Out** returns to the gate.
-- Skip the gate while developing:
-  `flutter run -d chrome --dart-define=START_ROUTE=/patient` (or `/doctor`).
+- The app opens on **Login**. Patients create their own account with **Register**.
+- **Doctor accounts are created by the clinic administrator** in the Firebase console
+  (Authentication > Add user, then a `users/{uid}` document with `role: "doctor"`).
+  The security rules reject any self-registration as a doctor.
+- After login the app opens the patient or doctor side from the account's role. **Log Out** is in Profile.
+- Developers only: `--dart-define=START_ROUTE=/patient` (or `/doctor`) skips login to check layouts;
+  data does not load without a signed-in account.
 
 ## What is built
 
@@ -31,14 +34,17 @@ Flutter 3.22+ (Dart 3.3+) is required. Android/iOS can be added later with `--pl
 | Design foundation | Theme, colour/spacing/radius tokens, shared widgets, role-aware bottom nav |
 | Patient | Dashboard (next appointment, quick actions, health at a glance, today's medications), AI assistant. Tap a health card for its trend, data source and an "Add a reading" form |
 | Doctor | Landing page (today's schedule, quick overview, today's appointments with Confirmed / Pending / Cancelled labels), Dashboard (6 shortcuts, recent activity), slide-out menu |
-| Profiles (both) | Profile with the same five rows for patient and doctor: Personal Information (validated form, saved locally, with Change Password), Notifications (settings + history), Language, App Theme (**dark mode** and **text size**), Help & Support (How to Use guide, Common Problems, FAQs) |
+| Profiles (both) | Profile with the same four rows for patient and doctor: Personal Information (validated form, saved in Firestore, with Change Password), Notifications (settings + history; the newest also show on Home with "Mark as done"), App Theme (**dark mode** and **text size**), Help & Support (How to Use guide, Common Problems, FAQs) |
 | First-time guide | "How to use" pages shown once per role; reopen from Profile > Help & Support |
-| Placeholders | Appointments, Prescriptions, Records (patient); Appointments, Patients (doctor). Marked with `TODO(owner)` |
+| Modules | Appointments (booking, edit/cancel requests, video visits), Prescriptions (reminders, refills, doses taken, openFDA reference), Records (consultation notes, lab results), doctor Patients, Prescriptions and Lab Results entry. All data in Cloud Firestore |
 
-## Demo controls
+## Demo controls (for the presentation)
 
-- **Long-press the avatar** on a Home screen: switch data between Normal / Empty / Error.
+- **Long-press the avatar** on a Home screen: switch every list between Normal / Empty / Error.
 - **⋮ menu in the AI screen**: *Simulate AI outage* shows the offline fallback.
+- **Health at a Glance** shows 7 days of readings marked *Sample*, plus the patient's own readings
+  (only the patient's own readings are saved to Firestore and shown to the doctor).
+- **Loading**: Chrome DevTools (F12) > Network > *Slow 4G*, then open any list.
 - **Profile > App Theme**: switch Light / Dark and Text size (saved on the device).
 - **First-time guide** shows once per role. To see it again, open Profile > Help & Support > How to Use Health360.
 - **Pull down** on a Home screen to refresh. Tap a medication to mark it taken (saved for today).
@@ -53,13 +59,12 @@ lib/
     routes/     app_routes (named routes, START_ROUTE)
     utils/      date_format, validators
   models/       plain data classes
-  services/     dashboard_service, doctor_service, profile_service, ai_assistant_service  (mock data + local storage)
+  services/     one service per module; Firestore reads/writes (see firestore.rules)
   widgets/      shared UI (card, button, chip, hero panel, menu tile, skeleton/empty/error, bottom nav ...)
   screens/
-    role/       role gate (temporary)
     patient/    patient_shell + home/
     doctor/     doctor_shell, home, dashboard, drawer
-    profile/    profile, personal info, notifications, help & support, language/theme sheets (both roles)
+    profile/    profile, personal info, notifications, help & support, theme sheet (both roles)
     ai/         AI assistant
     shared/     module_placeholder
 test/           AI fallback tests

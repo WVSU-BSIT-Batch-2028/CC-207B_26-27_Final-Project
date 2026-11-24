@@ -8,7 +8,7 @@
 // back arrow to return to the Overview, tap "Lab Results" to open lab
 // results, pull down to refresh.
 //
-// WHERE THE DATA COMES FROM: RecordsService.fetchConsultations (mock for now).
+// WHERE THE DATA COMES FROM: RecordsService.fetchConsultations (Firestore).
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_tokens.dart';

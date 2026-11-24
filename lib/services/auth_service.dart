@@ -184,6 +184,10 @@ class AuthService {
     _cachedProfile = null;
   }
 
+  /// Forgets the cached `users/{uid}` document, so the next read gets the
+  /// latest values (called after Personal Information saves a new name).
+  static void forgetCachedProfile() => _clearCache();
+
   /// Converts Firebase error codes into typed [AuthException] objects.
   AuthException _mapAuthError(FirebaseAuthException e) {
     switch (e.code) {

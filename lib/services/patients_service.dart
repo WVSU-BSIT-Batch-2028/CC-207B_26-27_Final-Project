@@ -6,6 +6,7 @@ import '../models/doctor_prescription.dart';
 import '../models/patient.dart';
 import '../models/patient_detail.dart';
 import '../models/patient_lab_result.dart';
+import '../models/patient_profile.dart';
 import '../models/patient_record.dart';
 import '../models/refill_request.dart';
 import '../models/taken_history.dart';
@@ -38,19 +39,6 @@ class PatientsService {
   static final PatientsService instance = PatientsService._();
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
-
-  /// Resolves the linked patient ID from the patient's users document.
-  /// Falls back to the Firebase document ID if no linked ID exists.
-  Future<String> _resolvePatientId(String patientUid) async {
-    final doc = await _db.collection('users').doc(patientUid).get();
-    final linked = doc.data()?['patientId'];
-
-    if (linked is String && linked.trim().isNotEmpty) {
-      return linked.trim();
-    }
-
-    return patientUid;
-  }
 
   /// Returns the signed-in doctor's own patients (active and history), most
   /// recent visit first.
@@ -243,10 +231,9 @@ class PatientsService {
     );
 
     return _guard(() async {
-      final resolvedPatientId = await _resolvePatientId(patientId);
       final snap = await _db
           .collection('prescriptions')
-          .where('patientId', isEqualTo: resolvedPatientId)
+          .where('patientId', isEqualTo: patientId)
           .get();
 
       final prescriptions = <DoctorPrescription>[];
@@ -262,8 +249,8 @@ class PatientsService {
 
   /// Saves a new prescription for a patient (Add Prescription > Save).
   ///
-  /// Resolves the patient's ID and hands the save to PrescriptionService,
-  /// the writer used by the patient screens and refill workflow.
+  /// Hands the save to PrescriptionService, the writer used by the patient
+  /// screens and the refill workflow.
   ///
   /// Throws [PatientsException] if it could not be saved.
   Future<void> addPrescription(
@@ -274,14 +261,9 @@ class PatientsService {
       "We couldn't save this prescription. Check your connection and try again.",
     );
 
-    // Resolve the same patient ID used by the patient's own screens.
-    final resolvedPatientId = await _guard(
-      () => _resolvePatientId(patientId),
-    );
-
     try {
       await PrescriptionService.instance.addPrescription(
-        resolvedPatientId,
+        patientId,
         prescription,
       );
     } on PrescriptionException catch (e) {
@@ -300,13 +282,9 @@ class PatientsService {
       "We couldn't load the refill requests. Check your connection and try again.",
     );
 
-    final resolvedPatientId = await _guard(
-      () => _resolvePatientId(patientId),
-    );
-
     try {
       return await PrescriptionService.instance
-          .fetchRefillRequestsForPatient(resolvedPatientId);
+          .fetchRefillRequestsForPatient(patientId);
     } on PrescriptionException catch (e) {
       throw PatientsException(e.message);
     }
@@ -323,13 +301,9 @@ class PatientsService {
       "We couldn't load the doses taken. Check your connection and try again.",
     );
 
-    final resolvedPatientId = await _guard(
-      () => _resolvePatientId(patientId),
-    );
-
     try {
       return await PrescriptionService.instance
-          .fetchTakenHistoryForPatient(resolvedPatientId);
+          .fetchTakenHistoryForPatient(patientId);
     } on PrescriptionException catch (e) {
       throw PatientsException(e.message);
     }
@@ -344,9 +318,8 @@ class PatientsService {
     required RefillStatus answer,
   }) async {
     try {
-      final resolvedPatientId = await _resolvePatientId(patientId);
       await PrescriptionService.instance.respondToRefill(
-        patientId: resolvedPatientId,
+        patientId: patientId,
         prescriptionId: prescriptionId,
         answer: answer,
       );
@@ -392,6 +365,82 @@ class PatientsService {
         'type': 'Consultation',
         'diagnosis': diagnosis,
         'treatment': treatment,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// The patient's medical profile, for the Edit Patient Info form.
+  /// A patient with no `patientProfiles` document gets an empty profile.
+  Future<PatientProfile> fetchPatientProfile(String patientId) async {
+    _demoThrowsIfError(
+      "We couldn't load this patient's details. Check your connection and try again.",
+    );
+    return _guard(() async => PatientProfile.fromMap(await _profile(patientId)));
+  }
+
+  /// Saves the patient's medical profile (Edit Patient Info > Save) in
+  /// `patientProfiles/{uid}`. The rules let only doctors write it.
+  ///
+  /// Returns the updated [Patient] summary so the screens can show the new
+  /// age, sex, phone, condition and status without reloading the list.
+  /// Throws [PatientsException] if it could not be saved.
+  Future<Patient> savePatientProfile(Patient patient, PatientProfile profile) async {
+    _demoThrowsIfError(
+      "We couldn't save this patient's details. Check your connection and try again.",
+    );
+
+    await _guard<void>(() async {
+      await _db.collection('patientProfiles').doc(patient.id).set({
+        ...profile.toMap(),
+        'updatedBy': _doctorUid(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+
+    return Patient(
+      id: patient.id,
+      name: patient.name,
+      condition: profile.condition.isEmpty ? 'No condition recorded' : profile.condition,
+      isActive: profile.isActive,
+      age: profile.age,
+      sex: profile.sex.isEmpty ? null : profile.sex,
+      phone: profile.phone.isEmpty ? null : profile.phone,
+      lastVisit: patient.lastVisit,
+    );
+  }
+
+  /// Saves a lab result for a patient (Add Lab Result > Save) in the
+  /// `labResults` collection. The patient sees it in Records > Lab Results
+  /// and the doctor in Patient Records > Lab Results.
+  ///
+  /// [values] are maps of name, value, unit, range and flag (what
+  /// LabValue.fromMap reads). Saved results are not edited afterwards.
+  /// Throws [PatientsException] if it could not be saved.
+  Future<void> addLabResult(
+    String patientId, {
+    required String testName,
+    required DateTime date,
+    required List<Map<String, dynamic>> values,
+    required String overallResult,
+    String doctorNotes = '',
+  }) async {
+    _demoThrowsIfError(
+      "We couldn't save this lab result. Check your connection and try again.",
+    );
+
+    await _guard<void>(() async {
+      final doctorName = await _currentDoctorName();
+      await _db.collection('labResults').doc().set({
+        'patientId': patientId,
+        'doctorId': _doctorUid(),
+        'name': testName,
+        'date': Timestamp.fromDate(date),
+        'status': 'Complete',
+        'enteredBy': doctorName,
+        'overallResult': overallResult,
+        'doctorNotes': doctorNotes,
+        'values': values,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });

@@ -230,6 +230,11 @@ class _PrescriptionCard extends StatelessWidget {
   /// The small grey line at the bottom of the card.
   String get _dateLine {
     if (showingActive) {
+      // Not started yet: say so (it is not in Home's "Today's Medications").
+      final now = DateTime.now();
+      if (prescription.startDate.isAfter(DateTime(now.year, now.month, now.day))) {
+        return 'Starts ${formatLongDate(prescription.startDate)}';
+      }
       final refill = prescription.refillDate;
       return refill == null
           ? 'No refill scheduled'

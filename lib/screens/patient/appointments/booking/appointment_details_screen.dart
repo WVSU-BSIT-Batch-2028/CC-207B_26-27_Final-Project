@@ -146,14 +146,6 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
                                 .bodyMedium
                                 ?.copyWith(color: AppColors.textMuted),
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Demo doctor profile',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: AppColors.textMuted),
-                          ),
                         ],
                       ),
                     ),

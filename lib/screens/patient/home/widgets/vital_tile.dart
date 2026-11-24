@@ -49,7 +49,9 @@ class VitalTile extends StatelessWidget {
     final icon = Icon(vital.type.icon, size: 20, color: color);
     return Semantics(
       button: true,
-      label: '${vital.label} ${vital.value} ${vital.unit}. Tap for details.',
+      label: vital.hasReadings
+          ? '${vital.label} ${vital.value} ${vital.unit}. Tap for details.'
+          : '${vital.label}, no reading yet. Tap to add one.',
       child: H360Card(
         onTap: onTap,
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
@@ -76,6 +78,13 @@ class VitalTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            // No reading yet: invite the patient to add the first one.
+            if (!vital.hasReadings)
+              Text(
+                'Add a reading',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+              )
+            else
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,

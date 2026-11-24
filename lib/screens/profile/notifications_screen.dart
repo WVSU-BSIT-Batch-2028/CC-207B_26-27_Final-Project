@@ -8,6 +8,7 @@ import '../../models/user_profile.dart';
 import '../../models/user_role.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/h360_card.dart';
+import '../../widgets/notifications_preview.dart';
 import '../../widgets/state_views.dart';
 
 /// Notifications: on/off toggles per category (saved on the device) and a
@@ -63,24 +64,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     ProfileService.instance.markNotificationsRead(widget.role, [for (final n in history) n.id]);
   }
 
-  /// Icon for each category key (patient and doctor keys).
-  IconData _iconFor(String key) {
-    switch (key) {
-      case 'appointments':
-      case 'appointment':
-        return Icons.event_available_rounded;
-      case 'prescriptions':
-      case 'prescription':
-        return Icons.medication_rounded;
-      case 'lab_results':
-      case 'lab':
-        return Icons.science_rounded;
-      case 'health':
-        return Icons.favorite_rounded;
-      default:
-        return Icons.system_update_rounded;
-    }
-  }
 
   Widget _heading(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -167,7 +150,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: _NotificationTile(
                 item: n,
-                icon: _iconFor(n.categoryKey),
+                icon: notificationIcon(n.categoryKey),
                 onTap: () => _markRead(n),
               ),
             ),

@@ -7,6 +7,7 @@ import '../models/refill_request.dart';
 import 'h360_button.dart';
 import 'prescription_info_card.dart';
 import 'refill_status_chip.dart';
+import 'dialog_frame.dart';
 
 /// Shows a patient's refill request to the doctor. While the request is
 /// pending it has Approve and Decline buttons; once answered it only shows
@@ -53,7 +54,7 @@ class _RefillRequestCardState extends State<RefillRequestCard> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => DialogFrame(child: AlertDialog(
         title: Text(approve ? 'Approve this refill?' : 'Decline this refill?'),
         content: Text(
           approve
@@ -70,7 +71,7 @@ class _RefillRequestCardState extends State<RefillRequestCard> {
             child: Text(approve ? 'Approve' : 'Decline'),
           ),
         ],
-      ),
+      )),
     );
 
     // The doctor tapped Cancel, tapped outside, or left the screen.

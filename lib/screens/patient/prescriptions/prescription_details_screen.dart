@@ -12,6 +12,7 @@ import '../../../widgets/prescription_info_card.dart';
 import '../../../widgets/refill_status_chip.dart';
 import '../../../widgets/state_views.dart';
 import 'set_reminder_screen.dart';
+import '../../../widgets/dialog_frame.dart';
 
 /// Loading status of the extra data (taken today, refill request).
 enum _LoadStatus { loading, ready, error }
@@ -89,6 +90,9 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
       ..showSnackBar(SnackBar(content: Text(message), action: action));
   }
 
+  /// False before the prescription's first day (Mark as Taken is disabled).
+  bool get _hasStarted => _rx.hasStartedOn(DateTime.now());
+
   /// "Mark as Taken": saves today's dose and offers an Undo in the snack bar.
   Future<void> _markTaken() async {
     setState(() => _savingTaken = true);
@@ -135,7 +139,7 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
   Future<void> _requestRefill() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => DialogFrame(child: AlertDialog(
         title: const Text('Request a refill?'),
         content: Text(
           '${_rx.prescribedBy} will review your refill request for ${_rx.title}.',
@@ -150,7 +154,7 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
             child: const Text('Request'),
           ),
         ],
-      ),
+      )),
     );
 
     // The user tapped Cancel, tapped outside, or left the screen.
@@ -317,13 +321,15 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
               _rx.prescribedBy,
               style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
             ),
-            Text(
-              _rx.doctorPhone,
-              style: TextStyle(color: AppColors.textMuted, fontSize: 14),
-            ),
+            // Only when the prescription has a phone number (no empty line).
+            if (_rx.doctorPhone.isNotEmpty)
+              Text(
+                _rx.doctorPhone,
+                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+              ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              formatLongDate(_rx.prescribedOn),
+              'Prescribed on ${formatLongDate(_rx.prescribedOn)}',
               style: TextStyle(color: AppColors.textMuted, fontSize: 14),
             ),
           ],
@@ -373,15 +379,31 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
 
         // Buttons
         const SizedBox(height: AppSpacing.lg),
+        // Before the start date the button is disabled and says when it starts.
         H360Button(
-          label: _takenToday ? 'Taken Today' : 'Mark as Taken',
-          icon: _takenToday
-              ? Icons.check_circle_rounded
-              : Icons.check_rounded,
+          label: !_hasStarted
+              ? 'Starts ${formatLongDate(_rx.startDate)}'
+              : _takenToday
+                  ? 'Taken Today'
+                  : 'Mark as Taken',
+          icon: !_hasStarted
+              ? Icons.event_rounded
+              : _takenToday
+                  ? Icons.check_circle_rounded
+                  : Icons.check_rounded,
           isLoading: _savingTaken,
-          // Disabled (null) once taken; the Undo is in the snack bar.
-          onPressed: _takenToday ? null : _markTaken,
+          // Disabled (null) before the start date and once taken; the Undo
+          // is in the snack bar.
+          onPressed: !_hasStarted || _takenToday ? null : _markTaken,
         ),
+        if (!_hasStarted) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'You can mark it as taken from its start date.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+          ),
+        ],
         const SizedBox(height: AppSpacing.sm),
         _outlinedButton(
           label: 'Set a Reminder',

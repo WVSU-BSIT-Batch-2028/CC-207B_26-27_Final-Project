@@ -9,44 +9,6 @@ const ShapeBorder _sheetShape = RoundedRectangleBorder(
   borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
 );
 
-/// Language picker. Only English is available for now.
-void showLanguageSheet(BuildContext context) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppColors.surface,
-    shape: _sheetShape,
-    builder: (sheetContext) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Language', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-              ),
-            ),
-            ListTile(
-              title: const Text('English'),
-              trailing: Icon(Icons.check_circle_rounded, color: AppColors.primary),
-              onTap: () => Navigator.of(sheetContext).pop(),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('More languages are planned.', style: TextStyle(color: AppColors.textMuted, fontSize: 13.5)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
 /// App Theme sheet: Light / Dark and Text size. Changes apply immediately and
 /// are saved; the sheet stays open so you can see the effect, then tap Done.
 void showThemeSheet(BuildContext context) {
@@ -56,7 +18,7 @@ void showThemeSheet(BuildContext context) {
     useSafeArea: true,
     backgroundColor: AppColors.surface,
     shape: _sheetShape,
-    constraints: const BoxConstraints(maxWidth: 560),
+    constraints: const BoxConstraints(maxWidth: AppSizes.sheet),
     builder: (sheetContext) => ListenableBuilder(
       listenable: ThemeController.instance,
       builder: (context, _) {

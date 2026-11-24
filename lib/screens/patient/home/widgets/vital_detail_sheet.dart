@@ -25,7 +25,7 @@ Future<void> showVitalDetailSheet(
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: AppColors.surface,
-    constraints: const BoxConstraints(maxWidth: 560),
+    constraints: const BoxConstraints(maxWidth: AppSizes.sheet),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
@@ -111,7 +111,15 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
     );
 
     setState(() => _saving = true);
-    await DashboardService.instance.addReading(_vital.type, reading);
+    try {
+      await DashboardService.instance.addReading(_vital.type, reading);
+    } on DashboardException catch (e) {
+      // Saving to Firestore failed: keep the form filled so they can retry.
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
     if (!mounted) return;
 
     final updated = _vital.withReading(reading);
@@ -135,7 +143,8 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
   Widget build(BuildContext context) {
     final color = _vital.type.color;
     final normal = _vital.status == VitalStatus.normal;
-    final fromYou = _vital.latest.source == ReadingSource.you;
+    final hasReadings = _vital.hasReadings;
+    final fromYou = hasReadings && _vital.latest.source == ReadingSource.you;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -192,11 +201,12 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
               ],
             ),
             const SizedBox(height: 8),
-            StatusChip(
-              label: normal ? 'Usual range' : 'Worth a look',
-              color: normal ? AppColors.success : AppColors.warning,
-              icon: normal ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
-            ),
+            if (hasReadings)
+              StatusChip(
+                label: normal ? 'Usual range' : 'Worth a look',
+                color: normal ? AppColors.success : AppColors.warning,
+                icon: normal ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+              ),
             const SizedBox(height: 14),
 
             // Where the numbers come from
@@ -213,9 +223,11 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      fromYou
-                          ? 'Latest reading added by you. Earlier days are sample data for this demo.'
-                          : "Source: sample data for this demo. In the real app these numbers come from what you enter and from your doctor's records. You can add your own reading below.",
+                      !hasReadings
+                          ? 'No readings yet. Add your first one below. Your doctor will see it in your record.'
+                          : fromYou
+                              ? 'Latest reading added by you; your doctor can see your readings. Readings marked "Sample" are example data.'
+                              : 'Readings marked "Sample" are example data. Add your own reading below; your doctor will see it in your record.',
                       style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.4),
                     ),
                   ),
@@ -224,13 +236,16 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
             ),
             const SizedBox(height: 20),
 
-            _sectionTitle('Last 7 readings'),
-            _trend(color),
-            const SizedBox(height: 20),
+            // Trend and history only once there is something to show.
+            if (hasReadings) ...[
+              _sectionTitle('Last 7 readings'),
+              _trend(color),
+              const SizedBox(height: 20),
 
-            _sectionTitle('Recent readings'),
-            for (final r in _vital.recent.reversed) _ReadingRow(vital: _vital, reading: r),
-            const SizedBox(height: 20),
+              _sectionTitle('Recent readings'),
+              for (final r in _vital.recent.reversed) _ReadingRow(vital: _vital, reading: r),
+              const SizedBox(height: 20),
+            ],
 
             _sectionTitle('Add a reading'),
             _form(),
