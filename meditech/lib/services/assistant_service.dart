@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../utils/app_failure.dart';
@@ -18,8 +20,11 @@ class SupabaseAssistantService implements AssistantService {
         body: {'message': message.trim()},
       );
       final data = response.data;
-      if (data is Map && data['answer'] is String && (data['answer'] as String).isNotEmpty) {
-        return data['answer'] as String;
+      if (data is Map) {
+        final answer = data['answer'];
+        if (answer is String && answer.isNotEmpty) return answer;
+        final err = data['error'];
+        if (err is String && err.isNotEmpty) throw AppFailure(err);
       }
       throw const AppFailure('The assistant is unavailable.');
     } on FunctionException catch (error) {
@@ -27,14 +32,34 @@ class SupabaseAssistantService implements AssistantService {
     }
   }
 
-  // Keep the function's own message, including the daily limit and unavailable text
   AppFailure _failure(FunctionException error) {
-    final details = error.details;
+    final message = _edgeErrorMessage(error.details);
+    if (message != null) return AppFailure(message);
+    if (error.status == 0) return const AppFailure('Could not reach Supabase.');
+    if (error.status == 403) {
+      return const AppFailure('This assistant is for customer accounts only.');
+    }
+    if (error.status == 401) {
+      return const AppFailure('Sign in before using the assistant.');
+    }
+    return const AppFailure('The assistant is unavailable.');
+  }
+
+  static String? _edgeErrorMessage(Object? details) {
     if (details is Map) {
       final message = details['error'];
-      if (message is String && message.isNotEmpty) return AppFailure(message);
+      if (message is String && message.isNotEmpty) return message;
     }
-    if (error.status == 0) return const AppFailure('Could not reach Supabase.');
-    return const AppFailure('The assistant is unavailable.');
+    if (details is String && details.isNotEmpty) {
+      try {
+        final parsed = jsonDecode(details);
+        if (parsed is Map && parsed['error'] is String) {
+          return parsed['error'] as String;
+        }
+      } catch (_) {
+        return details;
+      }
+    }
+    return null;
   }
 }

@@ -5,6 +5,7 @@ import {
   isAppHelp,
   isMedicineLookup,
   medicineNotListedAnswer,
+  recommendPharmacyAnswer,
   refuseReason,
 } from "./guard.ts";
 
@@ -58,6 +59,18 @@ Deno.test("has a clear not-listed answer", () => {
     medicineNotListedAnswer().includes("not available on MediTech"),
     true,
   );
+});
+
+Deno.test("recommend from live offers", () => {
+  const answer = recommendPharmacyAnswer(
+    [{ brand_name: "Biogesic", generic_name: "Paracetamol", strength: "500 mg" }],
+    [
+      { pharmacy: "Demo Pharmacy La Paz", price: "5.50", availability: "available" },
+      { pharmacy: "Another Branch", price: "6.00", availability: "low_stock" },
+    ],
+  );
+  assertEquals(answer?.includes("Demo Pharmacy La Paz"), true);
+  assertEquals(answer?.includes("Biogesic"), true);
 });
 
 Deno.test("blocks a made-up price", () => {

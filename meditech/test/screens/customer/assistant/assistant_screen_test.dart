@@ -18,7 +18,7 @@ void main() {
 
     await tester.pumpWidget(_app(fake));
 
-    expect(find.text('MediTech Assistant'), findsOneWidget);
+    expect(find.text('Madipal'), findsOneWidget);
     expect(find.text('What can I help you today?'), findsOneWidget);
     expect(find.text('Where can I find paracetamol 500mg?'), findsOneWidget);
     expect(find.text('How do I place a reservation?'), findsOneWidget);

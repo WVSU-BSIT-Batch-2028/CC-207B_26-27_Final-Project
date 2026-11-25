@@ -7,6 +7,7 @@ import {
   isAppHelp,
   isMedicineLookup,
   medicineNotListedAnswer,
+  recommendPharmacyAnswer,
   refuseReason,
   type AiFacts,
 } from "./guard.ts";
@@ -47,9 +48,13 @@ Deno.serve(async (req) => {
   const refusal = refuseReason(message);
   if (refusal) return reply(200, { answer: refusal });
 
-  if (!geminiKey) {
+  if (!geminiKey?.trim()) {
     console.error("[ai-assistant] GEMINI_API_KEY is not set");
-    return reply(503, { error: "The assistant is unavailable." });
+    return reply(503, {
+      error:
+        "The assistant is not configured. Set GEMINI_API_KEY in Supabase → Project Settings → Edge Functions → Secrets, then redeploy ai-assistant.",
+      code: "missing_gemini_key",
+    });
   }
 
   const userClient = createClient(url, anonKey, {
@@ -91,21 +96,42 @@ Deno.serve(async (req) => {
     return reply(200, { answer: medicineNotListedAnswer() });
   }
 
-  // Prefer the current Gemini flash model; fall back if Google is busy
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+  if (/recommend/i.test(message)) {
+    const fromOffers = recommendPharmacyAnswer(
+      facts.forModel.medicines,
+      facts.forModel.offers,
+    );
+    if (fromOffers) return reply(200, { answer: fromOffers });
+    if (facts.forModel.medicines.length > 0) {
+      const med = facts.forModel.medicines[0];
+      return reply(200, {
+        answer:
+          `${med.brand_name} is in the MediTech catalogue, but no partner pharmacy is showing stock in offers right now. ` +
+          "Try Search, pick another branch on the map, or check again later.",
+      });
+    }
+  }
+
+  const models = (Deno.env.get("GEMINI_MODELS") ??
+    "gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash")
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
   let answer = "";
   let geminiOk = false;
+  let lastGeminiStatus = 0;
+  let lastGeminiBody = "";
   for (const model of models) {
     const gemini = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey.trim() },
         body: JSON.stringify({
           systemInstruction: {
             parts: [{
               text: [
-                "You are the MediTech customer assistant.",
+                "You are Madipal, the MediTech customer assistant.",
                 "Stay inside the MediTech customer app only.",
                 "You may explain what MediTech is, step-by-step how to search, compare offers, use the cart, upload a prescription, place a reservation, track My Reservations, and use a pickup code.",
                 "You may recommend pharmacies or next app steps using only the offers and app_guide in the facts.",
@@ -126,7 +152,9 @@ Deno.serve(async (req) => {
       },
     );
     if (!gemini.ok) {
-      console.error(`[ai-assistant] Gemini ${model} HTTP ${gemini.status}: ${await gemini.text().catch(() => "")}`);
+      lastGeminiStatus = gemini.status;
+      lastGeminiBody = await gemini.text().catch(() => "");
+      console.error(`[ai-assistant] Gemini ${model} HTTP ${gemini.status}: ${lastGeminiBody}`);
       continue;
     }
     const payload = await gemini.json();
@@ -140,7 +168,27 @@ Deno.serve(async (req) => {
 
   if (!geminiOk) {
     console.error("[ai-assistant] All Gemini models failed");
-    return reply(503, { error: "The assistant is unavailable." });
+    const keyRejected =
+      lastGeminiStatus === 400 ||
+      lastGeminiStatus === 403 ||
+      /API_KEY|api key|PERMISSION_DENIED/i.test(lastGeminiBody);
+    const modelGone =
+      lastGeminiStatus === 404 ||
+      /no longer available|not found for API version/i.test(lastGeminiBody);
+    const recommendFallback = /recommend/i.test(message)
+      ? recommendPharmacyAnswer(facts.forModel.medicines, facts.forModel.offers)
+      : null;
+    if (recommendFallback) {
+      return reply(200, { answer: recommendFallback });
+    }
+    return reply(503, {
+      error: keyRejected
+        ? "The Gemini API key was rejected. Update GEMINI_API_KEY in Supabase Edge Function secrets (use a Google AI Studio key)."
+        : modelGone
+        ? "The assistant AI model list is outdated. Redeploy ai-assistant or set GEMINI_MODELS in function secrets."
+        : "The assistant is unavailable. Try again in a moment.",
+      code: keyRejected ? "invalid_gemini_key" : "gemini_unavailable",
+    });
   }
   if (hasInventedFact(answer, facts.check)) {
     return reply(200, {

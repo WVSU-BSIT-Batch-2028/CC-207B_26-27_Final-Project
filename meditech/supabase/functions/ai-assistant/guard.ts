@@ -80,6 +80,47 @@ export function isMedicineLookup(message: string): boolean {
     .test(message);
 }
 
+export type MedicineFact = { brand_name: string; generic_name: string; strength: string };
+export type OfferFact = { pharmacy: string; price: string; availability: string };
+
+function availabilityRank(value: string): number {
+  const v = value.toLowerCase();
+  if (v === "available") return 0;
+  if (v === "low_stock" || v === "lowstock") return 1;
+  return 2;
+}
+
+function availabilityLabel(value: string): string {
+  const v = value.toLowerCase();
+  if (v === "available") return "Available";
+  if (v === "low_stock" || v === "lowstock") return "Low stock";
+  return value;
+}
+
+/** Pharmacy picks from live MediTech offers — no Gemini required. */
+export function recommendPharmacyAnswer(
+  medicines: MedicineFact[],
+  offers: OfferFact[],
+): string | null {
+  if (medicines.length === 0 || offers.length === 0) return null;
+  const med = medicines[0];
+  const sorted = [...offers].sort((a, b) => {
+    const byStock = availabilityRank(a.availability) - availabilityRank(b.availability);
+    if (byStock !== 0) return byStock;
+    return Number.parseFloat(a.price) - Number.parseFloat(b.price);
+  });
+  const lines = sorted.slice(0, 3).map(
+    (offer, index) =>
+      `${index + 1}. ${offer.pharmacy} — ₱${offer.price} (${availabilityLabel(offer.availability)})`,
+  );
+  return [
+    `For ${med.brand_name} (${med.generic_name}, ${med.strength}), these partner pharmacies are on MediTech right now:`,
+    ...lines,
+    "",
+    "Open Search, tap the medicine, and add an offer to your cart. Prefer Available over Low stock.",
+  ].join("\n");
+}
+
 // What to say when MediTech has no matching medicine listed
 export function medicineNotListedAnswer(): string {
   return (

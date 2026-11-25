@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../constants/assistant_branding.dart';
 import '../../../providers/assistant_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../screens/shared/sign_in_sheet.dart';
@@ -85,8 +86,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         backgroundColor: AppColors.surface,
         titleSpacing: 0,
         title: const CustomerLocationAppBarTitle(
-          heading: 'MediTech Assistant',
-          icon: Icons.smart_toy_outlined,
+          heading: assistantDisplayName,
+          icon: assistantIcon,
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -130,9 +131,9 @@ class _EmptyState extends StatelessWidget {
             color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          child: const Text(
-            'MediTech AI helps you find medicines and track reservations. It does not give medical advice.',
-            style: TextStyle(fontSize: 13, height: 1.35, color: AppColors.text),
+          child: Text(
+            '$assistantDisplayName helps you find medicines and track reservations in MediTech. It does not give medical advice.',
+            style: const TextStyle(fontSize: 13, height: 1.35, color: AppColors.text),
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),
@@ -269,9 +270,9 @@ class _TypingIndicatorState extends State<_TypingIndicator>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Assistant is typing',
-              style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+            Text(
+              '$assistantDisplayName is typing',
+              style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
             ),
             const SizedBox(width: AppSpacing.sm),
             ...List.generate(3, (i) {

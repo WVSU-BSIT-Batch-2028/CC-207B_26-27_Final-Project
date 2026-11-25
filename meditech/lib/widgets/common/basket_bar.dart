@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../constants/assistant_branding.dart';
 import '../../providers/cart_providers.dart';
 import '../../providers/customer_nav_provider.dart';
 import '../../providers/session_providers.dart';
@@ -342,7 +343,7 @@ class _AiButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'AI Assistant',
+      message: assistantDisplayName,
       child: Material(
         color: AppColors.primary,
         elevation: 3,
@@ -353,7 +354,7 @@ class _AiButton extends StatelessWidget {
           child: const SizedBox(
             width: 46,
             height: 46,
-            child: Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+            child: Icon(assistantIcon, color: Colors.white, size: 22),
           ),
         ),
       ),
