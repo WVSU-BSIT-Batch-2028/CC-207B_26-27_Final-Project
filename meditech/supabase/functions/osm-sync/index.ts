@@ -21,10 +21,11 @@ const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
 
 const QUERY_META = `
-[out:json][timeout:12];
+[out:json][timeout:30];
 (
   node["amenity"="pharmacy"]["name"](${BBOX});
   way["amenity"="pharmacy"]["name"](${BBOX});
@@ -33,7 +34,7 @@ out center meta qt;
 `;
 
 const QUERY_TAGS = `
-[out:json][timeout:12];
+[out:json][timeout:30];
 (
   node["amenity"="pharmacy"]["name"](${BBOX});
   way["amenity"="pharmacy"]["name"](${BBOX});
@@ -98,27 +99,27 @@ async function fetchFromMirror(
 }
 
 async function loadPharmacyElements(): Promise<OverpassElement[]> {
-  const errors: string[] = [];
+  // Try all mirrors in parallel — first successful response wins.
+  // This avoids sequential timeouts that push total time over 60 s.
+  const tryMirror = async (mirror: string, query: string, timeoutMs: number) => {
+    return fetchFromMirror(mirror, query, timeoutMs);
+  };
 
-  for (const mirror of OVERPASS_MIRRORS) {
-    try {
-      return await fetchFromMirror(mirror, QUERY_META, 14_000);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`meta:${msg}`);
-    }
-  }
+  // Round 1: META query on all mirrors simultaneously (28 s each)
+  const metaRace = await Promise.any(
+    OVERPASS_MIRRORS.map((m) => tryMirror(m, QUERY_META, 28_000)),
+  ).catch(() => null);
 
-  for (const mirror of OVERPASS_MIRRORS) {
-    try {
-      return await fetchFromMirror(mirror, QUERY_TAGS, 15_000);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`tags:${msg}`);
-    }
-  }
+  if (metaRace !== null) return metaRace;
 
-  throw new Error(`All Overpass mirrors failed (${errors.join(" | ")})`);
+  // Round 2: TAGS query (no timestamp) if all META attempts failed
+  const tagsRace = await Promise.any(
+    OVERPASS_MIRRORS.map((m) => tryMirror(m, QUERY_TAGS, 28_000)),
+  ).catch(() => null);
+
+  if (tagsRace !== null) return tagsRace;
+
+  throw new Error("All Overpass mirrors failed — OpenStreetMap may be under heavy load. Try again in a few minutes.");
 }
 
 Deno.serve(async (req) => {
@@ -181,7 +182,7 @@ Deno.serve(async (req) => {
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Overpass request failed.";
         return reply(502, {
-          error: `Could not download pharmacy data from OpenStreetMap. ${msg}`,
+          error: `Could not reach OpenStreetMap. ${msg} Try again in a few minutes.`,
         });
       }
     }

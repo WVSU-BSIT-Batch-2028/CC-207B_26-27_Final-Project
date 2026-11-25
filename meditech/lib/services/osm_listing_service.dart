@@ -1,7 +1,3 @@
-import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/osm_listing.dart';
@@ -98,65 +94,25 @@ class OsmListingService {
   }
 
   Future<int> syncFromOpenStreetMap() async {
-    const query = '''
-    [out:json][timeout:25];
-    (
-      node["amenity"="pharmacy"]["name"](10.67,122.48,10.78,122.62);
-      way["amenity"="pharmacy"]["name"](10.67,122.48,10.78,122.62);
-    );
-    out center meta qt;
-    ''';
-
-    const mirrors = [
-      'https://overpass.kumi.systems/api/interpreter',
-      'https://overpass-api.de/api/interpreter',
-      'https://overpass.private.coffee/api/interpreter',
-    ];
-
-    List<dynamic>? elements;
-    for (final mirror in mirrors) {
-      try {
-        final response = await http
-            .post(
-              Uri.parse(mirror),
-              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-              body: {'data': query},
-            )
-            .timeout(const Duration(seconds: 25));
-
-        if (response.statusCode == 200) {
-          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-          final list = decoded['elements'];
-          if (list is List) {
-            elements = list;
-            break;
-          }
-        }
-      } catch (_) {
-        // Try next mirror
-      }
-    }
-
-    if (elements == null) {
-      throw Exception(
-        'OpenStreetMap is slow or busy. Wait a minute and tap Sync OSM again.',
-      );
-    }
-
+    // Let the edge function fetch from Overpass server-side — it has its own
+    // mirror fallback logic and is not subject to mobile/browser network limits.
     try {
       final res = await _db.functions.invoke(
         'osm-sync',
-        body: {'elements': elements},
+        body: <String, dynamic>{}, // empty body → edge function fetches from Overpass itself
       );
       final data = res.data;
       if (data is Map && data['synced'] is num) {
         return (data['synced'] as num).toInt();
       }
+      if (data is Map && data['error'] is String) {
+        throw Exception(data['error'] as String);
+      }
       throw Exception('OpenStreetMap sync returned an invalid response.');
     } on FunctionException catch (error) {
-      final data = error.details ?? error.toString();
-      if (data is Map) {
-        final message = data['error'];
+      final details = error.details ?? error.toString();
+      if (details is Map) {
+        final message = details['error'];
         if (message is String && message.isNotEmpty) {
           throw Exception(message);
         }
@@ -167,7 +123,7 @@ class OsmListingService {
           'Wait a minute and tap Sync OSM again.',
         );
       }
-      throw Exception('Could not sync OpenStreetMap listings.');
+      throw Exception('Could not sync OpenStreetMap listings. Try again.');
     }
   }
 }
