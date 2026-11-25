@@ -14,6 +14,7 @@ class BranchSettings {
   final String? ownerPrcLicense;
   final DateTime? ownerPrcExpiry;
   final bool isOwnerPharmacist;
+  final String? storefrontPath;
 
   const BranchSettings({
     required this.branchId,
@@ -30,6 +31,7 @@ class BranchSettings {
     this.ownerPrcLicense,
     this.ownerPrcExpiry,
     this.isOwnerPharmacist = false,
+    this.storefrontPath,
   });
 
   factory BranchSettings.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class BranchSettings {
           : null,
       isOwnerPharmacist: json['is_owner_pharmacist'] == true ||
           (json['owner_prc_license']?.toString().isNotEmpty ?? false),
+      storefrontPath: json['storefront_path']?.toString(),
     );
   }
 

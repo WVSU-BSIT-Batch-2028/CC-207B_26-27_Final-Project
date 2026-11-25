@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../models/reservation.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
@@ -207,15 +208,26 @@ class _ReservationCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                reservation.branchName.isNotEmpty
-                    ? '${reservation.pharmacyName} · ${reservation.branchName}'
-                    : reservation.pharmacyName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
+              Row(
+                children: [
+                  BranchStorefrontThumb(
+                    branchId: reservation.branchId,
+                    size: 36,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      reservation.branchName.isNotEmpty
+                          ? '${reservation.pharmacyName} · ${reservation.branchName}'
+                          : reservation.pharmacyName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(

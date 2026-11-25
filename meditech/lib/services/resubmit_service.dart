@@ -29,10 +29,22 @@ class ResubmitService {
       Future<void> upload(String kind, PickedDocument? doc) async {
         if (doc == null) return;
         final ext = doc.mimeType == 'application/pdf' ? 'pdf' : doc.mimeType == 'image/png' ? 'png' : 'jpg';
-        final path = '$branchId/$kind/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final userId = _client.auth.currentUser?.id;
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+        final filePart = '${kind}_$stamp.$ext';
+        final path = (kind == 'storefront' && userId != null)
+            ? '$branchId/$kind/$userId/$filePart'
+            : '$branchId/$kind/$filePart';
         await _client.storage
             .from('pharmacy-documents')
             .uploadBinary(path, doc.bytes, fileOptions: FileOptions(contentType: doc.mimeType));
+        if (kind == 'storefront' && userId != null) {
+          try {
+            await _client.storage
+                .from('staff-avatars')
+                .uploadBinary('$branchId/$userId/$filePart', doc.bytes, fileOptions: FileOptions(contentType: doc.mimeType, upsert: true));
+          } catch (_) {}
+        }
         documents.add({'kind': kind, 'path': path, 'mime_type': doc.mimeType, 'size_bytes': doc.bytes.length});
       }
 

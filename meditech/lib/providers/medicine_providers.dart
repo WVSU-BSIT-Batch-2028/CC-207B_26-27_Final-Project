@@ -1,11 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/medicine.dart';
 import '../services/medicine_service.dart';
+import '../utils/public_media_urls.dart';
 
 // Provides the MedicineService instance (overridable in widget tests)
 final medicineServiceProvider = Provider<MedicineService>((ref) {
   return MedicineService();
+});
+
+// Resolves the public pack image URL for any medicineId (used by Cart and Reservation cards)
+final medicineImageUrlByIdProvider =
+    FutureProvider.autoDispose.family<String?, String>((ref, medicineId) async {
+  if (medicineId.isEmpty) return null;
+  try {
+    final row = await Supabase.instance.client
+        .from('medicines')
+        .select('image_path')
+        .eq('id', medicineId)
+        .maybeSingle();
+    final path = row?['image_path'] as String?;
+    return medicineImagePublicUrl(path);
+  } catch (_) {
+    return null;
+  }
 });
 
 // Holds the active search query, filters, and sort selection

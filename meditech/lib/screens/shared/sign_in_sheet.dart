@@ -6,6 +6,7 @@ import '../../providers/session_providers.dart';
 import '../../utils/app_failure.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/async_view.dart';
+import '../../widgets/theme/app_colors.dart';
 import '../../widgets/theme/app_spacing.dart';
 
 // Open sign-in over the current page, then come back to that same page
@@ -89,6 +90,25 @@ class _CustomerSignInSheetState extends ConsumerState<CustomerSignInSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+          Row(
+            children: [
+              Image.asset(
+                'assets/images/Meditech Logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'MediTech',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Text('Sign in', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.md),
           if (_offline) const OfflineBanner(),

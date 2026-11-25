@@ -12,7 +12,9 @@ import '../../../providers/pharmacy_providers.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../services/cart_service.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_app_bar.dart';
+import '../../../widgets/common/medicine_id_thumb.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -465,10 +467,9 @@ class _PharmacyCard extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.local_pharmacy_outlined,
-                  color: AppColors.primary,
-                  size: 22,
+                BranchStorefrontThumb(
+                  branchId: reservation.branchId,
+                  size: 48,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
@@ -594,6 +595,11 @@ class _ItemsCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    MedicineIdThumb(
+                      medicineId: item.medicineId,
+                      size: 44,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

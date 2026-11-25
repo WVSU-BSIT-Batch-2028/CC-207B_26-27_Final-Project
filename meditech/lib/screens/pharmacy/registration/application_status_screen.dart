@@ -83,8 +83,20 @@ class _StatusContent extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('MediTech Pharmacy',
-            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/Meditech Logo.png',
+              width: 32,
+              height: 32,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('MediTech Pharmacy',
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpacing.sm),

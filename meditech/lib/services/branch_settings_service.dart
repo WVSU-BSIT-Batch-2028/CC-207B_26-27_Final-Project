@@ -107,6 +107,19 @@ class BranchSettingsService {
     final prcNo = staffRow?['prc_license_no'] as String?;
     final prcExpiryRaw = staffRow?['prc_license_expiry'];
 
+    String? storefrontPath;
+    try {
+      final docRow = await _client
+          .from('branch_documents')
+          .select('storage_path')
+          .eq('branch_id', branchId)
+          .eq('kind', 'storefront')
+          .order('uploaded_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      storefrontPath = docRow?['storage_path'] as String?;
+    } catch (_) {}
+
     return BranchSettings(
       branchId: response['id']?.toString() ?? branchId,
       pharmacyName: response['pharmacy_name']?.toString() ?? '',
@@ -127,6 +140,7 @@ class BranchSettingsService {
           : null,
       isOwnerPharmacist:
           role == 'pharmacist' || (prcNo != null && prcNo.isNotEmpty),
+      storefrontPath: storefrontPath,
     );
   }
 

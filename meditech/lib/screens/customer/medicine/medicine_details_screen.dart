@@ -6,6 +6,7 @@ import '../../../models/medicine.dart';
 import '../../../providers/medicine_providers.dart';
 import '../../../providers/cart_actions.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_app_bar.dart';
 import '../../../widgets/common/basket_bar.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -385,17 +386,9 @@ class _MedicineOfferCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.primaryLight,
-                      child: const Icon(
-                        Icons.storefront_outlined,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                  BranchStorefrontThumb(
+                    branchId: offer.branchId,
+                    size: 48,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

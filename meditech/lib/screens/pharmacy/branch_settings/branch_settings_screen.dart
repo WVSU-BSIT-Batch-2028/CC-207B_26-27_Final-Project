@@ -9,6 +9,7 @@ import '../../../providers/session_providers.dart';
 import '../../../utils/app_failure.dart';
 import '../../../utils/pick_profile_image.dart';
 import '../../../widgets/common/async_view.dart';
+import '../../../widgets/common/pharmacy_storefront_hero.dart';
 import '../../../widgets/pharmacy/pharmacy_user_profile_card.dart' show PharmacySettingsSectionCard;
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -72,6 +73,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
             bytes: picked.bytes,
             mimeType: _mimeFromFileName(picked.fileName),
           );
+      ref.invalidate(branchSettingsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -185,6 +187,17 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                               color: AppColors.textMuted,
                             ),
                           ),
+                          if (settings.storefrontPath != null &&
+                              settings.storefrontPath!.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 420),
+                              child: PharmacyStorefrontHero(
+                                storefrontPath: settings.storefrontPath,
+                                height: 150,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           Align(
                             alignment: Alignment.centerLeft,

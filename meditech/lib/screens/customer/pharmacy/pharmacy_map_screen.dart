@@ -270,10 +270,12 @@ class _PharmacyMapScreenState extends ConsumerState<PharmacyMapScreen> {
                             ),
                             const SizedBox(height: AppSpacing.md),
                             BrowseStoreCard(
+                              branchId: _selectedBranch!.branchId,
                               name: _selectedBranch!.pharmacyName,
                               addressLine: _selectedBranch!.distanceKm == null
                                   ? _selectedBranch!.address
                                   : '${_selectedBranch!.address} • ${_selectedBranch!.distanceKm!.toStringAsFixed(1)} km',
+                              storefrontPath: _selectedBranch!.storefrontPath,
                               isOpen: pharmacyIsOpenNow(
                                 hours?[_selectedBranch!.branchId],
                               ),
@@ -328,10 +330,12 @@ class _PharmacyMapScreenState extends ConsumerState<PharmacyMapScreen> {
                             for (var i = 0; i < branches.length; i++) ...[
                               if (i > 0) const SizedBox(height: AppSpacing.sm),
                               BrowseStoreCard(
+                                branchId: branches[i].branchId,
                                 name: branches[i].pharmacyName,
                                 addressLine: branches[i].distanceKm == null
                                     ? branches[i].address
                                     : '${branches[i].address} • ${branches[i].distanceKm!.toStringAsFixed(1)} km',
+                                storefrontPath: branches[i].storefrontPath,
                                 isOpen: pharmacyIsOpenNow(
                                   hours?[branches[i].branchId],
                                 ),
