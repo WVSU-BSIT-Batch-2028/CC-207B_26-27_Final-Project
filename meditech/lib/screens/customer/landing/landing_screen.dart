@@ -30,18 +30,11 @@ class LandingScreen extends StatelessWidget {
               const Spacer(flex: 2),
               Column(
                 children: [
-                  Container(
+                  Image.asset(
+                    'assets/images/Meditech Logo.png',
                     width: 64,
                     height: 64,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const Icon(
-                      Icons.menu_book_rounded,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(

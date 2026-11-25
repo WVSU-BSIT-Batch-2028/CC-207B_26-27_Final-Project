@@ -28,13 +28,30 @@ class BranchStorefrontService {
       'image/webp' => 'webp',
       _ => 'jpg',
     };
-    final path = '$branchId/storefront/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final userId = _client.auth.currentUser?.id;
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final filePart = 'storefront_$stamp.$ext';
+    final path = userId != null
+        ? '$branchId/storefront/$userId/$filePart'
+        : '$branchId/storefront/$filePart';
 
     await _client.storage.from('pharmacy-documents').uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(contentType: mimeType, upsert: false),
         );
+
+    // Also mirror to public staff-avatars under {branchId}/{userId}/{filePart}
+    // so unauthenticated guests & customers can always render the storefront photo.
+    if (userId != null) {
+      try {
+        await _client.storage.from('staff-avatars').uploadBinary(
+              '$branchId/$userId/$filePart',
+              bytes,
+              fileOptions: FileOptions(contentType: mimeType, upsert: true),
+            );
+      } catch (_) {}
+    }
 
     await _client.rpc('owner_update_storefront', params: {
       'p_path': path,

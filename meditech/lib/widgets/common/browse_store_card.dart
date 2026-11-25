@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../utils/public_media_urls.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'branch_storefront_thumb.dart';
 
 // Main Flow home store row: thumbnail, rating, open/registered badges
 class BrowseStoreCard extends StatelessWidget {
@@ -9,6 +12,8 @@ class BrowseStoreCard extends StatelessWidget {
     super.key,
     required this.name,
     required this.addressLine,
+    this.branchId,
+    this.storefrontPath,
     this.rating = 4.2,
     this.reviewCount = 40,
     this.isOpen = true,
@@ -18,6 +23,8 @@ class BrowseStoreCard extends StatelessWidget {
 
   final String name;
   final String addressLine;
+  final String? branchId;
+  final String? storefrontPath;
   final double rating;
   final int reviewCount;
   final bool isOpen;
@@ -41,25 +48,17 @@ class BrowseStoreCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  color: isRegistered
-                      ? AppColors.primaryLight
-                      : AppColors.neutralLight,
-                  child: Icon(
-                    isRegistered
-                        ? Icons.local_pharmacy
-                        : Icons.local_pharmacy_outlined,
-                    color: isRegistered
-                        ? AppColors.primary
-                        : AppColors.textMuted,
-                    size: 28,
-                  ),
+              if (branchId != null && branchId!.isNotEmpty)
+                BranchStorefrontThumb(
+                  branchId: branchId,
+                  size: 64,
+                  isRegistered: isRegistered,
+                )
+              else
+                _StorefrontThumb(
+                  storefrontPath: storefrontPath,
+                  isRegistered: isRegistered,
                 ),
-              ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -180,6 +179,80 @@ class _Pill extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: foreground,
         ),
+      ),
+    );
+  }
+}
+
+class _StorefrontThumb extends StatefulWidget {
+  const _StorefrontThumb({
+    required this.storefrontPath,
+    required this.isRegistered,
+  });
+
+  final String? storefrontPath;
+  final bool isRegistered;
+
+  @override
+  State<_StorefrontThumb> createState() => _StorefrontThumbState();
+}
+
+class _StorefrontThumbState extends State<_StorefrontThumb> {
+  String? _url;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StorefrontThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.storefrontPath != widget.storefrontPath) _resolve();
+  }
+
+  Future<void> _resolve() async {
+    if (widget.storefrontPath == null || widget.storefrontPath!.isEmpty) {
+      if (mounted) setState(() => _url = null);
+      return;
+    }
+    final url = await pharmacyStorefrontSignedUrl(
+      Supabase.instance.client,
+      widget.storefrontPath,
+    );
+    if (mounted) setState(() => _url = url);
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: 64,
+      height: 64,
+      color: widget.isRegistered ? AppColors.primaryLight : AppColors.neutralLight,
+      child: Icon(
+        widget.isRegistered ? Icons.local_pharmacy : Icons.local_pharmacy_outlined,
+        color: widget.isRegistered ? AppColors.primary : AppColors.textMuted,
+        size: 28,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = _url;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: url == null
+            ? _placeholder()
+            : Image.network(
+                url,
+                key: ValueKey(url),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _placeholder(),
+              ),
       ),
     );
   }

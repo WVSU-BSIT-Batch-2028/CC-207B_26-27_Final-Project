@@ -20,7 +20,7 @@ class PharmacyService {
         .order('pharmacy_name', ascending: true);
 
     final rows = response as List<dynamic>;
-    return rows.map((row) {
+    final baseList = rows.map((row) {
       final json = Map<String, dynamic>.from(row as Map);
       return PharmacyDetail.fromJson({
         'branch_id': json['id'],
@@ -34,6 +34,19 @@ class PharmacyService {
         'distance_km': null,
       });
     }).toList();
+
+    // Enrich with storefront_path via get_pharmacy_details so Home cards can show storefront photos
+    final enriched = await Future.wait(
+      baseList.map((b) async {
+        try {
+          final det = await getPharmacyDetails(branchId: b.branchId);
+          return det ?? b;
+        } catch (_) {
+          return b;
+        }
+      }),
+    );
+    return enriched;
   }
 
   // Opening hours for every approved branch, grouped by branch id

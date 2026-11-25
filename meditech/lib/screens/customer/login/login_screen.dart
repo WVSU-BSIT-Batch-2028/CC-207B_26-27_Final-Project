@@ -98,18 +98,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
+                      Image.asset(
+                        'assets/images/Meditech Logo.png',
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: const Icon(
-                          Icons.menu_book_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(

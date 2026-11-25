@@ -13,6 +13,7 @@ import '../../../providers/reservation_providers.dart';
 import '../../../providers/session_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/basket_bar.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_location_title.dart';
 import '../../../widgets/common/browse_store_card.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -277,8 +278,10 @@ class HomeScreen extends ConsumerWidget {
                   for (var i = 0; i < visible.length; i++) ...[
                     if (i > 0) const SizedBox(height: AppSpacing.sm),
                     BrowseStoreCard(
+                      branchId: visible[i].branchId,
                       name: visible[i].pharmacyName,
                       addressLine: _addressLine(visible[i]),
+                      storefrontPath: visible[i].storefrontPath,
                       isOpen: _branchIsOpen(visible[i], hours),
                       onTap: () => onOpenPharmacy?.call(visible[i]),
                     ),
@@ -717,6 +720,11 @@ class _ActiveReservationCard extends StatelessWidget {
           ),
           child: Row(
             children: [
+              BranchStorefrontThumb(
+                branchId: reservation.branchId,
+                size: 48,
+              ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

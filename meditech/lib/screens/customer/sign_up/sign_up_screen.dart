@@ -470,6 +470,28 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/Meditech Logo.png',
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'MediTech',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   'Create your account',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(

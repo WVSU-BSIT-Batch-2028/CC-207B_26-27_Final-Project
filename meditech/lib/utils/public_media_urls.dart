@@ -17,7 +17,8 @@ String? medicineImagePublicUrl(String? path, {int? cacheBust}) {
   }
 }
 
-/// Storefront photo in private bucket; guests may read via storage RLS + signed URL.
+/// Storefront photo in private bucket; guests may read via storage RLS + signed URL,
+/// or via public mirror when `branch_documents` RLS blocks unauthenticated subqueries.
 Future<String?> pharmacyStorefrontSignedUrl(
   SupabaseClient client,
   String? path, {
@@ -29,6 +30,16 @@ Future<String?> pharmacyStorefrontSignedUrl(
         .from(pharmacyDocumentsBucket)
         .createSignedUrl(path, expiresSeconds);
   } catch (_) {
+    // Fallback to public mirror in staff-avatars ({branchId}/{userId}/{fileName})
+    final parts = path.split('/');
+    if (parts.length >= 4 && parts[1] == 'storefront') {
+      final branchId = parts[0];
+      final userId = parts[2];
+      final fileName = parts.sublist(3).join('/');
+      return client.storage
+          .from('staff-avatars')
+          .getPublicUrl('$branchId/$userId/$fileName');
+    }
     return null;
   }
 }

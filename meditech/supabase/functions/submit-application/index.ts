@@ -98,7 +98,8 @@ Deno.serve(async (req) => {
   const storefront = storefrontFile as File;
   const branchId = crypto.randomUUID();
   const ltoPath = `${branchId}/lto/${crypto.randomUUID()}.${extension(lto.type)}`;
-  const storefrontPath = `${branchId}/storefront/${crypto.randomUUID()}.${extension(storefront.type)}`;
+  const storefrontFileName = `storefront_${crypto.randomUUID()}.${extension(storefront.type)}`;
+  let storefrontPath = `${branchId}/storefront/${storefrontFileName}`;
   let userId: string | null = null;
 
   // Undo whatever was already done if a later step fails
@@ -118,10 +119,12 @@ Deno.serve(async (req) => {
       return reply(409, { error: "This email is already registered.", fields: { email: "Already registered." } });
     }
     userId = created.user.id;
+    storefrontPath = `${branchId}/storefront/${userId}/${storefrontFileName}`;
 
-    // 2. Upload the two files
+    // 2. Upload the two files (and mirror storefront to public staff-avatars for customer app)
     const up1 = await server.storage.from(bucket).upload(ltoPath, lto, { contentType: lto.type });
     const up2 = await server.storage.from(bucket).upload(storefrontPath, storefront, { contentType: storefront.type });
+    await server.storage.from("staff-avatars").upload(`${branchId}/${userId}/${storefrontFileName}`, storefront, { contentType: storefront.type, upsert: true });
     if (up1.error || up2.error) {
       await undo();
       return reply(500, { error: "Upload failed. Please try again." });

@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../models/cart.dart';
 import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_app_bar.dart';
+import '../../../widgets/common/medicine_id_thumb.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -229,24 +231,40 @@ class _ReservationSubmittedScreenState
                       ],
                     ),
                     const Divider(height: AppSpacing.lg),
-                    Text(
-                      widget.pharmacyName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    if (widget.branchName.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.branchName,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textMuted,
+                    Row(
+                      children: [
+                        BranchStorefrontThumb(
+                          branchId: widget.branchId,
+                          size: 44,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.pharmacyName,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              if (widget.branchName.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.branchName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     ...widget.items.map(
                       (item) => Padding(
@@ -254,6 +272,11 @@ class _ReservationSubmittedScreenState
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            MedicineIdThumb(
+                              medicineId: item.medicineId,
+                              size: 36,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
                                 '${item.brandName} × ${item.quantity}',

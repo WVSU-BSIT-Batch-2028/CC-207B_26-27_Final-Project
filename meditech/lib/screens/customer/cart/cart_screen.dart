@@ -13,7 +13,9 @@ import '../../../providers/customer_nav_provider.dart';
 import '../../../providers/reservation_providers.dart';
 import '../../../widgets/common/async_view.dart';
 import '../../../widgets/common/basket_bar.dart';
+import '../../../widgets/common/branch_storefront_thumb.dart';
 import '../../../widgets/common/customer_app_bar.dart';
+import '../../../widgets/common/medicine_id_thumb.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../../../widgets/theme/app_colors.dart';
 import '../../../widgets/theme/app_spacing.dart';
@@ -469,17 +471,9 @@ class _BranchBanner extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  color: AppColors.primaryLight,
-                  child: const Icon(
-                    Icons.local_pharmacy,
-                    color: AppColors.primary,
-                  ),
-                ),
+              BranchStorefrontThumb(
+                branchId: cart.branchId,
+                size: 56,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -586,6 +580,11 @@ class _CartItemCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                MedicineIdThumb(
+                  medicineId: item.medicineId,
+                  size: 48,
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1257,18 +1256,9 @@ class _RecommendationCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: const Icon(
-                    Icons.local_pharmacy_outlined,
-                    color: AppColors.primary,
-                    size: 22,
-                  ),
+                BranchStorefrontThumb(
+                  branchId: rec.branchId,
+                  size: 40,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
