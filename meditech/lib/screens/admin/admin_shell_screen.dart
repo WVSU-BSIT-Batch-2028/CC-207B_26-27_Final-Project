@@ -48,16 +48,17 @@ class AdminShellScreen extends ConsumerWidget {
     final selected = switch (section) {
       'overview' ||
       'pharmacies' ||
-      'listings' ||
       'catalogue' ||
       'requests' ||
       'audit' => section,
+      // /listings now lives inside /pharmacies — redirect selection there
+      'listings' => 'pharmacies',
       _ => 'overview',
     };
 
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final selectedPharmacy =
-        (selected == 'pharmacies' || selected == 'listings') && wide
+        (selected == 'pharmacies') && wide
             ? ref.watch(selectedPharmacyProvider)
             : null;
     final selectedAudit = selected == 'audit' && wide ? ref.watch(selectedAuditProvider) : null;
@@ -66,7 +67,6 @@ class AdminShellScreen extends ConsumerWidget {
 
     final body = switch (selected) {
       'pharmacies' => const PharmaciesScreen(drawerInShell: true),
-      'listings' => const PharmaciesScreen(drawerInShell: true, initialRegistry: 'listings'),
       'catalogue' => const CatalogueScreen(drawerInShell: true),
       'requests' => const MedicineRequestsScreen(),
       'audit' => const AuditListScreen(drawerInShell: true),
@@ -78,7 +78,6 @@ class AdminShellScreen extends ConsumerWidget {
       unreadNotifications: unread,
       selectedNavigationId: switch (selected) {
         'requests' => 'catalogue',
-        'listings' => 'listings',
         _ => selected,
       },
       onNavigationSelected: (id) => _go(context, id),

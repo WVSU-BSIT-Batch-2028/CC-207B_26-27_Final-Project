@@ -62,8 +62,8 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/listings',
-        builder: (context, state) =>
-            const AdminShellScreen(section: 'listings'),
+        // Redirect old /listings links to /pharmacies where the tab now lives
+        redirect: (context, state) => '/pharmacies',
       ),
       GoRoute(
         path: '/notifications',
