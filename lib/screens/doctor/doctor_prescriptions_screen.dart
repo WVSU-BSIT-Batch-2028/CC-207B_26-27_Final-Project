@@ -6,6 +6,9 @@
 // to take it, the date range, which patient it is for, and a status chip), and
 // an "Add Prescription" button pinned at the bottom.
 //
+// A patient's refill request shows under its prescription with Approve /
+// Decline while it is pending (the Refill notification opens this screen).
+//
 // WHAT THE DOCTOR CAN DO: switch Active / History, pull down to refresh, tap
 // "Add Prescription" (first choose the patient, then fill in the form), or tap
 // the back arrow.
@@ -23,10 +26,12 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/date_format.dart';
 import '../../models/doctor_prescription.dart';
 import '../../models/patient.dart';
+import '../../models/refill_request.dart';
 import '../../services/patients_service.dart';
 import '../../widgets/active_history_toggle.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/h360_card.dart';
+import '../../widgets/refill_request_card.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/status_chip.dart';
 import '../records/widgets/records_header.dart';
@@ -38,10 +43,20 @@ enum _LoadStatus { loading, ready, error }
 
 /// One prescription together with the patient it was written for.
 class _PatientPrescription {
-  const _PatientPrescription({required this.patient, required this.prescription});
+  const _PatientPrescription({
+    required this.patient,
+    required this.prescription,
+    this.refill,
+  });
 
   final Patient patient;
   final DoctorPrescription prescription;
+
+  /// The patient's refill request for this prescription, if they sent one.
+  final RefillRequest? refill;
+
+  /// True while a refill request waits for the doctor's answer.
+  bool get hasPendingRefill => refill?.status == RefillStatus.pending;
 
   /// Last day the patient takes the medicine (the day before the end date).
   DateTime get lastDay {
@@ -49,8 +64,11 @@ class _PatientPrescription {
     return DateTime(s.year, s.month, s.day + prescription.durationDays - 1);
   }
 
-  /// Active until the course has finished (same rule as the patient's side).
+  /// Active until the course has finished (same rule as the patient's side),
+  /// and also while a refill request is waiting, so it is never hidden in
+  /// History before the doctor answers it.
   bool isActiveOn(DateTime now) {
+    if (hasPendingRefill) return true;
     final today = DateTime(now.year, now.month, now.day);
     final s = prescription.startDate;
     final end = DateTime(s.year, s.month, s.day + prescription.durationDays);
@@ -91,8 +109,20 @@ class _DoctorPrescriptionsScreenState extends State<DoctorPrescriptionsScreen> {
       final perPatient = await Future.wait(
         patients.map((patient) async {
           final list = await PatientsService.instance.fetchPatientPrescriptions(patient.id);
+          // A refill problem must not hide the prescriptions themselves.
+          Map<String, RefillRequest> refills;
+          try {
+            refills = await PatientsService.instance.fetchPatientRefillRequests(patient.id);
+          } catch (_) {
+            refills = const <String, RefillRequest>{};
+          }
           return [
-            for (final rx in list) _PatientPrescription(patient: patient, prescription: rx),
+            for (final rx in list)
+              _PatientPrescription(
+                patient: patient,
+                prescription: rx,
+                refill: refills[rx.id],
+              ),
           ];
         }),
       );
@@ -101,7 +131,13 @@ class _DoctorPrescriptionsScreenState extends State<DoctorPrescriptionsScreen> {
       if (!mounted) return;
 
       final all = perPatient.expand((x) => x).toList()
-        ..sort((a, b) => b.prescription.startDate.compareTo(a.prescription.startDate));
+        ..sort((a, b) {
+          // Refill requests waiting for an answer come first.
+          if (a.hasPendingRefill != b.hasPendingRefill) {
+            return a.hasPendingRefill ? -1 : 1;
+          }
+          return b.prescription.startDate.compareTo(a.prescription.startDate);
+        });
 
       setState(() {
         _patients = patients;
@@ -235,6 +271,20 @@ class _DoctorPrescriptionsScreenState extends State<DoctorPrescriptionsScreen> {
       else
         for (final item in visible) ...[
           _PrescriptionTile(item: item, active: _showingActive),
+          // The patient's refill request, with Approve / Decline while pending.
+          if (item.refill != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            RefillRequestCard(
+              medicineTitle: item.prescription.title,
+              request: item.refill!,
+              onRespond: (answer) => PatientsService.instance.answerPatientRefill(
+                patientId: item.patient.id,
+                prescriptionId: item.prescription.id,
+                answer: answer,
+              ),
+              onAnswered: () => _load(showSkeleton: false),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
         ],
     ];

@@ -78,7 +78,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
     final now = DateTime.now();
 
     if (_tab == _PrescriptionTab.active) {
-      final active = _prescriptions.where((p) => p.isActiveOn(now)).toList();
+      final active = _prescriptions.where((p) => p.isListedActiveOn(now)).toList();
       // Soonest refill first; prescriptions without a refill date go last.
       active.sort((a, b) {
         if (a.refillDate == null && b.refillDate == null) return 0;
@@ -89,7 +89,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       return active;
     }
 
-    final past = _prescriptions.where((p) => !p.isActiveOn(now)).toList();
+    final past = _prescriptions.where((p) => !p.isListedActiveOn(now)).toList();
     // Most recently finished first.
     past.sort((a, b) => b.endDate.compareTo(a.endDate));
     return past;
@@ -100,7 +100,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   /// Active prescriptions open Prescription Details (actions available);
   /// finished ones open the read-only History Details page.
   void _openDetails(Prescription prescription) {
-    final Widget page = prescription.isActiveOn(DateTime.now())
+    final Widget page = prescription.isListedActiveOn(DateTime.now())
         ? PrescriptionDetailsScreen(prescription: prescription)
         : PrescriptionHistoryDetailsScreen(prescription: prescription);
 

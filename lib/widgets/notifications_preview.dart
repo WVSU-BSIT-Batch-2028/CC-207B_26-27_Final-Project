@@ -8,6 +8,7 @@ import '../models/user_role.dart';
 import '../screens/profile/notifications_screen.dart';
 import '../services/profile_service.dart';
 import 'h360_card.dart';
+import 'notification_target.dart';
 import 'section_header.dart';
 import 'state_views.dart';
 
@@ -35,9 +36,10 @@ IconData notificationIcon(String key) {
 ///
 /// Shows TODAY's notifications only: how many are new and the 3 most recent.
 /// Older ones are in Profile > Notifications ("See all"). Each has
-/// a "Mark as done" check, so the user can see what still needs attention.
+/// a dot while it is new. Tapping one marks it as read and, for refill
+/// requests and answers, opens the screen it is about.
 /// It reads the same history and category switches as Profile >
-/// Notifications (ProfileService), so marking one here marks it there too.
+/// Notifications (ProfileService), so reading one here marks it there too.
 /// "See all" opens that screen.
 class NotificationsPreview extends StatefulWidget {
   const NotificationsPreview({super.key, required this.role, this.refreshToken = 0});
@@ -97,13 +99,16 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
     }
   }
 
-  /// "Mark as done": saved on the device, like on the Notifications screen.
-  void _markDone(NotificationItem item) {
-    if (item.read) return;
-    setState(() {
-      _items = [for (final n in _items) n.id == item.id ? n.copyWith(read: true) : n];
-    });
-    ProfileService.instance.markNotificationsRead(widget.role, [item.id]);
+  /// A tap: mark the notification as read (saved on the device, like on the
+  /// Notifications screen) and open the screen it points to, if any.
+  void _open(NotificationItem item) {
+    if (!item.read) {
+      setState(() {
+        _items = [for (final n in _items) n.id == item.id ? n.copyWith(read: true) : n];
+      });
+      ProfileService.instance.markNotificationsRead(widget.role, [item.id]);
+    }
+    openNotificationTarget(context, item);
   }
 
   Future<void> _openAll() async {
@@ -155,27 +160,29 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
           for (final n in _items.take(_shown))
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _PreviewRow(item: n, onDone: () => _markDone(n)),
+              child: _PreviewRow(item: n, onTap: () => _open(n)),
             ),
       ],
     );
   }
 }
 
-/// One notification with its "Mark as done" check.
-/// Text AND icon show the state, never colour alone.
+/// One notification. Unread ones are bold with a dot, and a chevron shows
+/// when tapping opens another screen. Text AND icon show the state, never
+/// colour alone.
 class _PreviewRow extends StatelessWidget {
-  const _PreviewRow({required this.item, required this.onDone});
+  const _PreviewRow({required this.item, required this.onTap});
 
   final NotificationItem item;
-  final VoidCallback onDone;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final done = item.read;
 
     return H360Card(
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -214,22 +221,21 @@ class _PreviewRow extends StatelessWidget {
               ],
             ),
           ),
-          // Mark as done / Done
-          done
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-                  child: Column(
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: AppColors.success),
-                      Text('Done', style: TextStyle(fontSize: 13, color: AppColors.success, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                )
-              : TextButton.icon(
-                  onPressed: onDone,
-                  icon: const Icon(Icons.radio_button_unchecked_rounded, size: 20),
-                  label: const Text('Mark as done', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                ),
+          // New dot, and a chevron when the tap opens a screen.
+          if (!done)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 0, 0),
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+              ),
+            ),
+          if (item.target != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+            ),
         ],
       ),
     );

@@ -119,7 +119,10 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         refillDate: DateTime(
           _startDate.year,
           _startDate.month,
-          _startDate.day + (days - 2 < 1 ? 1 : days - 2),
+          // Never later than the last day of the course (1-day courses
+          // open the refill on their only day).
+          _startDate.day +
+              (days - 2 < 1 ? 1 : days - 2).clamp(0, days - 1).toInt(),
         ),
         notes: notes.isEmpty ? null : notes,
       );

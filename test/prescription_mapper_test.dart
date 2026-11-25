@@ -160,4 +160,19 @@ void main() {
       expect(n.patientUid, isNull);
     });
   });
+
+  test('reads the older field names (medicine, frequency, endDate)', () {
+    final rx = prescriptionFromData('old', {
+      'medicine': 'Cetirizine',
+      'dosage': '10mg',
+      'form': 'tablet',
+      'frequency': '1x a day',
+      'startDate': Timestamp.fromDate(DateTime(2026, 9, 10)),
+      'endDate': Timestamp.fromDate(DateTime(2026, 10, 10)),
+      'refillDate': Timestamp.fromDate(DateTime(2026, 10, 10)),
+    });
+    expect(rx.medicineName, 'Cetirizine');
+    expect(rx.durationDays, 30);
+    expect(rx.instruction, 'Take 1 tablet - 1x a day');
+  });
 }

@@ -8,6 +8,7 @@ import '../../models/user_profile.dart';
 import '../../models/user_role.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/h360_card.dart';
+import '../../widgets/notification_target.dart';
 import '../../widgets/notifications_preview.dart';
 import '../../widgets/state_views.dart';
 
@@ -151,7 +152,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: _NotificationTile(
                 item: n,
                 icon: notificationIcon(n.categoryKey),
-                onTap: () => _markRead(n),
+                onTap: () {
+                  _markRead(n);
+                  openNotificationTarget(context, n);
+                },
               ),
             ),
       ],
