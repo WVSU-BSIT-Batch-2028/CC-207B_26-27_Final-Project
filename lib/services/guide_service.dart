@@ -4,14 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_role.dart';
 import 'auth_service.dart';
 
-/// Remembers whether the first-time "How to use" guide was already shown.
-///
-/// Signed in: saved per ACCOUNT as `guideSeen: true` in `users/{uid}`, so
-/// every new account sees the guide once (even on a shared laptop) and the
-/// same person does not see it again on another computer. A copy is also
-/// kept on this device, so the guide is not repeated when offline.
-/// Not signed in (START_ROUTE development bypass): saved per role on this
-/// device only.
+/// Remembers if the first-time guide was shown: per account in
+/// `users/{uid}` (`guideSeen`), with a device copy for offline use.
 class GuideService {
   GuideService._();
   static final GuideService instance = GuideService._();
@@ -49,7 +43,7 @@ class GuideService {
           .set({'guideSeen': true}, SetOptions(merge: true));
       AuthService.forgetCachedProfile();
     } catch (_) {
-      // The device copy still stops it from showing again here.
+      // The device copy still stops it from showing again.
     }
   }
 }

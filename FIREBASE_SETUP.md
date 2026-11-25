@@ -26,8 +26,12 @@ In the VS Code terminal, inside the project folder:
 
 ```powershell
 flutter pub get
-flutter run -d chrome --dart-define-from-file=firebase_config.json
+flutter run -d chrome --web-port=5000 --dart-define-from-file=firebase_config.json
 ```
+
+Always use `--web-port=5000`. Without it Flutter picks a new port each run (localhost:52529, localhost:53500, ...),
+each port counts as a new site, Chrome makes a new App Check debug token for it, and that token is not registered,
+so the AI assistant answers with offline guidance only on some runs.
 
 To use the normal Run button (F5), create `.vscode/launch.json` (it is ignored by Git, so each person makes their own):
 
@@ -40,7 +44,7 @@ To use the normal Run button (F5), create `.vscode/launch.json` (it is ignored b
       "request": "launch",
       "type": "dart",
       "deviceId": "chrome",
-      "args": ["--dart-define-from-file=firebase_config.json"]
+      "args": ["--web-port=5000", "--dart-define-from-file=firebase_config.json"]
     }
   ]
 }
@@ -59,9 +63,14 @@ Firebase AI Logic switches **App Check** on when you finish its setup in the con
 Requests that do not carry an App Check token are rejected, and the assistant then shows offline guidance.
 For local development we use App Check's **debug provider**. Each teammate does this once on their own computer:
 
-1. Check that `web/index.html` has this line **before** the Flutter script tag (it is added in the AI branch):
+1. Check that `web/index.html` switches on debug mode **before** the Flutter script tag, for localhost only
+   (the live website uses Fraud Defense instead, see section 6):
    ```html
-   <script>self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;</script>
+   <script>
+     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+       self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+     }
+   </script>
    ```
 2. Run with a **fixed port**, so your debug token stays the same:
    ```powershell
@@ -72,7 +81,8 @@ For local development we use App Check's **debug provider**. Each teammate does 
 4. In the Firebase console go to **Security > App Check > Apps**, open the menu (three dots) of the web app, choose **Manage debug tokens**, click **Add debug token**, paste it, name it with your name, and save.
 5. Reload the app and send a message to the assistant.
 
-For a real public deployment (not needed for the course demo) the debug line must be removed and a real reCAPTCHA provider set up.
+If the assistant still sometimes shows offline guidance, open the Console (F12) and look for `AI attempt ... failed:`.
+The app retries a failed request twice before falling back, and the message says why it failed.
 
 ## 5. Pull request checklist for this setup
 
@@ -80,3 +90,21 @@ For a real public deployment (not needed for the course demo) the debug line mus
 - [ ] `firebase_config.json` is listed in `.gitignore` and does not appear in `git status`.
 - [ ] The app starts with the config **and** without it.
 - [ ] A teammate reviewed the pull request.
+
+## 6. Deploying the website (Firebase Hosting)
+
+One person deploys (agree who). Needs the Firebase CLI (`firebase --version`) and `firebase_config.json`
+with `RECAPTCHA_SITE_KEY` filled in (App Check on the live site uses Fraud Defense,
+formerly reCAPTCHA Enterprise; classic reCAPTCHA v3 can no longer be registered).
+
+```powershell
+firebase login                 # once per computer
+firebase use --add             # once: pick the health360 project, alias "default"
+flutter build web --release --dart-define-from-file=firebase_config.json
+firebase deploy --only hosting # the site:  https://<project-id>.web.app
+firebase deploy --only firestore:rules   # when firestore.rules changed
+```
+
+- Each deploy replaces the live site; Hosting > Release history can roll back.
+- Local development still uses the App Check debug token (debug mode is on for localhost only).
+- The reCAPTCHA key must list the domains `localhost`, `<project-id>.web.app` and `<project-id>.firebaseapp.com`.

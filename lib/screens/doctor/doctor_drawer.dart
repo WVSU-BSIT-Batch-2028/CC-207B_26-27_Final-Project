@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 
-/// Items in the doctor's slide-out menu (matches the prototype's Menu page).
+/// Items in the doctor's slide-out menu.
 enum DoctorMenuItem {
   appointments,
   patients,
@@ -15,7 +15,7 @@ enum DoctorMenuItem {
   logout,
 }
 
-/// Navigation drawer opened by the "Menu" tab.
+/// Drawer opened by the Menu tab.
 class DoctorDrawer extends StatelessWidget {
   const DoctorDrawer({super.key, required this.doctorName, required this.specialty, required this.onSelect});
 

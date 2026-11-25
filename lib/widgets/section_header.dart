@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 
-/// Section title with an optional small description and a text action on the right.
+/// Section title with an optional subtitle and a text action on the right.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({super.key, required this.title, this.subtitle, this.actionLabel, this.onAction});
 

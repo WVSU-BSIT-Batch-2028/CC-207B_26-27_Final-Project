@@ -17,8 +17,8 @@ import 'notifications_screen.dart';
 import 'personal_info_screen.dart';
 import 'preference_sheets.dart';
 
-/// Profile tab for BOTH roles:
-/// Personal Information, Notifications, App Theme, Help & Support, and Log Out.
+/// Profile tab for both roles: Personal Information, Notifications,
+/// App Theme, Help & Support and Log Out.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.role});
 

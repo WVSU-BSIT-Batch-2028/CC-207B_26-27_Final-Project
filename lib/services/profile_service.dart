@@ -18,10 +18,11 @@ import 'auth_service.dart';
 import 'prescription_service.dart';
 import 'records_service.dart';
 
-/// Saves personal information and notification toggles.
-/// Reads the signed-in user's name/email from Firebase Auth & Firestore `users/{uid}`.
+/// Notification on/off switches, keyed by category.
 typedef NotificationPrefsMap = Map<String, bool>;
 
+/// Personal information, notification switches and notification history
+/// for the signed-in user (Firestore `users/{uid}`, with a device copy).
 class ProfileService {
   ProfileService._();
   static final ProfileService instance = ProfileService._();
@@ -52,8 +53,7 @@ class ProfileService {
     String resolvedName = d.fullName;
     String resolvedEmail = d.email;
 
-    // Mobile, birth date, gender and address saved in `users/{uid}`
-    // (null = not loaded from Firestore, so the copy on this device is used).
+    // Fields saved in `users/{uid}` (null = not loaded; use the device copy).
     Map<String, dynamic>? account;
 
     if (Firebase.apps.isNotEmpty) {
@@ -75,13 +75,12 @@ class ProfileService {
             resolvedEmail = fsEmail.trim();
           }
         } catch (_) {
-          // Fall back to FirebaseAuth displayName/email if Firestore is offline.
+          // Firestore offline: use the Firebase Auth name and email.
         }
       }
     }
 
-    // Signed in: the value from Firestore. Otherwise (or for accounts saved
-    // before this change) the copy kept on this device.
+    // Firestore value when available, otherwise the device copy.
     String read(String field, String fallback) {
       final cloud = account?[field];
       if (cloud is String && cloud.trim().isNotEmpty) return cloud.trim();
@@ -100,10 +99,7 @@ class ProfileService {
     );
   }
 
-  /// Saves personal information in `users/{uid}` (so it follows the user to
-  /// any computer) and keeps a copy on this device for use without Firebase.
-  /// The rules allow it: users may update their own document as long as the
-  /// role does not change.
+  /// Saves personal information in `users/{uid}`, plus a device copy.
   async.Future<void> save(UserRole role, UserProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key(role, 'fullName'), profile.fullName);
@@ -127,21 +123,15 @@ class ProfileService {
           },
           fs.SetOptions(merge: true),
         );
-        // Otherwise the cached copy still holds the old name and Personal
-        // Information / Home keep showing it until the next sign-in.
+        // Drop the cached profile so the new name shows right away.
         AuthService.forgetCachedProfile();
       }
     }
   }
 
-  /// Notification history (newest first), built from the user's real data
-  /// in Firestore. Which items were read is saved on the device.
-  ///
-  /// Patient: upcoming, cancelled or changed appointments, answered refill
-  /// requests, and new consultation notes or lab results (last 30 days).
-  /// Doctor: bookings and change requests to review, cancellations, today's
-  /// visits, and refill requests waiting for an answer.
-  /// A part that cannot be loaded is skipped, so the rest still shows.
+  /// Notification history (newest first), built from the user's data in
+  /// Firestore. A part that fails to load is skipped. Read state is saved
+  /// on the device.
   async.Future<List<NotificationItem>> loadNotificationHistory(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     final readIds = (prefs.getStringList('${role.name}_notif_read') ?? const <String>[]).toSet();
@@ -289,9 +279,7 @@ class ProfileService {
     }
   }
 
-  /// Notification entries built from the refill requests that patients sent
-  /// to this doctor and that nobody has answered yet. They disappear once the
-  /// doctor approves or declines.
+  /// Doctor: refill requests still waiting for an answer.
   async.Future<List<NotificationItem>> _refillNotifications() async {
     try {
       final notices = await PrescriptionService.instance.fetchPendingRefillNotices();

@@ -131,6 +131,7 @@ class ErrorState extends StatelessWidget {
       );
 }
 
+/// Shared layout for the empty and error views.
 class _MessageState extends StatelessWidget {
   const _MessageState({
     required this.icon,

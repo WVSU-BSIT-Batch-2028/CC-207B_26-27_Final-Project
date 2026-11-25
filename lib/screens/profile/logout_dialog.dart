@@ -5,8 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/dialog_frame.dart';
 
-/// "Confirming Log Out" step from the prototype. Signs out of Firebase Auth
-/// and returns the user to the AuthGate (LoginScreen).
+/// Asks to confirm, then signs out and returns to the login screen.
 Future<void> confirmLogout(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_format.dart';
 
-/// "Good Morning, Jahna" + avatar. Long-press the avatar to open the
-/// demo menu (switch between normal / empty / error states).
+/// Greeting and avatar. Long-press the avatar for the demo menu.
 class GreetingHeader extends StatelessWidget {
   const GreetingHeader({
     super.key,

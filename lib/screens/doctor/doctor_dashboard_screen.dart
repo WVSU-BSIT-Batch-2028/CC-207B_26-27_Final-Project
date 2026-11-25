@@ -11,8 +11,7 @@ import '../../widgets/h360_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/state_views.dart';
 
-/// Doctor "Dashboard" page from the prototype: six shortcuts + Recent Activity.
-/// Opened from the drawer (Menu > Dashboard) or "Full dashboard" on Home.
+/// Doctor Dashboard: six shortcuts and Recent Activity.
 class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key, required this.onNavigate});
 
@@ -97,7 +96,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     _ActionTile(
                       icon: Icons.folder_shared_rounded,
                       label: 'Medical Records',
-                      // Records are opened per patient, from the Patients tab.
+                      // Records open per patient, from the Patients tab.
                       onTap: () => _goTab(2),
                     ),
                     _ActionTile(

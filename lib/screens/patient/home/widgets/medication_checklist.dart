@@ -64,6 +64,7 @@ class MedicationChecklist extends StatelessWidget {
   }
 }
 
+/// One medicine with its taken checkbox.
 class _DoseRow extends StatelessWidget {
   const _DoseRow({required this.dose, required this.onTap});
   final MedicationDose dose;

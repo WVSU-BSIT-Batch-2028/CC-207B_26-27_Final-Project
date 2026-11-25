@@ -3,9 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_colors.dart';
 
-/// How large text is across the app (helps older users).
+/// App-wide text size (helps older users).
 enum TextSize { normal, large, extraLarge }
 
+/// Label and scale factor for each text size.
 extension TextSizeX on TextSize {
   String get label {
     switch (this) {
@@ -31,9 +32,8 @@ extension TextSizeX on TextSize {
   }
 }
 
-/// Holds the appearance choices (light/dark and text size), saves them on the
-/// device and tells the app to repaint.
-/// Use ThemeController.instance.setMode(ThemeMode.dark) or setTextSize(TextSize.large).
+/// Holds the light/dark and text-size choices, saves them on the device
+/// and repaints the app when they change.
 class ThemeController extends ChangeNotifier {
   ThemeController._();
   static final ThemeController instance = ThemeController._();
@@ -57,7 +57,7 @@ class ThemeController extends ChangeNotifier {
     AppColors.useDarkPalette(isDark);
   }
 
-  /// Text size only needs MediaQuery to change, so no forced rebuild is needed.
+  /// Changes the text size (only MediaQuery needs to update).
   Future<void> setTextSize(TextSize size) async {
     if (size == _textSize) return;
     _textSize = size;
@@ -77,9 +77,8 @@ class ThemeController extends ChangeNotifier {
     await prefs.setString(_storageKey, isDark ? 'dark' : 'light');
   }
 
-  /// AppColors are plain getters, so widgets are not notified when they change.
-  /// Marking every element dirty makes the whole tree rebuild with the new
-  /// colours without losing the current screen or its state.
+  /// AppColors are plain getters, so marking every element dirty rebuilds
+  /// the app with the new colours while keeping the current screen.
   void _rebuildEverything() {
     void markDirty(Element element) {
       element.markNeedsBuild();

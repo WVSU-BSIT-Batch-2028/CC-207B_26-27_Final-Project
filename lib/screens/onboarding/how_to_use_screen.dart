@@ -5,24 +5,22 @@ import '../../core/theme/app_tokens.dart';
 import '../../models/user_role.dart';
 import '../../widgets/h360_button.dart';
 
-/// Short step-by-step guide (swipe through the pages).
-/// Shown to every new account BEFORE its dashboard (the shells show it in
-/// place of the dashboard and pass [onFinished]), and reopened any time from
-/// Profile > Help & Support > How to Use Health360 (pushed as a page).
-/// Added because validators asked where to press and how video visits work.
+/// First-time guide (swipe through the pages). Shown to new accounts before
+/// the dashboard, and reopened from Profile > Help & Support.
 class HowToUseScreen extends StatefulWidget {
   const HowToUseScreen({super.key, required this.role, this.onFinished});
 
   final UserRole role;
 
-  /// Called on "Get started" or "Skip" when the guide is shown in place of
-  /// the dashboard. When null (opened from Help & Support) the page closes.
+  /// Called on "Get started" or "Skip" when shown before the dashboard.
+  /// Null when opened from Help & Support (the page just closes).
   final VoidCallback? onFinished;
 
   @override
   State<HowToUseScreen> createState() => _HowToUseScreenState();
 }
 
+/// Content of one guide page.
 class _GuidePage {
   const _GuidePage(this.icon, this.title, this.body);
   final IconData icon;
@@ -89,7 +87,7 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
     super.dispose();
   }
 
-  /// "Get started" or "Skip": open the dashboard, or close the page.
+  /// Opens the dashboard, or closes the page.
   void _finish() {
     final onFinished = widget.onFinished;
     if (onFinished != null) {
@@ -115,7 +113,7 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip (hidden on the last page so the layout does not jump)
+            // Skip (hidden on the last page)
             Align(
               alignment: Alignment.centerRight,
               child: Padding(
@@ -179,6 +177,7 @@ class _HowToUseScreenState extends State<HowToUseScreen> {
   }
 }
 
+/// Icon, title and text of one guide page.
 class _PageContent extends StatelessWidget {
   const _PageContent({required this.page});
 

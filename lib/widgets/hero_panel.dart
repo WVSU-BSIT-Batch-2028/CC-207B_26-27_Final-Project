@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_tokens.dart';
 
-/// Gradient surface with soft decorative circles. Used for the doctor's
-/// schedule card and the profile headers so hero areas look consistent.
+/// Gradient card with decorative circles, used for hero areas.
 class HeroPanel extends StatelessWidget {
   const HeroPanel({super.key, required this.child, this.padding = const EdgeInsets.all(20)});
 
@@ -37,6 +36,7 @@ class HeroPanel extends StatelessWidget {
   }
 }
 
+/// Decorative translucent circle.
 class _Circle extends StatelessWidget {
   const _Circle({required this.size, required this.opacity});
   final double size;

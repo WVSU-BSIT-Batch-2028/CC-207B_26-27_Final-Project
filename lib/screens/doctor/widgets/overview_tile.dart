@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../widgets/h360_card.dart';
 
-/// One "Quick Overview" number card (appointments, patients, ...).
+/// One Quick Overview number card.
 class OverviewTile extends StatelessWidget {
   const OverviewTile({
     super.key,
@@ -43,7 +43,7 @@ class OverviewTile extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w600),
                 ),

@@ -22,7 +22,8 @@ import 'appointments/booking/appointment_details_screen.dart';
 import 'appointments/booking/appointment_confirmation_screen.dart';
 import 'prescriptions/prescriptions_screen.dart';
 
-/// Patient frame: Home / Appointment / Prescription / Records / Profile.
+/// Patient frame with the bottom tabs: Home, Appointment, Prescription,
+/// Records, Profile.
 class PatientShell extends StatefulWidget {
   const PatientShell({
     super.key,
@@ -39,19 +40,17 @@ class _PatientShellState extends State<PatientShell> {
   int _index = 0;
   int _appointmentsRefreshToken = 0;
 
-  /// Bumped every time the Prescriptions tab is opened. The tabs live in an
-  /// IndexedStack (kept alive), so without this the list would load once and
-  /// never show a prescription the doctor added later.
+  /// Bumped when the Prescriptions tab opens. Tabs stay alive in an
+  /// IndexedStack, so this forces a fresh load.
   int _prescriptionsRefreshToken = 0;
 
   void _goTo(int index) {
     if (!mounted) return;
 
     setState(() {
-      // Opening the Prescriptions tab (index 2) reloads it from Firestore.
+      // Opening Prescriptions reloads it.
       if (index == 2 && _index != 2) _prescriptionsRefreshToken++;
-      // Coming back to Home reloads it quietly (new prescriptions,
-      // appointments or doses taken elsewhere show up).
+      // Coming back to Home reloads it quietly.
       if (index == 0 && _index != 0) _homeRefreshToken++;
       _index = index;
     });
@@ -139,13 +138,13 @@ class _PatientShellState extends State<PatientShell> {
   void initState() {
     super.initState();
 
-    // Allows the shell to open directly on a requested tab.
+    // Open on the requested tab.
     _index = widget.initialIndex.clamp(0, 4);
 
     // New accounts see the "How to use" guide before the dashboard.
     _checkGuide();
 
-    // Medicine reminders: checked while the patient side is open.
+    // Medicine reminders are checked while the patient side is open.
     ReminderScheduler.instance.start(this, _onReminderDue);
   }
 
@@ -155,15 +154,14 @@ class _PatientShellState extends State<PatientShell> {
     super.dispose();
   }
 
-  /// Reminders that are due while a popup is already open wait here.
+  /// Due reminders wait here while a popup is already open.
   final List<DueReminder> _dueQueue = [];
   bool _showingReminder = false;
 
-  /// Bumped when Home should reload quietly: the Home tab is opened again,
-  /// or a dose was marked taken from a reminder.
+  /// Bumped when Home should reload quietly.
   int _homeRefreshToken = 0;
 
-  /// ReminderScheduler found a due medicine: show the popup (one at a time).
+  /// Shows the popup for a due medicine (one at a time).
   void _onReminderDue(DueReminder reminder) {
     _dueQueue.add(reminder);
     if (!_showingReminder) _showNextReminder();
@@ -208,13 +206,13 @@ class _PatientShellState extends State<PatientShell> {
     if (mounted) setState(() => _showGuide = !seen);
   }
 
-  /// "Get started" or "Skip" on the guide: remember it, open the dashboard.
+  /// Remembers the guide was seen, then opens the dashboard.
   void _finishGuide() {
     GuideService.instance.markSeen(UserRole.patient);
     setState(() => _showGuide = false);
   }
 
-  /// Opens the AI assistant and handles its requested navigation action.
+  /// Opens the AI assistant and handles the action it returns.
   Future<void> _openAssistant() async {
     final action = await Navigator.of(context).pushNamed(
       AppRoutes.assistant,
@@ -229,11 +227,11 @@ class _PatientShellState extends State<PatientShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Checking whether this account saw the guide (a moment on first load).
+    // Still checking whether this account saw the guide.
     if (_showGuide == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    // A new account: the step-by-step guide comes before the dashboard.
+    // New account: the guide comes before the dashboard.
     if (_showGuide!) {
       return HowToUseScreen(role: UserRole.patient, onFinished: _finishGuide);
     }

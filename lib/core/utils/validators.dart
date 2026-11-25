@@ -1,5 +1,4 @@
-/// Form validators shared by every form in the app.
-/// Each returns an error message, or null when the value is valid.
+/// Form validators. Each returns an error message, or null when valid.
 class Validators {
   Validators._();
 
@@ -22,7 +21,7 @@ class Validators {
     return null;
   }
 
-  /// Requires at least 8 characters, 1 uppercase letter, 1 lowercase letter, and 1 number.
+  /// At least 8 characters with an uppercase letter, a lowercase letter and a number.
   static String? password(String? value) {
     final text = value ?? '';
     if (text.isEmpty) return 'Please enter a password.';
@@ -58,8 +57,7 @@ class Validators {
     return null;
   }
 
-  /// A number between [min] and [max]. [label] is used in the messages,
-  /// e.g. "heart rate". Set [wholeNumber] to reject decimals.
+  /// A number between [min] and [max]; [label] is used in the messages.
   static String? number(
     String? value, {
     required String label,

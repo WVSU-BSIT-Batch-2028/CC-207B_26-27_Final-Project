@@ -10,17 +10,12 @@ import '../../models/chat_message.dart';
 import '../../services/ai_assistant_service.dart';
 import '../../widgets/status_chip.dart';
 
-/// What the assistant screen can ask the app shell to do when it closes.
+/// What the assistant asks the shell to do when it closes.
 enum AssistantAction { bookAppointment }
 
-/// AI-powered feature: a symptom / FAQ assistant.
-///
-/// Rubric checklist covered here:
-/// - Relevance: free-text symptoms are messy, plain if/else logic can't read them.
-/// - Graceful failure: loading indicator, timeout + error fallback (see service).
-/// - Responsible use: replies are labelled "AI-generated", the user can edit a
-///   message, disagree with a reply, or book a real doctor at any time, and the
-///   input warns against sharing personal identifiers (Data Privacy Act).
+/// AI symptom / FAQ assistant. Replies are labelled (AI, offline or
+/// safety); the user can edit a message, flag a wrong reply or book a
+/// doctor at any time.
 class AiAssistantScreen extends StatefulWidget {
   const AiAssistantScreen({super.key, AiAssistantService? service}) : _service = service;
 
@@ -79,7 +74,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     if (_isThinking) return;
     final text = (preset ?? _controller.text).trim();
 
-    // Form validation with clear error feedback.
+    // Too short to be useful: show an error instead of sending.
     if (text.length < 3) {
       setState(() => _inputError = 'Tell me a little more (at least 3 characters).');
       return;
@@ -259,6 +254,7 @@ class _DisclaimerBanner extends StatelessWidget {
   }
 }
 
+/// One chat bubble with its label and actions.
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
@@ -341,7 +337,7 @@ class _MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label so users always know where the text came from.
+          // Label so users know where each reply came from.
           if (message.id != 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -438,7 +434,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// "Assistant is typing" indicator shown while waiting for the service.
+/// Typing dots shown while waiting for a reply.
 class _TypingBubble extends StatefulWidget {
   const _TypingBubble();
 
@@ -497,6 +493,7 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
   }
 }
 
+/// Message box and send button.
 class _InputBar extends StatelessWidget {
   const _InputBar({
     required this.controller,

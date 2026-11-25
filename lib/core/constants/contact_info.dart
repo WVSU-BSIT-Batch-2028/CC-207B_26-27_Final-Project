@@ -1,4 +1,4 @@
-/// Support contact details (sample values until the real clinic info is known).
+/// Support contact details shown in Help & Support (sample values).
 class ContactInfo {
   ContactInfo._();
 

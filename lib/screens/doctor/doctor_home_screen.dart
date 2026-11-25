@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -20,9 +22,11 @@ import 'doctor_prescriptions_screen.dart';
 import 'widgets/appointment_row.dart';
 import 'widgets/overview_tile.dart';
 
+/// Which state Home is showing.
 enum _LoadStatus { loading, ready, error }
 
-/// Doctor landing page: today's schedule + quick overview.
+/// Doctor Home: today's schedule, notifications, Quick Overview and
+/// today's appointments. Updates by itself when data changes.
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key, required this.onNavigate, required this.onOpenDashboard});
 
@@ -42,10 +46,28 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   /// Bumped on every load, so the Notifications card reloads with Home.
   int _loadCount = 0;
 
+  /// Reloads quietly when this doctor's data changes in Firestore.
+  StreamSubscription<void>? _changes;
+  Timer? _reloadSoon;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _changes = DoctorService.instance.watchChanges().listen((_) {
+      // Reload once for changes that arrive together.
+      _reloadSoon?.cancel();
+      _reloadSoon = Timer(const Duration(milliseconds: 400), () {
+        if (mounted) _load(showSkeleton: false);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _changes?.cancel();
+    _reloadSoon?.cancel();
+    super.dispose();
   }
 
   Future<void> _load({bool showSkeleton = true}) async {
@@ -73,6 +95,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       });
     } on DashboardException catch (e) {
       if (!mounted) return;
+      // A failed quiet reload keeps what is on screen.
+      if (!showSkeleton && _status == _LoadStatus.ready) return;
       setState(() {
         _error = e.message;
         _status = _LoadStatus.error;
@@ -215,8 +239,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               ),
             ),
           ),
-          // Notifications: bookings, change requests and refills to handle,
-          // each with "Mark as done".
+          // Today's notifications
           FadeSlideIn(
             delay: const Duration(milliseconds: 140),
             child: NotificationsPreview(role: UserRole.doctor, refreshToken: _loadCount),
@@ -232,7 +255,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       child: OverviewTile(
                         icon: Icons.event_available_rounded,
                         value: '${d.todayAppointments}',
-                        label: 'Appointments',
+                        label: "Today's Appointments",
                         color: AppColors.primary,
                         onTap: () => widget.onNavigate(1),
                       ),
@@ -242,7 +265,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       child: OverviewTile(
                         icon: Icons.groups_rounded,
                         value: '${d.patients}',
-                        label: 'Patients',
+                        label: 'Active Patients',
                         color: AppColors.weight,
                         onTap: () => widget.onNavigate(2),
                       ),
@@ -256,7 +279,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       child: OverviewTile(
                         icon: Icons.medication_rounded,
                         value: '${d.prescriptions}',
-                        label: 'Prescription',
+                        label: 'Active Prescriptions',
                         color: AppColors.sleep,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(builder: (_) => const DoctorPrescriptionsScreen()),
@@ -268,9 +291,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                       child: OverviewTile(
                         icon: Icons.science_rounded,
                         value: '${d.labResults}',
-                        label: 'Lab Results',
+                        label: "Today's Lab Results",
                         color: AppColors.heart,
-                        // Lab results are opened per patient (Patients tab).
+                        // Lab results open per patient (Patients tab).
                         onTap: () => widget.onNavigate(2),
                       ),
                     ),

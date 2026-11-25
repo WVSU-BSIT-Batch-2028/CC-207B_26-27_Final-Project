@@ -1,10 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 
-/// Firebase settings, read at build time from `--dart-define-from-file`.
-///
-/// The values live in `firebase_config.json`, which is listed in .gitignore and
-/// shared privately in the team chat, so nothing secret is committed to GitHub
-/// (course rule). See FIREBASE_SETUP.md. The template is firebase_config.example.json.
+/// Firebase settings, read at build time from firebase_config.json
+/// (`--dart-define-from-file`). That file is git-ignored; see FIREBASE_SETUP.md.
 class FirebaseConfig {
   FirebaseConfig._();
 
@@ -14,6 +11,10 @@ class FirebaseConfig {
   static const String _projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
   static const String _authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
   static const String _storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
+
+  /// reCAPTCHA Enterprise site key for App Check on the live site.
+  /// Public by design; empty when running locally (debug mode is used).
+  static const String recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
 
   /// True when the four required values were provided.
   static bool get isConfigured =>

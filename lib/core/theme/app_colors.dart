@@ -45,13 +45,8 @@ class AppPalette {
   );
 }
 
-/// Central colour palette for Health360.
-///
-/// IMPORTANT: the neutral colours below (mist, surface, border, skeleton,
-/// textPrimary, textMuted, navy, primary) are GETTERS that follow light/dark
-/// mode, so they can NOT be used inside a `const` expression. If you see
-/// "Not a constant expression", remove `const` from that widget.
-/// Colours that never change (brandNavy, status colours, heroGradient) stay const.
+/// App colour palette. Neutral colours are getters that follow light/dark
+/// mode, so they cannot be used in `const` widgets.
 class AppColors {
   AppColors._();
 
@@ -75,7 +70,7 @@ class AppColors {
   static Color get primary => _palette.primary;
 
   // Fixed (same in light and dark)
-  /// Always-dark navy: use for fills behind white icons/text.
+  /// Always-dark navy, for fills behind white icons or text.
   static const Color brandNavy = Color(0xFF12296B);
   static const Color primaryLight = Color(0xFF60A5FA);
 
@@ -90,7 +85,7 @@ class AppColors {
   static const Color weight = Color(0xFF059669);
   static const Color sleep = Color(0xFF6D5BD0);
 
-  /// Signature gradient used for hero surfaces (next appointment, AI badge).
+  /// Gradient for hero cards and the AI badge.
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

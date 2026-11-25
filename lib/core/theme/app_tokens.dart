@@ -18,7 +18,7 @@ class AppRadius {
   static const double lg = 26;
 }
 
-/// Shared shadows. Soft, blue-tinted shadows give cards a light, airy feel.
+/// Shared soft, blue-tinted card shadows.
 class AppShadows {
   AppShadows._();
   static const List<BoxShadow> soft = [
@@ -30,16 +30,16 @@ class AppShadows {
   ];
 }
 
-/// Standard popup widths, so every dialog and sheet has the same proportion.
+/// Standard popup widths, so every dialog and sheet looks the same.
 class AppSizes {
   AppSizes._();
 
-  /// Short confirmations: "Log out?", "Approve this refill?", "Reminder set".
+  /// Short confirmations (e.g. "Log out?").
   static const double confirmDialog = 400;
 
-  /// Popups with details: Medical Record, Lab Results, appointment details.
+  /// Popups with details (records, lab results, appointments).
   static const double detailDialog = 480;
 
-  /// Bottom sheets (vital details, App Theme): same as page content.
+  /// Bottom sheets.
   static const double sheet = 640;
 }

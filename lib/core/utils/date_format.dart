@@ -1,4 +1,4 @@
-/// Tiny date helpers (kept dependency-free on purpose).
+/// Small date and time formatting helpers.
 
 const List<String> _months = [
   'January', 'February', 'March', 'April', 'May', 'June', 'July',

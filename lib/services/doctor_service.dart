@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -7,25 +9,18 @@ import '../core/utils/date_format.dart';
 import '../models/appointment.dart';
 import '../models/appointment_status.dart';
 import '../models/doctor_dashboard_data.dart';
+import '../models/prescription.dart';
 import '../models/refill_notice.dart';
 import 'appointment_service.dart';
 import 'booking_doctor_service.dart';
 import 'dashboard_service.dart';
+import 'doctor_overview.dart';
+import 'prescription_mapper.dart';
 import 'prescription_service.dart';
 
-/// Loads the doctor Home and Dashboard from Firestore.
-///
-/// - Today's schedule and the patient count: the doctor's own appointments
-///   (AppointmentService, `appointments` where doctorId == uid).
-/// - Prescriptions and lab results: how many this doctor wrote
-///   (`count()` queries, which cost 1 read per 1,000 documents).
-/// - Recent activity: refill requests waiting for an answer, and new
-///   bookings or change requests waiting for the doctor.
-///
-/// Uses the same demo switch as the patient Home (long-press the avatar)
-/// so loading / empty / error can still be shown in the presentation.
-/// Every failure becomes a [DashboardException], so the screens keep their
-/// normal error state with "Try again".
+/// Loads the doctor Home and Dashboard from Firestore: today's schedule,
+/// the Quick Overview numbers ([DoctorOverview]) and recent activity.
+/// Follows the demo switch; every failure becomes a [DashboardException].
 class DoctorService {
   DoctorService._();
   static final DoctorService instance = DoctorService._();
@@ -69,15 +64,15 @@ class DoctorService {
       final db = FirebaseFirestore.instance;
       final results = await Future.wait<Object?>([
         AppointmentService.instance.fetchAppointments(),
-        _count(db.collection('prescriptions').where('doctorId', isEqualTo: user.uid)),
-        _count(db.collection('labResults').where('doctorId', isEqualTo: user.uid)),
+        db.collection('prescriptions').where('doctorId', isEqualTo: user.uid).get(),
+        db.collection('labResults').where('doctorId', isEqualTo: user.uid).get(),
         _pendingRefills(),
         db.collection('users').doc(user.uid).get(),
       ]);
 
       final appointments = results[0] as List<Appointment>;
-      final prescriptions = results[1] as int;
-      final labResults = results[2] as int;
+      final prescriptionDocs = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final labDocs = results[2] as QuerySnapshot<Map<String, dynamic>>;
       final refills = results[3] as List<RefillNotice>;
       final account = results[4] as DocumentSnapshot<Map<String, dynamic>>;
 
@@ -88,14 +83,27 @@ class DoctorService {
           .toList()
         ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
-      final next = today.where((a) => a.dateTime.isAfter(now)).toList();
+      // Next up: the next patient still to be seen.
+      final next = today
+          .where((a) =>
+              a.dateTime.isAfter(now) &&
+              (a.status == AppointmentStatus.pending ||
+                  a.status == AppointmentStatus.confirmed))
+          .toList();
 
-      // Patients = everyone with a booking that was not cancelled.
-      final patients = {
-        for (final a in appointments)
-          if (a.status != AppointmentStatus.cancelled && (a.patientId ?? '').isNotEmpty)
-            a.patientId!,
-      };
+      final overview = DoctorOverview.compute(
+        appointments: appointments,
+        prescriptions: [
+          for (final doc in prescriptionDocs.docs)
+            if (_prescriptionOf(doc) case final p?)
+              (patientId: (doc.data()['patientId'] as String?) ?? '', prescription: p),
+        ],
+        labResultDates: [
+          for (final doc in labDocs.docs)
+            (date: _dateOf(doc.data()['date']), enteredAt: _dateOf(doc.data()['createdAt'])),
+        ],
+        now: now,
+      );
 
       final name = (account.data()?['fullName'] as String?)?.trim() ?? '';
       final doctor = BookingDoctorService.instance.doctorFrom(
@@ -106,10 +114,10 @@ class DoctorService {
       return DoctorDashboardData(
         doctorShortName: _shortName(name),
         specialty: doctor.specialty,
-        todayAppointments: today.length,
-        patients: patients.length,
-        prescriptions: prescriptions,
-        labResults: labResults,
+        todayAppointments: overview.todayAppointments,
+        patients: overview.activePatients,
+        prescriptions: overview.activePrescriptions,
+        labResults: overview.todayLabResults,
         nextUp: next.isEmpty
             ? null
             : '${formatTime(next.first.dateTime)} · ${next.first.patientName ?? 'Patient'}',
@@ -138,14 +146,60 @@ class DoctorService {
     }
   }
 
-  /// Number of documents a query matches, without downloading them.
-  Future<int> _count(Query<Map<String, dynamic>> query) async {
-    final snap = await query.count().get();
-    return snap.count ?? 0;
+  /// Emits when the doctor's appointments, prescriptions or lab results
+  /// change, so Home can reload by itself. Each query's first snapshot
+  /// (the current data) is skipped.
+  Stream<void> watchChanges() {
+    final user = Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser;
+    if (user == null) return const Stream<void>.empty();
+
+    final db = FirebaseFirestore.instance;
+    final queries = [
+      for (final name in ['appointments', 'prescriptions', 'labResults'])
+        db.collection(name).where('doctorId', isEqualTo: user.uid),
+    ];
+
+    final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    late final StreamController<void> controller;
+    controller = StreamController<void>(
+      onListen: () {
+        for (final query in queries) {
+          var first = true;
+          subs.add(query.snapshots().listen(
+            (_) {
+              if (first) {
+                first = false;
+                return;
+              }
+              controller.add(null);
+            },
+            onError: (Object e) => debugPrint('Doctor live update stopped: $e'),
+          ));
+        }
+      },
+      onCancel: () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+        subs.clear();
+      },
+    );
+    return controller.stream;
   }
 
-  /// Pending refill requests, or none if they cannot be read (the rest of
-  /// the dashboard still loads).
+  /// The prescription in [doc], or null when the document is damaged.
+  Prescription? _prescriptionOf(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    try {
+      return prescriptionFromData(doc.id, doc.data());
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// A Firestore Timestamp as a DateTime, or null.
+  DateTime? _dateOf(Object? value) => value is Timestamp ? value.toDate() : null;
+
+  /// Pending refill requests, or none if they cannot be read.
   Future<List<RefillNotice>> _pendingRefills() async {
     try {
       return await PrescriptionService.instance.fetchPendingRefillNotices();
@@ -154,8 +208,8 @@ class DoctorService {
     }
   }
 
-  /// Newest first: refill requests, new bookings and change requests that
-  /// are waiting for this doctor. At most five rows.
+  /// Newest first, at most five: refill requests, new bookings and change
+  /// requests waiting for this doctor.
   List<ActivityItem> _activities(
     List<Appointment> appointments,
     List<RefillNotice> refills,

@@ -6,7 +6,7 @@ import '../../../models/doctor_dashboard_data.dart';
 import '../../../widgets/appointment_status_chip.dart';
 import '../../../widgets/h360_card.dart';
 
-/// One line in the doctor's "Today's Appointments": time, patient, reason and status.
+/// One row in Today's Appointments: time, patient, reason and status.
 class AppointmentRow extends StatelessWidget {
   const AppointmentRow({super.key, required this.appointment, required this.onTap});
 
