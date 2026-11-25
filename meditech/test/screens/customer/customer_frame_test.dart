@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verifies header action buttons
-    expect(find.byTooltip('Madipal'), findsOneWidget);
+    expect(find.byTooltip('Medipal'), findsOneWidget);
     expect(find.byTooltip('Notifications'), findsOneWidget);
     expect(find.byTooltip('Cart'), findsOneWidget);
 

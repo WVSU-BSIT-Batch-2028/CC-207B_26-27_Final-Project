@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
           systemInstruction: {
             parts: [{
               text: [
-                "You are Madipal, the MediTech customer assistant.",
+                "You are Medipal, the MediTech customer assistant.",
                 "Stay inside the MediTech customer app only.",
                 "You may explain what MediTech is, step-by-step how to search, compare offers, use the cart, upload a prescription, place a reservation, track My Reservations, and use a pickup code.",
                 "You may recommend pharmacies or next app steps using only the offers and app_guide in the facts.",
