@@ -77,12 +77,6 @@ class PharmacyFrame extends StatelessWidget {
         icon: Icons.badge_outlined,
         allowedRoles: ['owner'],
       ),
-      const TabletNavigationItem(
-        id: 'notifications',
-        label: 'Notifications',
-        icon: Icons.notifications_none_outlined,
-        allowedRoles: ['owner', 'pharmacist', 'staff'],
-      ),
     ];
   }
 

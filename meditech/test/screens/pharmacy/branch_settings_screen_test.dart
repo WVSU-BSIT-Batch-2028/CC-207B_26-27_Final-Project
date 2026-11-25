@@ -101,6 +101,8 @@ void main() {
       expect(find.text('Supreme Pharmacy'), findsOneWidget);
       expect(find.text('La Paz Branch'), findsOneWidget);
       expect(find.text('Save changes'), findsOneWidget);
+      expect(find.text('Pharmacy picture'), findsOneWidget);
+      expect(find.text('Upload pharmacy picture'), findsOneWidget);
     },
   );
 
@@ -135,6 +137,9 @@ void main() {
       expect(find.text('Branch settings'), findsOneWidget);
       // All roles can save their own PRC license details
       expect(find.text('Save changes'), findsOneWidget);
+      expect(find.text('Pharmacy picture'), findsOneWidget);
+      expect(find.text('Change pharmacy picture'), findsNothing);
+      expect(find.text('Upload pharmacy picture'), findsNothing);
     },
   );
 }

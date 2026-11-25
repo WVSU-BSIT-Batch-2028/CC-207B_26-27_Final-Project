@@ -12,6 +12,7 @@ void main() {
             width: 600,
             height: 500,
             child: TabletDataTable<String>(
+              expandColumnsToFit: false,
               totalCount: 1,
               filteredCount: 1,
               columns: const [

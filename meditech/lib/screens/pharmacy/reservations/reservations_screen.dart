@@ -294,6 +294,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                           // Table
                           Expanded(
                             child: TabletDataTable<BranchReservation>(
+                              compactForDrawer: selectedId != null,
                               showControls: false,
                               searchHint: 'References or patient name',
                               searchQuery: _searchQuery,
@@ -318,7 +319,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                                 ),
                                 TabletColumn(
                                   title: 'MEDICINES',
-                                  priority: TabletColumnPriority.high,
+                                  priority: TabletColumnPriority.medium,
                                   width: 220,
                                 ),
                                 TabletColumn(

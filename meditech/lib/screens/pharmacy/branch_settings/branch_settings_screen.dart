@@ -78,7 +78,7 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Storefront photo updated. Customers will see it on your branch page.',
+            'Pharmacy picture updated. Customers will see it on maps and your branch page.',
           ),
         ),
       );
@@ -138,8 +138,10 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
     final settingsAsync = ref.watch(branchSettingsProvider);
     final account = ref.watch(sessionProvider);
     final isOwner = account?.role == 'owner';
+    final isPharmacist = account?.role == 'pharmacist';
     final canEditPrc =
-        isOwner || account?.role == 'pharmacist' || account?.role == 'staff';
+        isOwner || isPharmacist || account?.role == 'staff';
+    final canChangePharmacyPicture = isOwner || isPharmacist;
     final showSave = isOwner || canEditPrc;
 
     return Scaffold(
@@ -175,80 +177,14 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Storefront photo card (owner feature retained)
-                    if (isOwner) ...[
-                      PharmacySettingsSectionCard(
-                        title: 'Storefront photo',
-                        children: [
-                          const Text(
-                            'Shown at the top of your branch page in the patient app.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                          if (settings.storefrontPath != null &&
-                              settings.storefrontPath!.isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: PharmacyStorefrontHero(
-                                storefrontPath: settings.storefrontPath,
-                                height: 150,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 14),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              height: 52,
-                              child: ElevatedButton.icon(
-                                onPressed: _storefrontUploading
-                                    ? null
-                                    : _uploadStorefront,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2E6B46),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                icon: _storefrontUploading
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.photo_camera_outlined,
-                                        size: 18,
-                                      ),
-                                label: Text(
-                                  'Upload storefront photo',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                    ],
-
                     // Main Branch Details Card (matching wireframe layout)
                     PharmacySettingsSectionCard(
                       children: [
+                        _buildPharmacyPictureSection(
+                          settings: settings,
+                          canChange: canChangePharmacyPicture,
+                        ),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             Expanded(
@@ -487,6 +423,119 @@ class _BranchSettingsScreenState extends ConsumerState<BranchSettingsScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildPharmacyPictureSection({
+    required BranchSettings settings,
+    required bool canChange,
+  }) {
+    final hasPhoto = settings.storefrontPath != null &&
+        settings.storefrontPath!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pharmacy picture',
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A2E22),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Storefront photo shown to patients on maps, search, and your branch page.',
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 160,
+                height: 120,
+                child: hasPhoto
+                    ? PharmacyStorefrontHero(
+                        storefrontPath: settings.storefrontPath,
+                        height: 120,
+                      )
+                    : Container(
+                        color: const Color(0xFFE9EFEA),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.storefront_outlined,
+                          size: 40,
+                          color: AppColors.primary,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (canChange) ...[
+                    SizedBox(
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            _storefrontUploading ? null : _uploadStorefront,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E6B46),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: _storefrontUploading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.photo_camera_outlined, size: 18),
+                        label: Text(
+                          hasPhoto ? 'Change pharmacy picture' : 'Upload pharmacy picture',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'JPEG, PNG, or WebP · up to 5 MB',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ] else
+                    const Text(
+                      'Only the branch owner or a licensed pharmacist on duty '
+                      'can change the pharmacy picture.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../utils/app_failure.dart';
 
-/// Owner replaces the branch storefront photo shown to customers.
+/// Owner or pharmacist replaces the branch storefront photo shown to customers.
 class BranchStorefrontService {
   BranchStorefrontService({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
 

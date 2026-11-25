@@ -404,6 +404,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                           builder: (items) {
                             final filtered = _applyFilters(items);
                             return TabletDataTable<Employee>(
+                              compactForDrawer: _selectedId != null,
                               filterButtonKey: _filterButtonKey,
                               searchHint: 'Search...',
                               searchQuery: _search,

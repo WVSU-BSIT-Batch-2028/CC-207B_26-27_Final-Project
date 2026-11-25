@@ -49,6 +49,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   bool _onlyRx = false;
   bool _showFilters = false;
   bool _busy = false;
+  InventoryItem? _editingItem;
 
   void _toggleFilters() {
     if (!_showFilters) {
@@ -237,7 +238,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 
-  Future<void> _showEditDrawer(InventoryItem item) async {
+  Future<void> _showEditDrawerOverlay(InventoryItem item) async {
     final screenSize = MediaQuery.of(context).size;
     await showGeneralDialog<void>(
       context: context,
@@ -315,7 +316,30 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       isEmpty: (items) => items.isEmpty,
       emptyMessage: 'No inventory entries yet. Add your first medicine.',
       onRetry: () => ref.invalidate(inventoryProvider),
-      builder: _buildInventory,
+      builder: (all) {
+        final table = _buildInventory(all);
+        final editing = _editingItem;
+        if (editing == null) return table;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: table),
+            SizedBox(
+              width: 420,
+              height: MediaQuery.sizeOf(context).height,
+              child: Material(
+                elevation: 8,
+                color: AppColors.surface,
+                child: EditInventoryDrawer(
+                  item: editing,
+                  onClose: () => setState(() => _editingItem = null),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -437,6 +461,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     SizedBox(
                       height: tableHeight,
                       child: TabletDataTable<InventoryItem>(
+                        compactForDrawer: _editingItem != null,
                         filterButtonKey: _filterButtonKey,
                         searchHint: 'Search medicine',
                         onSearchChanged: (v) => setState(() => _search = v),
@@ -483,18 +508,66 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           ),
                         ],
                         columns: const [
-                          TabletColumn(title: 'MEDICINE', width: 240),
-                          TabletColumn(title: 'STRENGTH', width: 110),
-                          TabletColumn(title: 'FORM', width: 130),
-                          TabletColumn(title: 'UNIT', width: 100),
-                          TabletColumn(title: 'STOCK', width: 80),
-                          TabletColumn(title: 'HELD', width: 80),
-                          TabletColumn(title: 'AVAILABILITY', width: 140),
-                          TabletColumn(title: 'PRICE / UNIT', width: 120),
-                          TabletColumn(title: 'LAST UPDATED', width: 170),
-                          TabletColumn(title: 'OUT OF STOCK', width: 130),
-                          TabletColumn(title: 'STATUS', width: 110),
-                          TabletColumn(title: 'ACTIONS', width: 220),
+                          TabletColumn(
+                            title: 'MEDICINE',
+                            priority: TabletColumnPriority.high,
+                            width: 240,
+                          ),
+                          TabletColumn(
+                            title: 'STRENGTH',
+                            priority: TabletColumnPriority.medium,
+                            width: 110,
+                          ),
+                          TabletColumn(
+                            title: 'FORM',
+                            priority: TabletColumnPriority.medium,
+                            width: 130,
+                          ),
+                          TabletColumn(
+                            title: 'UNIT',
+                            priority: TabletColumnPriority.medium,
+                            width: 100,
+                          ),
+                          TabletColumn(
+                            title: 'STOCK',
+                            priority: TabletColumnPriority.high,
+                            width: 80,
+                          ),
+                          TabletColumn(
+                            title: 'HELD',
+                            priority: TabletColumnPriority.low,
+                            width: 80,
+                          ),
+                          TabletColumn(
+                            title: 'AVAILABILITY',
+                            priority: TabletColumnPriority.high,
+                            width: 140,
+                          ),
+                          TabletColumn(
+                            title: 'PRICE / UNIT',
+                            priority: TabletColumnPriority.medium,
+                            width: 120,
+                          ),
+                          TabletColumn(
+                            title: 'LAST UPDATED',
+                            priority: TabletColumnPriority.low,
+                            width: 170,
+                          ),
+                          TabletColumn(
+                            title: 'OUT OF STOCK',
+                            priority: TabletColumnPriority.low,
+                            width: 130,
+                          ),
+                          TabletColumn(
+                            title: 'STATUS',
+                            priority: TabletColumnPriority.high,
+                            width: 110,
+                          ),
+                          TabletColumn(
+                            title: 'ACTIONS',
+                            priority: TabletColumnPriority.high,
+                            width: 220,
+                          ),
                         ],
                         items: shown,
                         rowBuilder: (context, item, index) => [
@@ -679,9 +752,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         OutlinedButton(
           onPressed: _busy
               ? null
-              : () => widget.onEditItem != null
-                    ? widget.onEditItem!(item)
-                    : _showEditDrawer(item),
+              : () {
+                  if (widget.onEditItem != null) {
+                    widget.onEditItem!(item);
+                    return;
+                  }
+                  final useInline =
+                      MediaQuery.sizeOf(context).width >= 900;
+                  if (useInline) {
+                    setState(() => _editingItem = item);
+                  } else {
+                    _showEditDrawerOverlay(item);
+                  }
+                },
           style: OutlinedButton.styleFrom(
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 8),

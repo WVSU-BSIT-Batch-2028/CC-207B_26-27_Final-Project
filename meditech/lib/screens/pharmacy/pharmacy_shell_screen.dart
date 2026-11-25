@@ -54,7 +54,6 @@ class _PharmacyShellScreenState extends ConsumerState<PharmacyShellScreen> {
       'inventory' => '/inventory',
       'stock_alerts' => '/stock-alerts',
       'employees' => '/employees',
-      'notifications' => '/notifications',
       _ => '/dashboard',
     };
 

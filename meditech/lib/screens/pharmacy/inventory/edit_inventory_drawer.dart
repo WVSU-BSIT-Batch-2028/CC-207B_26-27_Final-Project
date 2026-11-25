@@ -12,9 +12,11 @@ class EditInventoryDrawer extends ConsumerStatefulWidget {
   const EditInventoryDrawer({
     super.key,
     required this.item,
+    this.onClose,
   });
 
   final InventoryItem item;
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<EditInventoryDrawer> createState() =>
@@ -66,6 +68,14 @@ class _EditInventoryDrawerState
   int get _previewThreshold =>
       int.tryParse(_thresholdController.text) ??
       item.lowStockThreshold;
+
+  void _closeDrawer() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
 
   String get _availabilityPreview {
     if (item.outOfStock) return 'Unavailable';
@@ -156,7 +166,7 @@ class _EditInventoryDrawerState
         !priceChanged &&
         !thresholdChanged &&
         !expiryChanged) {
-      Navigator.of(context).pop();
+      _closeDrawer();
       return;
     }
 
@@ -180,7 +190,7 @@ class _EditInventoryDrawerState
 
       if (!mounted) return;
 
-      Navigator.of(context).pop();
+      _closeDrawer();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -285,7 +295,7 @@ class _EditInventoryDrawerState
                     tooltip: 'Close',
                     onPressed: _isSaving
                         ? null
-                        : () => Navigator.of(context).pop(),
+                        : _closeDrawer,
                     icon: const Icon(Icons.close),
                   ),
                 ],

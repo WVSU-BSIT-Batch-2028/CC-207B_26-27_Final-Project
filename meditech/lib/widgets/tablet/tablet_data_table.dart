@@ -50,6 +50,11 @@ class TabletDataTable<T> extends StatelessWidget {
   final bool showControls;
   final Key? filterButtonKey;
 
+
+  final bool compactForDrawer;
+
+  final bool expandColumnsToFit;
+
   const TabletDataTable({
     super.key,
     this.searchHint = 'Search...',
@@ -73,14 +78,48 @@ class TabletDataTable<T> extends StatelessWidget {
     this.emptyState,
     this.showControls = true,
     this.filterButtonKey,
+    this.compactForDrawer = false,
+    this.expandColumnsToFit = true,
   });
 
   bool _isColumnVisible(TabletColumn col, double availableWidth) {
+    if (compactForDrawer) {
+      return col.priority == TabletColumnPriority.high;
+    }
     if (col.priority == TabletColumnPriority.high) return true;
     if (col.priority == TabletColumnPriority.medium) {
       return availableWidth >= 700;
     }
     return availableWidth >= 950;
+  }
+
+  static double _columnMinWidth(TabletColumn col) {
+    if (col.width != null) return col.width!;
+    return col.flex * 72.0;
+  }
+
+  static int _columnFlexWeight(TabletColumn col) {
+    if (col.width != null) {
+      return col.width!.round().clamp(1, 10000);
+    }
+    return col.flex.clamp(1, 100);
+  }
+
+  Widget _columnSlot({
+    required TabletColumn col,
+    required Widget child,
+    required bool flexFill,
+  }) {
+    if (flexFill) {
+      return Expanded(
+        flex: _columnFlexWeight(col),
+        child: Align(alignment: col.alignment, child: child),
+      );
+    }
+    return SizedBox(
+      width: _columnMinWidth(col),
+      child: Align(alignment: col.alignment, child: child),
+    );
   }
 
   @override
@@ -94,20 +133,31 @@ class TabletDataTable<T> extends StatelessWidget {
         ];
         final visibleColumns = visibleIndexes.map((i) => columns[i]).toList();
 
-        // Sideways scrolling turns on only when every visible column has a fixed width.
-        final fixedWidthTable = visibleColumns.every((c) => c.width != null);
-        final fixedContentWidth =
-            32.0 +
+        const rowPadding = 32.0;
+        final minContentWidth =
+            rowPadding +
             (selectable ? 44.0 : 0.0) +
-            visibleColumns.fold<double>(0, (sum, c) => sum + (c.width ?? 0)) +
-            1;
+            visibleColumns.fold<double>(
+              0,
+              (sum, c) => sum + _columnMinWidth(c),
+            );
+        final flexFill =
+            expandColumnsToFit && availableWidth.isFinite && availableWidth > 0;
+        final needsHorizontalScroll =
+            !flexFill && minContentWidth > availableWidth;
 
-        Widget scrollSideways(Widget child) => fixedWidthTable
-            ? _HorizontalScrollArea(
-                contentWidth: fixedContentWidth,
-                child: child,
-              )
-            : child;
+        Widget wrapTable(Widget child) {
+          if (needsHorizontalScroll) {
+            return _HorizontalScrollArea(
+              contentWidth: minContentWidth,
+              child: child,
+            );
+          }
+          return SizedBox(
+            width: flexFill ? availableWidth : minContentWidth,
+            child: child,
+          );
+        }
 
         final allSelected =
             items.isNotEmpty &&
@@ -285,7 +335,7 @@ class TabletDataTable<T> extends StatelessWidget {
                               style: TextStyle(color: Color(0xFF6B7280)),
                             ),
                           ))
-                    : scrollSideways(
+                    : wrapTable(
                         Column(
                           children: [
                             // Table Header
@@ -303,8 +353,10 @@ class TabletDataTable<T> extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              child: Row(
-                                children: [
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: Row(
+                                  children: [
                                   if (selectable) ...[
                                     SizedBox(
                                       width: 36,
@@ -326,44 +378,24 @@ class TabletDataTable<T> extends StatelessWidget {
                                     const SizedBox(width: 8),
                                   ],
                                   for (final col in visibleColumns)
-                                    col.width != null
-                                        ? SizedBox(
-                                            width: col.width,
-                                            child: Align(
-                                              alignment: col.alignment,
-                                              child: Text(
-                                                col.title,
-                                                maxLines: 1,
-                                                softWrap: false,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF4B5563),
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : Expanded(
-                                            flex: col.flex,
-                                            child: Align(
-                                              alignment: col.alignment,
-                                              child: Text(
-                                                col.title,
-                                                maxLines: 1,
-                                                softWrap: false,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF4B5563),
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                ],
+                                    _columnSlot(
+                                      col: col,
+                                      flexFill: flexFill,
+                                      child: Text(
+                                        col.title,
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF4B5563),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
 
@@ -392,6 +424,7 @@ class TabletDataTable<T> extends StatelessWidget {
                                         ? () => onItemTap!(item)
                                         : null,
                                     child: Container(
+                                      width: double.infinity,
                                       height: 56,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
@@ -432,35 +465,15 @@ class TabletDataTable<T> extends StatelessWidget {
                                             i < visibleColumns.length;
                                             i++
                                           )
-                                            visibleColumns[i].width != null
-                                                ? SizedBox(
-                                                    width:
-                                                        visibleColumns[i].width,
-                                                    child: Align(
-                                                      alignment:
-                                                          visibleColumns[i]
-                                                              .alignment,
-                                                      child:
-                                                          visibleIndexes[i] <
-                                                              cells.length
-                                                          ? cells[visibleIndexes[i]]
-                                                          : const SizedBox.shrink(),
-                                                    ),
-                                                  )
-                                                : Expanded(
-                                                    flex:
-                                                        visibleColumns[i].flex,
-                                                    child: Align(
-                                                      alignment:
-                                                          visibleColumns[i]
-                                                              .alignment,
-                                                      child:
-                                                          visibleIndexes[i] <
-                                                              cells.length
-                                                          ? cells[visibleIndexes[i]]
-                                                          : const SizedBox.shrink(),
-                                                    ),
-                                                  ),
+                                            _columnSlot(
+                                              col: visibleColumns[i],
+                                              flexFill: flexFill,
+                                              child:
+                                                  visibleIndexes[i] <
+                                                      cells.length
+                                                  ? cells[visibleIndexes[i]]
+                                                  : const SizedBox.shrink(),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -507,10 +520,9 @@ class _HorizontalScrollAreaState extends State<_HorizontalScrollArea> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use the full box width when the columns are narrower than the screen
         final width = widget.contentWidth > constraints.maxWidth
             ? widget.contentWidth
-            : constraints.maxWidth;
+            : widget.contentWidth;
 
         return Scrollbar(
           controller: _controller,
