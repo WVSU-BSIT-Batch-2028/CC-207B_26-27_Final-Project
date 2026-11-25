@@ -6,7 +6,7 @@ import '../../../../core/utils/date_format.dart';
 import '../../../../models/appointment.dart';
 import '../../../../widgets/h360_button.dart';
 
-/// Hero card for the upcoming consultation (gradient, decorative circles).
+/// Hero card for the next appointment.
 class NextAppointmentCard extends StatelessWidget {
   const NextAppointmentCard({super.key, required this.appointment, required this.onViewDetails});
 
@@ -169,6 +169,7 @@ class NoAppointmentCard extends StatelessWidget {
   }
 }
 
+/// Decorative translucent circle.
 class _Circle extends StatelessWidget {
   const _Circle({required this.size, required this.opacity});
   final double size;
@@ -185,6 +186,7 @@ class _Circle extends StatelessWidget {
       );
 }
 
+/// Small label on the hero card (e.g. "Next appointment", "Today").
 class _Pill extends StatelessWidget {
   const _Pill({this.icon, required this.label, required this.background, required this.foreground});
   final IconData? icon;
@@ -206,6 +208,7 @@ class _Pill extends StatelessWidget {
       );
 }
 
+/// Icon and text line (date, time, place).
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.icon, required this.text});
   final IconData icon;

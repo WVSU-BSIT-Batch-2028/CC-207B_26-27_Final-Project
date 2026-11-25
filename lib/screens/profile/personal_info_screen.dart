@@ -13,8 +13,8 @@ import '../../widgets/h360_button.dart';
 import '../../widgets/menu_tile.dart';
 import '../../widgets/dialog_frame.dart';
 
-/// Personal Information for both roles. Read-only until "Edit" is pressed;
-/// saving validates the form and stores the values.
+/// Personal Information for both roles: read-only until "Edit";
+/// saving validates and stores the values.
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key, required this.role});
 
@@ -118,7 +118,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     try {
       await ProfileService.instance.save(widget.role, updated);
     } catch (_) {
-      // Firestore refused or no internet: keep the form open so they can retry.
+      // Save failed: keep the form open so they can retry.
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(

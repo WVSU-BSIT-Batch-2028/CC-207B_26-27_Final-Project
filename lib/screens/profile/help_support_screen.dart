@@ -10,8 +10,7 @@ import '../onboarding/how_to_use_screen.dart';
 import 'faq_screen.dart';
 import 'troubleshooting_screen.dart';
 
-/// Help & Support: FAQs, Contact Us, Call Us, Live Chat.
-/// For patients, Live Chat opens the AI assistant.
+/// Help & Support: FAQs, contact options and (patients) Live Chat with the AI.
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key, required this.role});
 
@@ -74,7 +73,7 @@ class HelpSupportScreen extends StatelessWidget {
             subtitle: _phone,
             onTap: () => _copy(context, 'Phone number', _phone),
           ),
-          // The assistant is a patient feature; doctors use phone or email.
+          // The assistant is a patient feature.
           if (role == UserRole.patient)
             MenuTile(
               icon: Icons.chat_bubble_outline_rounded,

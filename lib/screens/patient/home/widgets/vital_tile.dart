@@ -7,7 +7,7 @@ import '../../../../widgets/h360_card.dart';
 import '../../../../widgets/sparkline.dart';
 import 'vital_style.dart';
 
-/// "Health at a Glance": vitals laid out two per row. Tap a tile for details.
+/// Health at a Glance: two vitals per row; tap one for details.
 class VitalsGrid extends StatelessWidget {
   const VitalsGrid({super.key, required this.vitals, required this.onTap});
 
@@ -37,6 +37,7 @@ class VitalsGrid extends StatelessWidget {
   }
 }
 
+/// One vital card: latest value, status and trend line.
 class VitalTile extends StatelessWidget {
   const VitalTile({super.key, required this.vital, required this.onTap});
 

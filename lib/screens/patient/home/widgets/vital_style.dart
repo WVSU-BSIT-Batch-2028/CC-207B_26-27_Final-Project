@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../models/vital_sign.dart';
 
-/// Colour and icon for each kind of vital (shared by the tile and the detail sheet).
+/// Colour and icon for each vital (tile and detail sheet).
 extension VitalTypeStyle on VitalType {
   Color get color {
     switch (this) {

@@ -4,7 +4,7 @@ enum VitalType { heartRate, bloodPressure, weight, sleep }
 /// Whether a reading is in its usual range or worth keeping an eye on.
 enum VitalStatus { normal, watch }
 
-/// Where a reading came from. Shown to the user so numbers are never a mystery.
+/// Where a reading came from (only readings the patient owns are shown now).
 enum ReadingSource { sample, you }
 
 /// One measurement. Blood pressure uses [value] for systolic and
@@ -37,8 +37,7 @@ class VitalSign {
   final String unit;
   final List<VitalReading> readings; // oldest first
 
-  /// False until the patient adds a first reading. Screens check this
-  /// before using [latest].
+  /// False until there is a reading; check before using [latest].
   bool get hasReadings => readings.isNotEmpty;
 
   VitalReading get latest => readings.last;
@@ -77,7 +76,7 @@ String vitalValueText(VitalType type, VitalReading r) {
   }
 }
 
-/// Formats a single number of this vital (used for lowest / average / highest).
+/// Formats one number of this vital (lowest / average / highest).
 String vitalStatText(VitalType type, double v) {
   switch (type) {
     case VitalType.heartRate:
@@ -95,7 +94,7 @@ String _hoursText(double hours) {
   return '${minutes ~/ 60}h ${minutes % 60}m';
 }
 
-/// Simple general ranges (not medical advice): used only for a friendly label.
+/// General ranges for a friendly label only (not medical advice).
 VitalStatus vitalStatusOf(VitalType type, VitalReading r) {
   switch (type) {
     case VitalType.heartRate:

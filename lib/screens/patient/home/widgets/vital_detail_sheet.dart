@@ -12,9 +12,8 @@ import '../../../../widgets/sparkline.dart';
 import '../../../../widgets/status_chip.dart';
 import 'vital_style.dart';
 
-/// Opens the detail sheet for one vital: where the numbers come from, the
-/// 7-reading trend, recent readings and a validated "Add a reading" form.
-/// [onChanged] hands the updated vital back so Home can refresh its tile.
+/// Detail sheet for one vital: trend, recent readings and an "Add a
+/// reading" form. [onChanged] returns the updated vital to Home.
 Future<void> showVitalDetailSheet(
   BuildContext context, {
   required VitalSign vital,
@@ -33,6 +32,7 @@ Future<void> showVitalDetailSheet(
   );
 }
 
+/// The sheet's content; keeps the vital up to date as readings are added.
 class _VitalDetailSheet extends StatefulWidget {
   const _VitalDetailSheet({required this.initial, required this.onChanged});
 
@@ -60,7 +60,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
     super.dispose();
   }
 
-  // ---- form rules (one place, easy to change) ----
+  // Form labels and limits
 
   String get _firstLabel {
     switch (_vital.type) {
@@ -114,7 +114,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
     try {
       await DashboardService.instance.addReading(_vital.type, reading);
     } on DashboardException catch (e) {
-      // Saving to Firestore failed: keep the form filled so they can retry.
+      // Save failed: keep the form filled so they can retry.
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -137,14 +137,11 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
     );
   }
 
-  // ---- UI ----
-
   @override
   Widget build(BuildContext context) {
     final color = _vital.type.color;
     final normal = _vital.status == VitalStatus.normal;
     final hasReadings = _vital.hasReadings;
-    final fromYou = hasReadings && _vital.latest.source == ReadingSource.you;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -209,7 +206,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
               ),
             const SizedBox(height: 14),
 
-            // Where the numbers come from
+            // Info note
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -225,9 +222,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
                     child: Text(
                       !hasReadings
                           ? 'No readings yet. Add your first one below. Your doctor will see it in your record.'
-                          : fromYou
-                              ? 'Latest reading added by you; your doctor can see your readings. Readings marked "Sample" are example data.'
-                              : 'Readings marked "Sample" are example data. Add your own reading below; your doctor will see it in your record.',
+                          : 'Add a new reading below whenever you measure. Your doctor can see your readings in your record.',
                       style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.4),
                     ),
                   ),
@@ -236,7 +231,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Trend and history only once there is something to show.
+            // Trend and history once there are readings.
             if (hasReadings) ...[
               _sectionTitle('Last 7 readings'),
               _trend(color),
@@ -265,7 +260,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
         child: Text(text, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.navy)),
       );
 
-  /// Trend line + weekday labels + lowest / average / highest.
+  /// Trend line, weekday labels and lowest / average / highest.
   Widget _trend(Color color) {
     final values = _vital.trend;
     final lowest = values.reduce((a, b) => a < b ? a : b);
@@ -325,7 +320,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
     );
   }
 
-  /// The "Add a reading" form with validation and a loading button.
+  /// The "Add a reading" form.
   Widget _form() {
     return Form(
       key: _formKey,
@@ -356,7 +351,7 @@ class _VitalDetailSheetState extends State<_VitalDetailSheet> {
   }
 }
 
-/// One line in "Recent readings": date, value and who it came from.
+/// One line in Recent readings: date and value.
 class _ReadingRow extends StatelessWidget {
   const _ReadingRow({required this.vital, required this.reading});
 
@@ -365,27 +360,22 @@ class _ReadingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fromYou = reading.source == ReadingSource.you;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          SizedBox(
-            width: 72,
+          // Date on the left, value on the right edge.
+          Expanded(
             child: Text(
               formatShortDate(reading.date),
               style: TextStyle(fontSize: 14, color: AppColors.textMuted, fontWeight: FontWeight.w600),
             ),
           ),
-          Expanded(
-            child: Text(
-              '${vitalValueText(vital.type, reading)} ${vital.unit}',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.navy),
-            ),
-          ),
-          StatusChip(
-            label: fromYou ? 'You' : 'Sample',
-            color: fromYou ? AppColors.success : AppColors.textMuted,
+          const SizedBox(width: 12),
+          Text(
+            '${vitalValueText(vital.type, reading)} ${vital.unit}',
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.navy),
           ),
         ],
       ),

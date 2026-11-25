@@ -1,3 +1,4 @@
+/// Who wrote a chat bubble.
 enum ChatRole { user, assistant }
 
 /// How urgently the assistant suggests the person seeks care.

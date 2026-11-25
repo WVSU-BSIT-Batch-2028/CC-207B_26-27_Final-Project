@@ -39,8 +39,7 @@ class AppTheme {
           color: p.textPrimary,
         ),
       ),
-      // Every popup shares one look: app surface colour, rounded corners and a
-      // thin outline. Widths come from AppSizes (see DialogFrame).
+      // One look for every popup; widths come from AppSizes (see DialogFrame).
       dialogTheme: DialogThemeData(
         backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,

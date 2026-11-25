@@ -20,9 +20,11 @@ import 'widgets/quick_actions.dart';
 import 'widgets/vital_detail_sheet.dart';
 import 'widgets/vital_tile.dart';
 
+/// Which state Home is showing.
 enum _LoadStatus { loading, ready, error }
 
-/// Patient Home / Dashboard.
+/// Patient Home: greeting, next appointment, notifications, vitals and
+/// today's medicines.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -34,10 +36,8 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<int> onNavigate;
   final VoidCallback onOpenAssistant;
 
-  /// Changed by PatientShell when Home should reload quietly (the patient
-  /// came back to the Home tab, or marked a dose taken from a reminder).
-  /// Home stays alive in the tab stack, so without this it would keep
-  /// showing what it loaded first (e.g. not a prescription added later).
+  /// Changed by PatientShell when Home should reload quietly (Home stays
+  /// alive in the tab stack).
   final int refreshToken;
 
   @override
@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _load();
   }
 
-  /// Reload without the skeleton when the shell asks for fresh data.
+  /// Reloads without the skeleton when the shell asks.
   @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Fetches the dashboard and signed-in user's name.
+  /// Loads the dashboard and the signed-in user's name.
   Future<void> _load({bool showSkeleton = true}) async {
     if (showSkeleton) setState(() => _status = _LoadStatus.loading);
     _loadCount++;
@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = results[0] as DashboardData;
       final profile = results[1] as dynamic;
       final fullName = (profile.fullName as String).trim();
-      // No name yet: the greeting shows without one ("Good Morning").
+      // No name yet: greet without one.
       final firstName =
           fullName.isEmpty ? null : fullName.split(RegExp(r'\s+')).first;
 
@@ -119,8 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
     DashboardService.instance.setDoseTaken(id, willBeTaken);
   }
 
-  /// Long-press the avatar: switch the data between Normal / Empty / Error
-  /// to show each state in the presentation.
+  /// Long-press the avatar: demo Normal / Empty / Error data.
   void _openDemoMenu() => showDemoScenarioSheet(context, _load);
 
   @override
@@ -197,14 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
               onAskAi: widget.onOpenAssistant,
             ),
           ),
-          // Notifications: what is new, with "Mark as done".
+          // Today's notifications
           FadeSlideIn(
             delay: const Duration(milliseconds: 200),
             child: NotificationsPreview(role: UserRole.patient, refreshToken: _loadCount),
           ),
           const SectionHeader(
             title: 'Health at a Glance',
-            subtitle: 'Sample data plus your own readings. Tap a card for its trend, or to add a reading.',
+            subtitle: 'Your readings. Tap a card for its trend, or to add a reading.',
           ),
           FadeSlideIn(
             delay: const Duration(milliseconds: 240),

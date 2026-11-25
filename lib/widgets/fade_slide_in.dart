@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Fades and slides its child up on first build. Use [delay] to stagger
-/// several widgets so the screen "assembles" itself.
+/// Fades and slides its child in on first build; [delay] staggers items.
 class FadeSlideIn extends StatefulWidget {
   const FadeSlideIn({
     super.key,

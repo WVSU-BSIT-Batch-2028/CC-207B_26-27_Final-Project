@@ -7,8 +7,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../widgets/h360_button.dart';
 import '../../widgets/h360_card.dart';
 
-/// "Common Problems": each problem opens a short numbered list of steps.
-/// Added because validators found Help & Support had no clear steps.
+/// Common Problems: each opens short numbered steps (HCI feedback).
 class TroubleshootingScreen extends StatelessWidget {
   const TroubleshootingScreen({super.key});
 

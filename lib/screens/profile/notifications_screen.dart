@@ -12,9 +12,8 @@ import '../../widgets/notification_target.dart';
 import '../../widgets/notifications_preview.dart';
 import '../../widgets/state_views.dart';
 
-/// Notifications: on/off toggles per category (saved on the device) and a
-/// history list of past notifications. Turning a category off hides its items.
-/// Tap a notification to mark it as read.
+/// Notification switches per category and the history list. Tap a
+/// notification to mark it read.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key, required this.role});
 
@@ -65,7 +64,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     ProfileService.instance.markNotificationsRead(widget.role, [for (final n in history) n.id]);
   }
 
-
   Widget _heading(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Text(text, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navy)),
@@ -92,7 +90,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _content(Map<String, bool> values, List<NotificationItem> history, List<NotificationOption> options) {
-    // Only show notifications for categories that are switched on.
+    // Hide categories that are switched off.
     final visible = [for (final n in history) if (values[n.categoryKey] ?? true) n];
     final hasUnread = visible.any((n) => !n.read);
 

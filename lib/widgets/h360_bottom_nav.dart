@@ -9,9 +9,8 @@ class NavDestination {
   final String label;
 }
 
-/// Custom bottom navigation with an animated "pill" behind the active icon.
-/// Tabs come from the prototype: pass [patientItems] or [doctorItems].
-/// Icons and labels are large on purpose (validators found the old ones hard to read).
+/// Bottom navigation with an animated pill behind the active tab.
+/// Large icons and labels for readability (HCI feedback).
 class H360BottomNav extends StatelessWidget {
   const H360BottomNav({
     super.key,
@@ -24,7 +23,7 @@ class H360BottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  /// Patient: Home / Appointment / Prescription / Records / Profile
+  /// Patient tabs.
   static const List<NavDestination> patientItems = [
     NavDestination(Icons.home_rounded, 'Home'),
     NavDestination(Icons.event_note_rounded, 'Appointment'),
@@ -33,7 +32,7 @@ class H360BottomNav extends StatelessWidget {
     NavDestination(Icons.person_rounded, 'Profile'),
   ];
 
-  /// Doctor: Home / Appointments / Patients / Profile / Menu (opens the drawer)
+  /// Doctor tabs (Menu opens the drawer).
   static const List<NavDestination> doctorItems = [
     NavDestination(Icons.home_rounded, 'Home'),
     NavDestination(Icons.event_note_rounded, 'Appointments'),
@@ -54,7 +53,7 @@ class H360BottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        // Labels follow the user's text size, but stop at 1.15x so the bar keeps its shape.
+        // Labels follow the text size, capped at 1.15x to keep the bar's shape.
         child: MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.15,
           child: Padding(
@@ -78,6 +77,7 @@ class H360BottomNav extends StatelessWidget {
   }
 }
 
+/// One tab button with the animated pill.
 class _NavButton extends StatelessWidget {
   const _NavButton({required this.item, required this.selected, required this.onTap});
 

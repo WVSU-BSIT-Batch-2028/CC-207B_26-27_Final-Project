@@ -9,8 +9,7 @@ const ShapeBorder _sheetShape = RoundedRectangleBorder(
   borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
 );
 
-/// App Theme sheet: Light / Dark and Text size. Changes apply immediately and
-/// are saved; the sheet stays open so you can see the effect, then tap Done.
+/// App Theme sheet: light/dark and text size, applied and saved at once.
 void showThemeSheet(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Minimal smooth trend line with a soft gradient fill (no chart package).
+/// Smooth trend line with a soft fill (drawn by hand, no chart package).
 class Sparkline extends StatelessWidget {
   const Sparkline({super.key, required this.values, required this.color, this.height = 34});
 
@@ -20,6 +20,7 @@ class Sparkline extends StatelessWidget {
   }
 }
 
+/// Draws the curved line and its gradient fill.
 class _SparklinePainter extends CustomPainter {
   _SparklinePainter(this.values, this.color);
 

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../core/firebase/firebase_bootstrap.dart';
 import '../models/chat_message.dart';
 import 'ai_exceptions.dart';
@@ -7,21 +9,13 @@ import 'gemini_assistant_service.dart';
 
 export 'ai_exceptions.dart';
 
-/// Contract for the AI symptom / FAQ assistant.
-///
-/// The UI only depends on this interface, so the real model call (e.g.
-/// Firebase AI Logic / Gemini, or a Cloud Function) can be dropped in later
-/// without touching any screen.
-///
-/// SECURITY: never hard-code an API key. Read it at build time with
-/// `--dart-define=AI_API_KEY=...` or keep it behind your own backend, and
-/// keep it out of Git (see .gitignore).
+/// What the AI screen talks to, so the model behind it can change freely.
 abstract class AiAssistantService {
   Future<AssistantReply> ask(String message, List<ChatMessage> history);
 }
 
-/// Deterministic safety layer. Runs BEFORE any AI call so that emergencies
-/// are never left to a model's judgement.
+/// Keyword check that runs before any AI call, so emergencies never
+/// depend on the model.
 class SafetyChecker {
   SafetyChecker._();
 
@@ -57,6 +51,7 @@ class SafetyChecker {
   }
 }
 
+/// One offline rule: keywords, triage level and the reply.
 class _Rule {
   const _Rule(this.keywords, this.triage, this.reply);
   final List<String> keywords;
@@ -64,9 +59,8 @@ class _Rule {
   final String reply;
 }
 
-/// Simple keyword rules. Used as the offline fallback when the AI is unavailable,
-/// and for the fixed emergency messages. Intentionally conservative: when unsure,
-/// suggest a doctor. These replies are NOT written by AI, and are labelled that way.
+/// Keyword-based offline guidance, used when the AI cannot be reached.
+/// Cautious on purpose and labelled "not AI" in the chat.
 class RuleBasedAssistant {
   RuleBasedAssistant._();
 
@@ -117,8 +111,7 @@ class RuleBasedAssistant {
   static AssistantReply respond(String message, {bool isFallback = true}) {
     final prefix = isFallback ? _offlinePrefix : '';
 
-    // Fixed safety notices: always shown first, never left to the AI, and
-    // labelled as safety guidance (not "AI-generated").
+    // Fixed safety messages always come first.
     if (SafetyChecker.isSelfHarm(message)) {
       return const AssistantReply(
         text: 'I am really sorry you are going through this. You deserve support '
@@ -159,15 +152,13 @@ class RuleBasedAssistant {
   }
 }
 
-/// Demo-only switch (AI screen menu > "Simulate AI outage") that makes the
-/// real AI fail on purpose, so the fallback can be shown live.
+/// Demo switch (AI menu > "Simulate AI outage") to show the fallback live.
 class AiDemoSwitch {
   AiDemoSwitch._();
   static bool simulateOutage = false;
 }
 
-/// Used when Firebase is not set up on this computer. It always fails, so the
-/// person sees offline guidance honestly labelled "not AI" (never fake AI).
+/// Used when Firebase is not set up: always fails, so offline guidance shows.
 class UnavailableAiAssistantService implements AiAssistantService {
   const UnavailableAiAssistantService();
 
@@ -177,16 +168,27 @@ class UnavailableAiAssistantService implements AiAssistantService {
   }
 }
 
-/// Wraps any [AiAssistantService] and guarantees the user always gets a
-/// usable answer: on timeout, error or empty output it falls back to rules.
+/// Wraps the AI so the user always gets an answer: a failed or slow
+/// attempt is retried, then offline guidance is used. Each failure is
+/// printed in the browser console (F12).
 class FallbackAiAssistantService implements AiAssistantService {
   FallbackAiAssistantService({
     required this.primary,
     this.timeout = const Duration(seconds: 8),
+    this.retryDelays = const [Duration(seconds: 1), Duration(seconds: 2)],
+    this.maxTotal = const Duration(seconds: 30),
   });
 
   final AiAssistantService primary;
+
+  /// Time allowed for one attempt.
   final Duration timeout;
+
+  /// Wait before each retry (its length = number of retries).
+  final List<Duration> retryDelays;
+
+  /// No new attempt starts after this, so the wait stays short.
+  final Duration maxTotal;
 
   @override
   Future<AssistantReply> ask(String message, List<ChatMessage> history) async {
@@ -195,22 +197,31 @@ class FallbackAiAssistantService implements AiAssistantService {
       return RuleBasedAssistant.respond(message);
     }
 
-    try {
-      final reply = await primary.ask(message, history).timeout(timeout);
-      if (reply.text.trim().isEmpty) {
-        throw const AiServiceException('Empty reply');
+    final clock = Stopwatch()..start();
+    for (var attempt = 0; attempt <= retryDelays.length; attempt++) {
+      if (attempt > 0) {
+        if (clock.elapsed + retryDelays[attempt - 1] >= maxTotal) break;
+        await Future<void>.delayed(retryDelays[attempt - 1]);
       }
-      return reply;
-    } on Exception {
-      // Timeout, service error or unusable result -> rule-based guidance.
-      return RuleBasedAssistant.respond(message);
+      try {
+        final reply = await primary.ask(message, history).timeout(timeout);
+        if (reply.text.trim().isEmpty) {
+          throw const AiServiceException('Empty reply');
+        }
+        return reply;
+      } on Exception catch (e) {
+        debugPrint('AI attempt ${attempt + 1} failed: $e');
+        // These never fix themselves, so do not retry.
+        if (AiDemoSwitch.simulateOutage || primary is UnavailableAiAssistantService) break;
+      }
     }
+    // Still failing after the retries -> rule-based guidance.
+    return RuleBasedAssistant.respond(message);
   }
 }
 
-/// One place to decide which implementation the app uses:
-/// Gemini (through Firebase) when Firebase and App Check are running, otherwise offline guidance.
-/// The wrapper adds the timeout and the fallback in both cases.
+/// Picks Gemini when Firebase and App Check are ready, otherwise offline
+/// guidance, both wrapped with retries and fallback.
 class AiAssistantFactory {
   AiAssistantFactory._();
 
@@ -218,6 +229,6 @@ class AiAssistantFactory {
         primary: FirebaseBootstrap.isAiReady
             ? GeminiAssistantService()
             : const UnavailableAiAssistantService(),
-        timeout: const Duration(seconds: 12),
+        timeout: const Duration(seconds: 15),
       );
 }

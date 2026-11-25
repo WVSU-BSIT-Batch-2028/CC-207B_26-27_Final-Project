@@ -1,5 +1,6 @@
 import 'appointment_status.dart';
 
+/// Kind of Recent Activity row (sets its icon).
 enum ActivityType { labResult, prescription, message }
 
 /// One row in the doctor's "Recent Activity" list.

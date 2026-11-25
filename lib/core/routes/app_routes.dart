@@ -18,8 +18,7 @@ class AppRoutes {
   static const String doctorShell = '/doctor';
   static const String assistant = '/assistant';
 
-  /// Where the app starts. Skip auth while developing if needed:
-  /// flutter run -d chrome --dart-define=START_ROUTE=/doctor
+  /// First route. For development: --dart-define=START_ROUTE=/doctor
   static const String initialRoute =
       String.fromEnvironment('START_ROUTE', defaultValue: authGate);
 

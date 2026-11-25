@@ -12,8 +12,7 @@ import 'notification_target.dart';
 import 'section_header.dart';
 import 'state_views.dart';
 
-/// Icon for each notification category key (patient and doctor keys).
-/// Shared by this card and the Notifications screen.
+/// Icon for a notification category (also used by the Notifications screen).
 IconData notificationIcon(String key) {
   switch (key) {
     case 'appointments':
@@ -32,21 +31,15 @@ IconData notificationIcon(String key) {
   }
 }
 
-/// The "Notifications" area on the patient and doctor Home screens.
-///
-/// Shows TODAY's notifications only: how many are new and the 3 most recent.
-/// Older ones are in Profile > Notifications ("See all"). Each has
-/// a dot while it is new. Tapping one marks it as read and, for refill
-/// requests and answers, opens the screen it is about.
-/// It reads the same history and category switches as Profile >
-/// Notifications (ProfileService), so reading one here marks it there too.
-/// "See all" opens that screen.
+/// Notifications card on both Home screens: today's notifications only,
+/// the 3 newest. Tapping one marks it read and opens its screen, if any.
+/// "See all" opens Profile > Notifications.
 class NotificationsPreview extends StatefulWidget {
   const NotificationsPreview({super.key, required this.role, this.refreshToken = 0});
 
   final UserRole role;
 
-  /// Changed by the Home screen whenever it reloads, so this card reloads too.
+  /// Changed by Home on every reload, so this card reloads too.
   final int refreshToken;
 
   @override
@@ -72,8 +65,7 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
     if (widget.refreshToken != oldWidget.refreshToken) _load();
   }
 
-  /// Loads the history, keeping only the categories switched on in
-  /// Profile > Notifications (same rule as that screen).
+  /// Loads today's notifications from categories that are switched on.
   Future<void> _load() async {
     try {
       final prefs = await ProfileService.instance.loadNotificationPrefs(widget.role);
@@ -99,8 +91,7 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
     }
   }
 
-  /// A tap: mark the notification as read (saved on the device, like on the
-  /// Notifications screen) and open the screen it points to, if any.
+  /// Marks the notification as read and opens its screen, if it has one.
   void _open(NotificationItem item) {
     if (!item.read) {
       setState(() {
@@ -132,7 +123,7 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
               : _items.isEmpty
                   ? 'Today'
                   : unread == 0
-                      ? 'Today · all done'
+                      ? 'Today'
                       : 'Today · $unread new',
           actionLabel: 'See all',
           onAction: _openAll,
@@ -167,9 +158,7 @@ class _NotificationsPreviewState extends State<NotificationsPreview> {
   }
 }
 
-/// One notification. Unread ones are bold with a dot, and a chevron shows
-/// when tapping opens another screen. Text AND icon show the state, never
-/// colour alone.
+/// One notification: bold with a dot while unread; chevron if it opens a screen.
 class _PreviewRow extends StatelessWidget {
   const _PreviewRow({required this.item, required this.onTap});
 
@@ -221,7 +210,7 @@ class _PreviewRow extends StatelessWidget {
               ],
             ),
           ),
-          // New dot, and a chevron when the tap opens a screen.
+          // Unread dot, and a chevron when tapping opens a screen.
           if (!done)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 0, 0),
