@@ -117,13 +117,29 @@ class OsmListingService {
           throw Exception(message);
         }
       }
+      if (error.status == 404) {
+        throw Exception(
+          'The osm-sync function is not deployed. '
+          'Run: supabase functions deploy osm-sync',
+        );
+      }
+      if (error.status == 401 || error.status == 403) {
+        throw Exception(
+          'Permission denied (HTTP ${error.status}). '
+          'Make sure you are signed in as an admin.',
+        );
+      }
       if (error.status == 502 || error.status == 504) {
         throw Exception(
-          'OpenStreetMap is slow or busy (HTTP ${error.status}). '
+          'OpenStreetMap mirrors timed out (HTTP ${error.status}). '
           'Wait a minute and tap Sync OSM again.',
         );
       }
-      throw Exception('Could not sync OpenStreetMap listings. Try again.');
+      // Surface the raw status and details so the error is diagnosable
+      final raw = details is Map ? details.toString() : details.toString();
+      throw Exception(
+        'Sync failed (HTTP ${error.status}): $raw',
+      );
     }
   }
 }
