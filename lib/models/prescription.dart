@@ -85,6 +85,28 @@ class Prescription {
     return today.isBefore(endDate);
   }
 
+  /// How many days a prescription stays in the Active list after its course
+  /// (or its refill date) so the patient can still request the refill.
+  static const int refillGraceDays = 3;
+
+  /// True while the prescription belongs in the Active list.
+  ///
+  /// That is while the course runs, plus a short window after it when a
+  /// refill is available. Without this, a refill date on or after the end of
+  /// the course would send the prescription to History at the same moment the
+  /// refill opens, so "Request Refill" could never be used.
+  bool isListedActiveOn(DateTime now) {
+    if (isActiveOn(now)) return true;
+    final refill = refillDate;
+    if (refill == null || !isRefillAvailableOn(now)) return false;
+    final refillDay = DateTime(refill.year, refill.month, refill.day);
+    final last = refillDay.isAfter(endDate) ? refillDay : endDate;
+    final until =
+        DateTime(last.year, last.month, last.day + refillGraceDays);
+    final today = DateTime(now.year, now.month, now.day);
+    return today.isBefore(until);
+  }
+
   /// True once the first day of the treatment has arrived. Before that the
   /// medicine cannot be marked as taken and no reminder pops up.
   bool hasStartedOn(DateTime now) {

@@ -255,6 +255,8 @@ class ProfileService {
                 ? 'Your refill for ${r.medicineTitle} was approved.'
                 : 'Your refill for ${r.medicineTitle} was declined. You can send a new request.',
             time: r.at,
+            target: r.prescriptionId.isEmpty ? null : NotificationTarget.prescriptionDetails,
+            targetId: r.prescriptionId.isEmpty ? null : r.prescriptionId,
           ),
       ];
     } catch (_) {
@@ -299,8 +301,9 @@ class ProfileService {
             id: 'refill_${n.id}',
             categoryKey: 'prescription',
             title: 'Refill requested',
-            message: '${n.patientName} asked to refill ${n.medicineTitle}.',
+            message: '${n.patientName} asked to refill ${n.medicineTitle}. Tap to review.',
             time: n.requestedAt,
+            target: NotificationTarget.doctorPrescriptions,
           ),
       ];
     } catch (_) {

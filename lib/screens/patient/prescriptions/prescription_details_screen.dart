@@ -93,6 +93,9 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
   /// False before the prescription's first day (Mark as Taken is disabled).
   bool get _hasStarted => _rx.hasStartedOn(DateTime.now());
 
+  /// True once the course is over (only the refill is still possible).
+  bool get _courseOver => !_rx.isActiveOn(DateTime.now());
+
   /// "Mark as Taken": saves today's dose and offers an Undo in the snack bar.
   Future<void> _markTaken() async {
     setState(() => _savingTaken = true);
@@ -381,7 +384,9 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
         const SizedBox(height: AppSpacing.lg),
         // Before the start date the button is disabled and says when it starts.
         H360Button(
-          label: !_hasStarted
+          label: _courseOver
+              ? 'Course Completed'
+              : !_hasStarted
               ? 'Starts ${formatLongDate(_rx.startDate)}'
               : _takenToday
                   ? 'Taken Today'
@@ -394,9 +399,10 @@ class _PrescriptionDetailsScreenState extends State<PrescriptionDetailsScreen> {
           isLoading: _savingTaken,
           // Disabled (null) before the start date and once taken; the Undo
           // is in the snack bar.
-          onPressed: !_hasStarted || _takenToday ? null : _markTaken,
+          onPressed:
+              _courseOver || !_hasStarted || _takenToday ? null : _markTaken,
         ),
-        if (!_hasStarted) ...[
+        if (!_hasStarted && !_courseOver) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
             'You can mark it as taken from its start date.',

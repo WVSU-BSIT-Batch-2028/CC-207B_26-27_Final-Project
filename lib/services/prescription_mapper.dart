@@ -19,6 +19,14 @@ DateTime? _dateOf(Object? value) {
   return null;
 }
 
+/// "2x a day" -> 2, "Twice a day" -> 2; 1 when unclear.
+int _timesFromText(Object? raw) {
+  final text = raw?.toString().toLowerCase() ?? '';
+  final number = RegExp(r'\d+').firstMatch(text);
+  if (number != null) return int.parse(number.group(0)!);
+  return text.contains('twice') ? 2 : 1;
+}
+
 /// "capsule" -> "Capsule".
 String capitalize(String text) =>
     text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
@@ -31,14 +39,21 @@ String instructionFor(String form, int timesPerDay) =>
 /// Throws [FormatException] when a required field is missing, so the service
 /// can skip a damaged document instead of crashing the whole list.
 Prescription prescriptionFromData(String id, Map<String, dynamic> data) {
-  final name = data['medicineName'];
+  // Older or hand-made documents use `medicine`, `frequency` and `endDate`.
+  final name = data['medicineName'] ?? data['medicine'];
   final start = _dateOf(data['startDate']);
   if (name is! String || start == null) {
     throw const FormatException('Prescription is missing required fields.');
   }
 
   final form = (data['form'] as String?) ?? 'tablet';
-  final times = (data['timesPerDay'] as num?)?.toInt() ?? 1;
+  final times = (data['timesPerDay'] as num?)?.toInt() ??
+      _timesFromText(data['frequency']);
+  final end = _dateOf(data['endDate']);
+  final duration = (data['durationDays'] as num?)?.toInt() ??
+      (end == null
+          ? 1
+          : end.difference(start).inDays.clamp(1, 3650).toInt());
 
   return Prescription(
     id: id,
@@ -46,7 +61,7 @@ Prescription prescriptionFromData(String id, Map<String, dynamic> data) {
     strength: (data['dosage'] as String?) ?? '',
     form: capitalize(form),
     instruction: instructionFor(form, times),
-    durationDays: (data['durationDays'] as num?)?.toInt() ?? 1,
+    durationDays: duration,
     startDate: start,
     prescribedBy: (data['doctorName'] as String?) ?? 'Your doctor',
     doctorPhone: (data['doctorPhone'] as String?) ?? '',

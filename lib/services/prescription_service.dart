@@ -308,7 +308,7 @@ class PrescriptionService {
 
   /// The signed-in patient's refill requests that the doctor has answered
   /// (approved or declined), for the Notifications screen.
-  Future<List<({String id, String medicineTitle, RefillStatus status, DateTime at})>>
+  Future<List<({String id, String prescriptionId, String medicineTitle, RefillStatus status, DateTime at})>>
       fetchMyAnsweredRefills() async {
     return _guard(
       "We couldn't load your refill updates. Check your connection and try again.",
@@ -321,6 +321,8 @@ class PrescriptionService {
             if (refillRequestFromData(doc.data()).status != RefillStatus.pending)
               (
                 id: doc.id,
+                prescriptionId:
+                    (doc.data()['prescriptionId'] as String?) ?? '',
                 medicineTitle:
                     (doc.data()['medicineTitle'] as String?) ?? 'your medicine',
                 status: refillRequestFromData(doc.data()).status,
