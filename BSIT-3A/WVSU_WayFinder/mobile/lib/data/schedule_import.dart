@@ -1,12 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:pdfrx/pdfrx.dart';
 
 import 'schedule.dart';
 import 'schedule_layout.dart';
+import 'browser_schedule.dart';
 
 /// Extracted document data only; saving the reviewed classes is a separate step.
 class ScheduleImportResult {
@@ -93,6 +96,51 @@ class ScheduleImportService {
   static const maxFileBytes = 20 * 1024 * 1024;
   static const maxPdfPages = 20;
 
+  Future<ScheduleImportResult> importBrowserFile(
+    String name,
+    Uint8List bytes,
+  ) async {
+    if (bytes.isEmpty || bytes.length > maxFileBytes) {
+      throw const FormatException('Choose a nonempty schedule up to 20 MB.');
+    }
+    if (name.toLowerCase().endsWith('.pdf')) {
+      await pdfrxFlutterInitialize();
+      final document = await PdfDocument.openData(bytes, sourceName: name);
+      return parseScheduleText(await _readPages(document));
+    }
+    return parseScheduleText(await _recognizeBytes(bytes));
+  }
+
+  Future<String> _recognizeBytes(Uint8List bytes) async {
+    final output = jsonDecode(await recognizeBrowserImage(bytes)) as Map;
+    List<SchedulePiece> pieces(String key) => [
+      for (final p in output[key])
+        (
+          text: p[0] as String,
+          bounds: ui.Rect.fromLTRB(
+            p[1].toDouble(),
+            p[2].toDouble(),
+            p[3].toDouble(),
+            p[4].toDouble(),
+          ),
+        ),
+    ];
+    final lines = pieces('lines'), words = pieces('words');
+    final grid = readWeeklyGrid(lines, words: words);
+    if (grid != null && parseScheduleText(grid).sessions.isNotEmpty) {
+      return grid;
+    }
+    final arranged = assembleScheduleRows([
+      for (final word in words) ScheduleTextPiece(word.text, word.bounds),
+    ]);
+    final raw = output['text'] as String;
+    return arranged.trim().isNotEmpty &&
+            parseScheduleText(arranged).sessions.length >=
+                parseScheduleText(raw).sessions.length
+        ? arranged
+        : raw;
+  }
+
   Future<ScheduleImportResult> importFile(String path) async {
     final file = File(path);
     final size = await file.length();
@@ -162,7 +210,10 @@ class ScheduleImportService {
 
   Future<String> _readPdf(String path) async {
     await pdfrxFlutterInitialize();
-    final document = await PdfDocument.openFile(path);
+    return _readPages(await PdfDocument.openFile(path));
+  }
+
+  Future<String> _readPages(PdfDocument document) async {
     try {
       if (document.pages.length > maxPdfPages) {
         throw const FormatException(
@@ -253,46 +304,35 @@ class ScheduleImportService {
         // A scan has no text layer. A badly ordered text layer may not expose a
         // complete row either; raster OCR gives the parser another local input.
         if (parseScheduleText(extracted).sessions.isEmpty &&
-            (Platform.isAndroid || Platform.isIOS)) {
-          final temporary = await Directory.systemTemp.createTemp(
-            'wayfinder-schedule-',
+            (kIsWeb || Platform.isAndroid || Platform.isIOS)) {
+          final scale = math.min(3.0, 2400 / math.max(page.width, page.height));
+          final raster = await page.render(
+            fullWidth: page.width * scale,
+            fullHeight: page.height * scale,
           );
-          try {
-            final scale = math.min(
-              3.0,
-              2400 / math.max(page.width, page.height),
-            );
-            final raster = await page.render(
-              fullWidth: page.width * scale,
-              fullHeight: page.height * scale,
-            );
-            if (raster != null) {
+          if (raster != null) {
+            try {
+              final image = await raster.createImage();
               try {
-                final image = await raster.createImage();
-                try {
-                  final png = await image.toByteData(
-                    format: ui.ImageByteFormat.png,
+                final png = await image.toByteData(
+                  format: ui.ImageByteFormat.png,
+                );
+                if (png != null) {
+                  final bytes = png.buffer.asUint8List(
+                    png.offsetInBytes,
+                    png.lengthInBytes,
                   );
-                  if (png != null) {
-                    final file = File('${temporary.path}/page.png');
-                    await file.writeAsBytes(
-                      png.buffer.asUint8List(
-                        png.offsetInBytes,
-                        png.lengthInBytes,
-                      ),
-                    );
-                    final ocr = await _readImage(file.path);
-                    if (ocr.trim().isNotEmpty) extracted = ocr;
-                  }
-                } finally {
-                  image.dispose();
+                  final ocr = kIsWeb
+                      ? await _recognizeBytes(bytes)
+                      : await _recognizeTemporaryPng(bytes);
+                  if (ocr.trim().isNotEmpty) extracted = ocr;
                 }
               } finally {
-                raster.dispose();
+                image.dispose();
               }
+            } finally {
+              raster.dispose();
             }
-          } finally {
-            await temporary.delete(recursive: true);
           }
         }
         text.writeln(extracted);
@@ -300,6 +340,18 @@ class ScheduleImportService {
       return text.toString();
     } finally {
       await document.dispose();
+    }
+  }
+
+  Future<String> _recognizeTemporaryPng(Uint8List bytes) async {
+    final temporary = await Directory.systemTemp.createTemp(
+      'wayfinder-schedule-',
+    );
+    try {
+      final file = await File('${temporary.path}/page.png').writeAsBytes(bytes);
+      return await _readImage(file.path);
+    } finally {
+      await temporary.delete(recursive: true);
     }
   }
 }

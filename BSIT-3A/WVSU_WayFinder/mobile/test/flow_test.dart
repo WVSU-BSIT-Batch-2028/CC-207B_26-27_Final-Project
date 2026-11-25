@@ -105,25 +105,26 @@ void main() {
       'CIT 210 Web Systems | MWF | 1:30-3:00 PM | CB 203 | Professor: Maria Mapped');
     final store = await pumpApp(t, size: tall);
     await tapText(t, 'Add my Schedule');
-    await tapText(t, 'Choose schedule file');
-    expect(find.text('Review 3 detected class meetings'), findsOneWidget);
+    await tapText(t, 'Upload a photo, screenshot or PDF');
+    expect(find.text('We found 3 classes on 3 days'), findsOneWidget);
     expect(store.classes, isEmpty);
-    await tapText(t, 'Save 3 class meetings');
+    await tapText(t, 'Confirm 3 classes');
     expect(store.classes, hasLength(3));
     expect(store.classes.map((c) => c.weekday), [1, 3, 5]);
     expect(store.classes.every((c) => c.remindMinutes == 15), isTrue);
     expect(store.classes.every((c) => c.roomPlaceId == 'room-demo-cb-203'), isTrue);
     expect(store.classes.first.professor, 'Maria Mapped');
-    await tapText(t, 'Add my Schedule');
-    await tapText(t, 'Choose schedule file');
-    await tapText(t, 'Save 3 class meetings');
+    await tapText(t, 'View my week');
+    await tapText(t, 'Re-import');
+    await tapText(t, 'Upload a photo, screenshot or PDF');
+    await tapText(t, 'Confirm 3 classes');
     expect(store.classes, hasLength(3));
   });
 
   testWidgets('picker cancellation leaves schedule unchanged', (t) async {
     ImportScheduleScreen.debugImport = () async => null;
     final store = await pumpApp(t, initial: '/schedule/import', size: tall);
-    await tapText(t, 'Choose schedule file');
+    await tapText(t, 'Upload a photo, screenshot or PDF');
     expect(store.classes, isEmpty);
     expect(find.byKey(const Key('save-import')), findsNothing);
   });
@@ -131,12 +132,12 @@ void main() {
   testWidgets('missing room can be edited before saving', (t) async {
     ImportScheduleScreen.debugImport = () async => parseScheduleText('CC 207 Programming | M | 08:00-09:00');
     final store = await pumpApp(t, initial: '/schedule/import', size: tall);
-    await tapText(t, 'Choose schedule file');
+    await tapText(t, 'Upload a photo, screenshot or PDF');
     expect(store.classes, isEmpty);
     await tapText(t, 'Edit');
     await t.enterText(find.widgetWithText(TextFormField, 'Room (optional)'), 'CB 203');
     await tapText(t, 'Apply');
-    await tapText(t, 'Save 1 class meetings');
+    await tapText(t, 'Confirm 1 class');
     expect(store.classes.single.roomCodeRaw, 'CB 203');
   });
 
@@ -144,13 +145,13 @@ void main() {
     ImportScheduleScreen.debugImport = () async => const ScheduleImportResult(
       sessions: [], warnings: ['No complete meetings detected.'], rawText: 'WEB SYSTEMS\nMONDAY\nUnreadable time');
     final store = await pumpApp(t, initial: '/schedule/import', size: tall);
-    await tapText(t, 'Choose schedule file');
-    expect(find.text('Review 0 detected class meetings'), findsOneWidget);
+    await tapText(t, 'Upload a photo, screenshot or PDF');
+    expect(find.text('We found 0 classes on 0 days'), findsOneWidget);
     await t.enterText(find.byKey(const Key('recognized-text')),
       'Subject | Day | Time | Room | Professor\nWeb Systems | Monday | 08:00-09:00 | CB203 | Maria Cruz');
     await tapText(t, 'Read these details');
-    expect(find.text('Review 1 detected class meetings'), findsOneWidget);
-    await tapText(t, 'Save 1 class meetings');
+    expect(find.text('We found 1 class on 1 day'), findsOneWidget);
+    await tapText(t, 'Confirm 1 class');
     expect(store.classes.single.subject, 'Web Systems');
     expect(store.classes.single.roomCodeRaw, 'CB203');
     expect(store.classes.single.professor, 'Maria Cruz');
@@ -159,10 +160,27 @@ void main() {
   testWidgets('missing room can be saved as unconfirmed according to SQL', (t) async {
     ImportScheduleScreen.debugImport = () async => parseScheduleText('CC 207 Programming | M | 08:00-09:00');
     final store = await pumpApp(t, initial: '/schedule/import', size: tall);
-    await tapText(t, 'Choose schedule file');
-    await tapText(t, 'Save 1 class meetings');
+    await tapText(t, 'Upload a photo, screenshot or PDF');
+    await tapText(t, 'Confirm 1 class');
     expect(store.classes.single.roomCodeRaw, '');
+    await tapText(t, 'View my week');
     expect(find.text('Room not specified'), findsOneWidget);
+  });
+
+  testWidgets('sample timetable can be corrected, confirmed and browsed by day', (t) async {
+    final store = await pumpApp(t, initial:'/schedule/import');
+    await tapText(t,'IUIS timetable screenshot');
+    expect(find.text('We found 9 classes on 5 days'),findsOneWidget);
+    await tapText(t,'Use CB203');
+    await tapText(t,'Confirm 9 classes');
+    expect(store.classes.length,9);
+    expect(store.classes.where((s)=>s.roomCodeRaw=='C8203'),isEmpty);
+    expect(find.text('Your schedule is saved'),findsOneWidget);
+    await tapText(t,'View my week');
+    await tapText(t,'SAT');
+    expect(find.text('No classes on Saturday'),findsOneWidget);
+    await tapText(t,'MON');
+    expect(find.text('IT 311 Web Systems and Technologies'),findsOneWidget);
   });
 
   testWidgets('search: unknown code keeps what was typed', (t) async {

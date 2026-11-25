@@ -12,237 +12,388 @@ import '../widgets/common.dart';
 import '../widgets/schedule_document_preview.dart';
 import 'home_screen.dart' show Unconfirmed;
 
-class ScheduleScreen extends StatelessWidget {
+class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
 
+class _ScheduleScreenState extends State<ScheduleScreen> {
+  int? selection;
   @override
   Widget build(BuildContext context) {
     final store = AppScope.of(context).schedule;
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {
+        final now = appClock();
+        final today = manila(now);
+        final day = selection ?? today.weekday;
+        final monday = DateTime.utc(
+          today.year,
+          today.month,
+          today.day - today.weekday + 1,
+        );
         final classes = store.classes;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextButton.icon(
-              onPressed: () => context.go('/'),
-              icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('Home'),
-            ),
-            const Text(
-              'My Schedule',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const Notice(
-              'Private: your timetable and classes are saved on this device only. Times use Asia/Manila.',
-              info: true,
-            ),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        final sessions = classes.where((c) => c.weekday == day).toList()
+          ..sort((a, b) => a.start.compareTo(b.start));
+        final next = nextClass(classes, now);
+        final reminder = sessions
+            .where((c) => c.remindMinutes != null)
+            .firstOrNull;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => context.go('/'),
+                    icon: const Icon(Icons.chevron_left),
+                    label: const Text('Home'),
+                  ),
+                ),
+                Row(
                   children: [
-                    const Text(
-                      'Import your IUIS schedule or COR',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
+                    const Expanded(
+                      child: Text(
+                        'My Schedule',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: navy,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Upload a PDF, photo or screenshot. Review the detected classes, then save them with reminders.',
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
+                    OutlinedButton.icon(
                       onPressed: () => context.go('/schedule/import'),
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('Add my Schedule'),
+                      icon: const Icon(Icons.file_upload_outlined),
+                      label: Text(
+                        classes.isEmpty ? 'Add my Schedule' : 'Re-import',
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            if (store.imageBase64 != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const Text('Previously uploaded timetable'),
-                      Image.memory(
-                        base64Decode(store.imageBase64!),
-                        height: 180,
-                        fit: BoxFit.contain,
-                        semanticLabel: 'Your uploaded timetable',
-                      ),
-                      TextButton(
-                        onPressed: () => store.setImage(null),
-                        child: const Text('Remove image'),
-                      ),
-                    ],
-                  ),
+                Text(
+                  'Week of ${MaterialLocalizations.of(context).formatMediumDate(monday)}',
+                  style: const TextStyle(color: muted),
                 ),
-              ),
-            ListenableBuilder(listenable: AppScope.of(context).documents, builder: (context, _) {
-            final uploads = AppScope.of(context).documents.uploads;
-            final documents = AppScope.of(context).documents;
-            if (documents.error != null) {
-              return Column(children: [
-              Notice(documents.error!),
-              OutlinedButton(onPressed: documents.loadForDisplay, child: const Text('Retry loading saved files')),
-            ]);
-            }
-            if (uploads.isEmpty) return const SizedBox.shrink();
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('SAVED SCHEDULE FILES', style: TextStyle(fontWeight: FontWeight.w700)),
-              for (final document in uploads) Card(child: Padding(padding: const EdgeInsets.all(12),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(document.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ScheduleDocumentPreview(document: document),
-                  OutlinedButton(onPressed: () => context.go('/schedule/import?upload=${document.id}'),
-                    child: const Text('Review classes from this file')),
-                ]),
-              )),
-            ]);
-          }),
-          ListenableBuilder(
-              listenable: AppScope.of(context).notifications,
-              builder: (context, _) {
-                final notifications = AppScope.of(context).notifications;
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, bounds) => SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
                       children: [
-                        const Text(
-                          'Class reminders',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          notifications.statusText,
-                          style: const TextStyle(fontSize: 13, color: muted),
-                        ),
-                        if (notifications.supported) ...[
-                          const SizedBox(height: 8),
-                          OutlinedButton.icon(
-                            onPressed: notifications.enable,
-                            icon: const Icon(
-                              Icons.notifications_active_outlined,
-                            ),
-                            label: Text(
-                              notifications.enabled
-                                  ? 'Check reminder permissions'
-                                  : 'Enable class reminders',
+                        for (var d = 1; d <= 7; d++)
+                          Semantics(
+                            selected: day == d,
+                            button: true,
+                            label: weekdays[d - 1],
+                            child: InkWell(
+                              onTap: () => setState(() => selection = d),
+                              child: Container(
+                                width:
+                                    (bounds.maxWidth / 7).clamp(44.0, 100.0) -
+                                    4,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: day == d ? navy : Colors.white,
+                                  border: Border.all(color: line),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      weekdays[d - 1]
+                                          .substring(0, 3)
+                                          .toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: day == d ? Colors.white : muted,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${monday.add(Duration(days: d - 1)).day}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: day == d ? Colors.white : navy,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.circle,
+                                      size: 6,
+                                      color: classes.any((c) => c.weekday == d)
+                                          ? gold
+                                          : Colors.transparent,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'WEEKLY CLASSES',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 1,
-                      color: muted,
-                      fontWeight: FontWeight.w700,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        day == today.weekday ? 'Today' : weekdays[day - 1],
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: navy,
+                        ),
+                      ),
                     ),
-                  ),
+                    Text('${sessions.length} classes'),
+                  ],
                 ),
-                FilledButton(
-                  onPressed: () => context.go('/schedule/new'),
-                  child: const Text('Add class'),
-                ),
-              ],
-            ),
-            if (classes.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'No classes yet',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            for (var d = 1; d <= 7; d++)
-              if (classes.any((c) => c.weekday == d)) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 4),
-                  child: Text(
-                    weekdays[d - 1],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: navy,
-                    ),
-                  ),
-                ),
-                for (final c
-                    in classes.where((c) => c.weekday == d).toList()
-                      ..sort((a, b) => a.start.compareTo(b.start)))
+                if (sessions.isEmpty)
                   Card(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => context.go('/schedule/${c.id}'),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        classes.isEmpty
+                            ? 'No classes yet'
+                            : 'No classes on ${weekdays[day - 1]}',
+                      ),
+                    ),
+                  ),
+                for (final c in sessions)
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
+                            Text(
+                              formatClock(c.start),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: navy,
+                              ),
+                            ),
+                            Text(
+                              formatClock(c.end),
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Card(
+                          child: ListTile(
+                            onTap: () => context.go('/schedule/${c.id}'),
+                            title: Text(
+                              c.subject,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (next?.session.id == c.id)
+                                  const Text(
+                                    'Next',
+                                    style: TextStyle(
+                                      color: navy,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                if (c.professor != null) Text(c.professor!),
+                                Text(
+                                  c.roomCodeRaw.isEmpty
+                                      ? 'Room not specified'
+                                      : c.roomCodeRaw,
+                                ),
+                                if (c.roomPlaceId == null)
+                                  const Unconfirmed(
+                                    'Room location unconfirmed',
+                                  ),
+                              ],
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (reminder != null)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'REMINDER PREVIEW',
+                            style: TextStyle(
+                              color: navy,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ListTile(
+                            tileColor: blueSoft,
+                            leading: const Icon(Icons.notifications_outlined),
+                            title: Text(
+                              '${reminder.subject} starts in ${reminder.remindMinutes} min',
+                            ),
+                            subtitle: Text(
+                              [
+                                if (reminder.roomCodeRaw.isNotEmpty)
+                                  'Room ${reminder.roomCodeRaw}',
+                                ?reminder.professor,
+                              ].where((s) => s.isNotEmpty).join(' · '),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => context.go('/schedule/new'),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add class'),
+                  ),
+                ),
+                if (store.imageBase64 != null)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          const Text('Previously uploaded timetable'),
+                          Image.memory(
+                            base64Decode(store.imageBase64!),
+                            height: 180,
+                            fit: BoxFit.contain,
+                            semanticLabel: 'Your uploaded timetable',
+                          ),
+                          TextButton(
+                            onPressed: () => store.setImage(null),
+                            child: const Text('Remove image'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ListenableBuilder(
+                  listenable: AppScope.of(context).documents,
+                  builder: (context, _) {
+                    final uploads = AppScope.of(context).documents.uploads;
+                    final documents = AppScope.of(context).documents;
+                    if (documents.error != null) {
+                      return Column(
+                        children: [
+                          Notice(documents.error!),
+                          OutlinedButton(
+                            onPressed: documents.loadForDisplay,
+                            child: const Text('Retry loading saved files'),
+                          ),
+                        ],
+                      );
+                    }
+                    if (uploads.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'SAVED SCHEDULE FILES',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        for (final document in uploads)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    c.subject,
+                                    document.name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 16,
                                     ),
                                   ),
-                                  Text(
-                                    '${formatClock(c.start)}–${formatClock(c.end)}${c.professor != null ? ' · ${c.professor}' : ''}',
-                                    style: const TextStyle(
-                                      color: muted,
-                                      fontSize: 13,
+                                  ScheduleDocumentPreview(document: document),
+                                  OutlinedButton(
+                                    onPressed: () => context.go(
+                                      '/schedule/import?upload=${document.id}',
+                                    ),
+                                    child: const Text(
+                                      'Review classes from this file',
                                     ),
                                   ),
-                                  if (c.roomPlaceId == null)
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 6),
-                                      child: Unconfirmed(
-                                        'Room location unconfirmed',
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 100), child: Text(
-                              c.roomCodeRaw.isEmpty ? 'Room not specified' : c.roomCodeRaw,
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                ListenableBuilder(
+                  listenable: AppScope.of(context).notifications,
+                  builder: (context, _) {
+                    final notifications = AppScope.of(context).notifications;
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Class reminders',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              notifications.statusText,
                               style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: navy,
+                                fontSize: 13,
+                                color: muted,
                               ),
-                            )),
+                            ),
+                            if (notifications.supported) ...[
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: notifications.enable,
+                                icon: const Icon(
+                                  Icons.notifications_active_outlined,
+                                ),
+                                label: Text(
+                                  notifications.enabled
+                                      ? 'Check reminder permissions'
+                                      : 'Enable class reminders',
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
+                ),
               ],
-          ],
+            ),
+          ),
         );
       },
     );

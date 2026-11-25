@@ -64,9 +64,29 @@ class HomeScreen extends StatelessWidget {
       const SizedBox(height: 6),
       const Text('Hi! Where do you need to go?', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.15)),
       const SizedBox(height: 14),
-      const SearchField(),
-      const SizedBox(height: 8),
       const NextClassCard(),
+      const SizedBox(height: 8),
+      ListenableBuilder(
+        listenable: AppScope.of(context).schedule,
+        builder: (context, _) {
+          final today = manila(appClock()).weekday;
+          final sessions = AppScope.of(context).schedule.classes.where((c) => c.weekday == today).toList()
+            ..sort((a, b) => a.start.compareTo(b.start));
+          if (sessions.isEmpty) return const SizedBox.shrink();
+          return Column(children: [
+            Row(children: [
+              const Expanded(child: Text('Today’s classes', style: TextStyle(color: navy, fontWeight: FontWeight.bold))),
+              TextButton(onPressed: () => context.go('/schedule'), child: const Text('See week')),
+            ]),
+            for (final c in sessions) Card(child: ListTile(
+              onTap: () => context.go('/schedule/${c.id}'),
+              leading: Text(formatClock(c.start)), title: Text(c.subject),
+              subtitle: Text([c.roomCodeRaw, ?c.professor].where((s) => s.isNotEmpty).join(' · ')),
+            )),
+          ]);
+        },
+      ),
+      const SearchField(),
       const SizedBox(height: 8),
       GridView.count(
         crossAxisCount: 2,

@@ -1,0 +1,7 @@
+Local OCR assets for WVSU WayFinder (Apache-2.0).
+tesseract.js 6.0.1: dist/tesseract.esm.min.js, dist/worker.min.js and their license notices.
+https://www.npmjs.com/package/tesseract.js/v/6.0.1
+tesseract.js-core 6.1.2: tesseract-core-lstm.wasm.js (embedded WebAssembly).
+https://www.npmjs.com/package/tesseract.js-core/v/6.1.2
+English model: @tesseract.js-data/eng 1.0.0, 4.0.0_best_int/eng.traineddata.gz.
+https://www.npmjs.com/package/@tesseract.js-data/eng/v/1.0.0

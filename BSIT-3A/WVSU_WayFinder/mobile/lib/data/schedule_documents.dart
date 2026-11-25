@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'schedule.dart';
+import 'browser_schedule.dart';
 
 /// Device-local equivalent of schedule_uploads; no anonymous cloud upload.
 class ScheduleDocument {
@@ -76,7 +77,7 @@ class ScheduleDocumentStore extends ChangeNotifier {
       _changed();
       return;
     } // No platform file API needed for a new schedule.
-    final folder = await _folder();
+    final folder = kIsWeb ? null : await _folder();
     _uploads = (jsonDecode(raw) as List).map((row) {
       final j = row as Map<String, dynamic>;
       final relative = j['storage_path'] as String;
@@ -91,7 +92,7 @@ class ScheduleDocumentStore extends ChangeNotifier {
         storagePath: relative,
         uploadedAt: DateTime.parse(j['uploaded_at'] as String),
         name: j['name'] as String,
-        path: '${folder.path}/$relative',
+        path: folder == null ? relative : '${folder.path}/$relative',
         text: j['recognized_text'] as String? ?? '',
       );
     }).toList();
@@ -168,7 +169,7 @@ class ScheduleDocumentStore extends ChangeNotifier {
         }
         return document;
       });
-  Future<ScheduleDocument> addBytes(List<int> bytes, {required String name}) =>
+  Future<ScheduleDocument> addBytes(Uint8List bytes, {required String name}) =>
       _serialize(() async {
         await load();
         if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
@@ -178,10 +179,22 @@ class ScheduleDocumentStore extends ChangeNotifier {
         if (!['pdf', 'png', 'jpg', 'jpeg', 'webp'].contains(extension)) {
           throw const FormatException('Choose a PDF, PNG, JPG or WebP schedule.');
         }
-        final folder = await _folder();
-        await folder.create(recursive: true);
         final id = newScheduleId();
         final relative = '$id.$extension';
+        if (kIsWeb) {
+          final document = ScheduleDocument(id: id, storagePath: relative,
+            uploadedAt: DateTime.now().toUtc(), name: name, path: relative);
+          await putBrowserFile(relative, bytes);
+          try {
+            await _persist([document, ..._uploads]);
+          } catch (_) {
+            await removeBrowserFile(relative);
+            rethrow;
+          }
+          return document;
+        }
+        final folder = await _folder();
+        await folder.create(recursive: true);
         final destination = File('${folder.path}/$relative');
         final document = ScheduleDocument(id: id, storagePath: relative,
           uploadedAt: DateTime.now().toUtc(), name: name, path: destination.path);
