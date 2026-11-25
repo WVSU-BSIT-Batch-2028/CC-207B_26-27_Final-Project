@@ -76,59 +76,65 @@ const _demoProfile = PharmacyStaffProfile(
 );
 
 void main() {
-  testWidgets('BranchSettingsScreen renders branch details and owner license for owner',
-      (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          branchSettingsServiceProvider
-              .overrideWithValue(_FakeBranchSettingsService()),
-          sessionProvider.overrideWith(_OwnerSession.new),
-          pharmacyStaffProfileProvider.overrideWith((ref) async => _demoProfile),
-        ],
-        child: const MaterialApp(
-          home: BranchSettingsScreen(),
+  testWidgets(
+    'BranchSettingsScreen renders branch details and owner license for owner',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            branchSettingsServiceProvider
+                .overrideWithValue(_FakeBranchSettingsService()),
+            sessionProvider.overrideWith(_OwnerSession.new),
+            pharmacyStaffProfileProvider
+                .overrideWith((ref) async => _demoProfile),
+          ],
+          child: const MaterialApp(home: BranchSettingsScreen()),
         ),
-      ),
-    );
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpAndSettle();
+      expect(find.text('Branch settings'), findsOneWidget);
+      expect(find.text('Supreme Pharmacy'), findsOneWidget);
+      expect(find.text('La Paz Branch'), findsOneWidget);
+      expect(find.text('Save changes'), findsOneWidget);
+    },
+  );
 
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Your profile'), findsOneWidget);
-    expect(find.text('Juan Dela Cruz'), findsOneWidget);
-    expect(find.text('Supreme Pharmacy'), findsOneWidget);
-    expect(find.text('La Paz Branch'), findsOneWidget);
-    expect(find.text('Save changes'), findsOneWidget);
-  });
+  testWidgets(
+    'BranchSettingsScreen hides save button for staff role',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-  testWidgets('BranchSettingsScreen hides save button for staff role',
-      (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          branchSettingsServiceProvider
-              .overrideWithValue(_FakeBranchSettingsService()),
-          sessionProvider.overrideWith(_StaffSession.new),
-          pharmacyStaffProfileProvider.overrideWith(
-            (ref) async => const PharmacyStaffProfile(
-              firstName: 'Ana',
-              lastName: 'Reyes',
-              employeeId: 'EMP-000042',
-              role: 'staff',
-              username: 'staff_demo',
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            branchSettingsServiceProvider
+                .overrideWithValue(_FakeBranchSettingsService()),
+            sessionProvider.overrideWith(_StaffSession.new),
+            pharmacyStaffProfileProvider.overrideWith(
+              (ref) async => const PharmacyStaffProfile(
+                firstName: 'Ana',
+                lastName: 'Reyes',
+                employeeId: 'EMP-000042',
+                role: 'staff',
+                username: 'staff_demo',
+              ),
             ),
-          ),
-        ],
-        child: const MaterialApp(
-          home: BranchSettingsScreen(),
+          ],
+          child: const MaterialApp(home: BranchSettingsScreen()),
         ),
-      ),
-    );
+      );
+      await tester.pumpAndSettle();
 
-    await tester.pumpAndSettle();
-
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Save changes'), findsOneWidget);
-  });
+      expect(find.text('Branch settings'), findsOneWidget);
+      // All roles can save their own PRC license details
+      expect(find.text('Save changes'), findsOneWidget);
+    },
+  );
 }

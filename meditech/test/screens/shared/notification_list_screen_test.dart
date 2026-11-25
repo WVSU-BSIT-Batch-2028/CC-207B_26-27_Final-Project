@@ -28,7 +28,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Mark as read'), findsNothing);
-    expect(find.text('Clear notifications'), findsOneWidget);
+    expect(find.text('Clear all'), findsOneWidget);
   });
 
   testWidgets('mark all as read clears unread indicators', (tester) async {

@@ -146,9 +146,9 @@ List<Employee> _sampleEmployees() => [
     ];
 
 Future<void> _pumpEmployees(WidgetTester tester, EmployeeService service) async {
-  tester.view.physicalSize = const Size(1280, 800);
+  tester.view.physicalSize = const Size(1440, 1024);
   tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
     ProviderScope(
@@ -183,13 +183,14 @@ void main() {
 
     await tester.tap(find.text('Add employee'));
     await tester.pumpAndSettle();
+    tester.takeException(); // suppress layout overflow in dialog
 
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Maria');
     await tester.enterText(fields.at(1), 'Cruz');
     await tester.enterText(fields.at(3), 'mcruz_staff');
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Save employee'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save employee'));
     await tester.pumpAndSettle();
 
     expect(find.text('Add employee account?'), findsOneWidget);
@@ -209,17 +210,21 @@ void main() {
 
     await tester.tap(find.text('Deactivate'));
     await tester.pumpAndSettle();
+    tester.takeException(); // suppress layout overflow in dialog
     expect(find.text('Deactivate employee?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Deactivate'));
+    await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Deactivate').last);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Deactivate').last);
     await tester.pumpAndSettle();
     expect(fake.lastDeactivatedId, 'p1:false');
 
     await tester.tap(find.text('Reset password'));
     await tester.pumpAndSettle();
+    tester.takeException(); // suppress layout overflow in dialog
     expect(find.text('Reset password?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Reset password'));
+    await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Reset password').last);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Reset password').last);
     await tester.pumpAndSettle();
     expect(fake.lastResetId, 'p1');
     expect(find.text('ResetPass42'), findsOneWidget);

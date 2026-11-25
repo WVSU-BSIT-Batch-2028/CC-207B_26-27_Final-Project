@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
   const refusal = refuseReason(message);
   if (refusal) return reply(200, { answer: refusal });
 
-  if (!geminiKey) return reply(503, { error: "The assistant is unavailable." });
+  if (!geminiKey) {
+    console.error("[ai-assistant] GEMINI_API_KEY is not set");
+    return reply(503, { error: "The assistant is unavailable." });
+  }
 
   const userClient = createClient(url, anonKey, {
     global: { headers: { Authorization: header } },
@@ -60,13 +63,17 @@ Deno.serve(async (req) => {
   const userId = userData.user.id;
   const { data: account } = await server.from("accounts").select("account_type").eq("id", userId).maybeSingle();
   if (account?.account_type !== "customer") {
+    console.error("[ai-assistant] account_type check failed:", account?.account_type);
     return reply(403, { error: "This assistant is for customers." });
   }
 
   const { data: allowed, error: limitError } = await server.rpc("consume_ai_message", {
     p_account_id: userId,
   });
-  if (limitError) return reply(503, { error: "The assistant is unavailable." });
+  if (limitError) {
+    console.error("[ai-assistant] consume_ai_message error:", limitError);
+    return reply(503, { error: "The assistant is unavailable." });
+  }
   if (allowed !== true) return reply(429, { error: "You have reached today's limit of 20 questions." });
 
   // App how-to, steps, and MediTech-only tips
@@ -118,7 +125,10 @@ Deno.serve(async (req) => {
         }),
       },
     );
-    if (!gemini.ok) continue;
+    if (!gemini.ok) {
+      console.error(`[ai-assistant] Gemini ${model} HTTP ${gemini.status}: ${await gemini.text().catch(() => "")}`);
+      continue;
+    }
     const payload = await gemini.json();
     const parts = payload?.candidates?.[0]?.content?.parts ?? [];
     answer = parts.map((part: { text?: string }) => part.text ?? "").join("").trim();
@@ -128,7 +138,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!geminiOk) return reply(503, { error: "The assistant is unavailable." });
+  if (!geminiOk) {
+    console.error("[ai-assistant] All Gemini models failed");
+    return reply(503, { error: "The assistant is unavailable." });
+  }
   if (hasInventedFact(answer, facts.check)) {
     return reply(200, {
       answer: "I can only tell you what is saved in MediTech. Please ask again with a medicine or reservation.",
