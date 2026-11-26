@@ -71,9 +71,10 @@ class Rules {
       e.termsAgreedBy.contains(e.recipientId);
 
   // Simulated partner's next step, or null if nothing to do.
-  // Only 'accept' for now, later milestones add more.
+  // 'accept' or 'agreeTerms' for now, later milestones add more.
   static String? nextPartnerAction(Exchange e, String partnerId) {
     if (canAccept(e, partnerId)) return 'accept';
+    if (canAgreeTerms(e, partnerId)) return 'agreeTerms';
     return null;
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_store.dart';
 import '../models.dart';
+import '../widgets/demo_controls.dart';
 import '../widgets/terms_panel.dart';
 
 // Readable name for an exchange stage
@@ -78,6 +79,8 @@ class RoomScreen extends StatelessWidget {
                     'Review (M5)',
                     'Rate each other once the exchange is launched.',
                   ),
+                  const SizedBox(height: 12),
+                  DemoControls(store: store),
                 ],
               ),
             ),

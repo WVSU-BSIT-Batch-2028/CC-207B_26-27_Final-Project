@@ -110,6 +110,16 @@ void main() {
       expect(Rules.nextPartnerAction(invite(stage: 'accepted'), cg), isNull);
       expect(Rules.nextPartnerAction(invite(stage: 'declined'), cg), isNull);
     });
+
+    test('agreeTerms once BudgetBuddy has proposed terms', () {
+      expect(Rules.nextPartnerAction(room(), cg), 'agreeTerms');
+    });
+
+    test('nothing after the partner agreed or the terms locked', () {
+      expect(Rules.nextPartnerAction(room(agreedBy: [cg]), cg), isNull);
+      final locked = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      expect(Rules.nextPartnerAction(locked, cg), isNull);
+    });
   });
 
   group('validTerms', () {
