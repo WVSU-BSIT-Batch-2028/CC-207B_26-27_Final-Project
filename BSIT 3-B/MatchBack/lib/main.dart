@@ -161,6 +161,28 @@ class _MatchBackHomePageState extends State<MatchBackHomePage> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Stay signed in'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) widget.onLogout();
+  }
+
   Widget _section(
     int index,
     PaperKind kind,
@@ -212,7 +234,7 @@ class _MatchBackHomePageState extends State<MatchBackHomePage> {
               onStaff: () => _open(const StaffClaimsScreen()),
               isStaff: session.isStaff,
               userLabel: session.isStaff ? 'Staff' : (session.studentId ?? ''),
-              onLogout: widget.onLogout,
+              onLogout: _confirmLogout,
             ),
           ),
         ],
