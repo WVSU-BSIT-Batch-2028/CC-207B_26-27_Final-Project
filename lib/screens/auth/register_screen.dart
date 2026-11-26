@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../foodwise_theme.dart';
-import '../services/auth_service.dart';
+import '../../utils/app_feedback.dart';
+import '../../widgets/feedback_banner.dart';
+
+import '../../foodwise_theme.dart';
+import '../../services/auth_service.dart';
 import 'welcome_screen.dart';
 import 'login_screen.dart';
 
@@ -16,10 +19,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
 
+  FeedbackData? _feedback;
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -27,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -36,17 +42,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _loading = true);
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _feedback = null;
+    });
 
     try {
+      final phone = _phoneController.text.trim();
+
       final response = await AuthService.registerStudent(
         fullName: _nameController.text.trim(),
+        phone: phone.isEmpty ? null : phone,
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       if (response.user == null) {
-        throw Exception('Registration failed.');
+        throw Exception('Registration failed. Please try again.');
       }
 
       final hasSession = response.session != null;
@@ -68,13 +81,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
-
             icon: const Icon(
               Icons.check_circle_outline_rounded,
               color: FoodWiseColors.deepSage,
               size: 55,
             ),
-
             title: const Text(
               'Welcome to FoodWise!',
               textAlign: TextAlign.center,
@@ -83,7 +94,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 color: FoodWiseColors.charcoal,
               ),
             ),
-
             content: Text(
               hasSession
                   ? 'Your student account has been created successfully. You can now sign in.'
@@ -91,9 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(color: FoodWiseColors.muted, height: 1.5),
             ),
-
             actionsAlignment: MainAxisAlignment.center,
-
             actions: [
               FilledButton(
                 onPressed: () {
@@ -116,11 +124,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: FoodWiseColors.deepSage,
-          behavior: SnackBarBehavior.floating,
+      setState(
+        () => _feedback = AppFeedback.fromError(
+          e,
+          title: 'Unable to register',
+          fallback:
+              'We couldn’t create your account right now. Please try again.',
         ),
       );
     } finally {
@@ -165,22 +174,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: FoodWiseColors.background,
-
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 25),
-
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
-
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _brandHeader(),
-
                   const SizedBox(height: 35),
-
                   const Text(
                     'Create your account.',
                     style: TextStyle(
@@ -190,9 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: FoodWiseColors.charcoal,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   const Text(
                     'Join FoodWise and discover affordable meals around your campus.',
                     style: TextStyle(
@@ -201,28 +203,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 1.5,
                     ),
                   ),
-
                   const SizedBox(height: 25),
-
                   Container(
                     padding: const EdgeInsets.all(23),
-
                     decoration: BoxDecoration(
                       color: FoodWiseColors.surface,
                       borderRadius: BorderRadius.circular(23),
                       border: Border.all(color: FoodWiseColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: FoodWiseColors.charcoal.withValues(alpha: 0.04),
+                          color: FoodWiseColors.charcoal.withValues(
+                            alpha: 0.04,
+                          ),
                           blurRadius: 22,
                           offset: const Offset(0, 9),
                         ),
                       ],
                     ),
-
                     child: Form(
                       key: _formKey,
-
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -234,9 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: FoodWiseColors.charcoal,
                             ),
                           ),
-
                           const SizedBox(height: 6),
-
                           const Text(
                             'Fill in your information to get started.',
                             style: TextStyle(
@@ -244,12 +241,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               fontSize: 12,
                             ),
                           ),
-
                           const SizedBox(height: 23),
-
                           TextFormField(
                             controller: _nameController,
                             textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                               labelText: 'Full Name',
                               hintText: 'Enter your full name',
@@ -267,12 +263,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Phone Number (Optional)',
+                              hintText: 'e.g. 09XX XXX XXXX',
+                              prefixIcon: Icon(Icons.phone_outlined),
+                              helperText:
+                                  'You can leave this blank and add it later.',
+                            ),
+                            validator: (value) {
+                              final phone = value?.trim() ?? '';
 
+                              // Phone number is optional. Validate it only
+                              // when the student chooses to provide one.
+                              if (phone.isEmpty) return null;
+
+                              final digits = phone.replaceAll(
+                                RegExp(r'[^0-9]'),
+                                '',
+                              );
+
+                              final allowedCharacters = RegExp(
+                                r'^\+?[0-9\s\-()]+$',
+                              );
+
+                              if (!allowedCharacters.hasMatch(phone) ||
+                                  digits.length < 7 ||
+                                  digits.length > 15) {
+                                return 'Enter a valid phone number or leave it blank';
+                              }
+
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                               labelText: 'Email Address',
                               hintText: 'Enter your email',
@@ -288,12 +320,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 16),
-
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
                             decoration: InputDecoration(
                               labelText: 'Password',
                               hintText: 'Create a password',
@@ -320,12 +351,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
                           const SizedBox(height: 16),
-
                           TextFormField(
                             controller: _confirmController,
                             obscureText: _obscureConfirm,
+                            textInputAction: TextInputAction.done,
                             decoration: InputDecoration(
                               labelText: 'Confirm Password',
                               hintText: 'Re-enter your password',
@@ -356,9 +386,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               return null;
                             },
                           ),
-
+                          if (_feedback != null) ...[
+                            const SizedBox(height: 16),
+                            FeedbackBanner(
+                              feedback: _feedback!,
+                              onDismiss: () => setState(() => _feedback = null),
+                            ),
+                          ],
                           const SizedBox(height: 25),
-
                           SizedBox(
                             height: 55,
                             child: FilledButton(
@@ -386,9 +421,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                             ),
                           ),
-
                           const SizedBox(height: 20),
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -399,7 +432,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   fontSize: 12,
                                 ),
                               ),
-
                               GestureDetector(
                                 onTap: () {
                                   Navigator.pushReplacement(
@@ -424,9 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 22),
-
                   const Text(
                     'Good food. Smart choices. Better days.',
                     textAlign: TextAlign.center,

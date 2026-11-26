@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../foodwise_theme.dart';
-import '../services/auth_service.dart';
-import 'home_screen.dart';
+
+import '../../foodwise_theme.dart';
+import '../../services/auth_service.dart';
+import '../student_home_screen.dart';
 import 'welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -27,9 +28,8 @@ class _SplashScreenState extends State<SplashScreen> {
         ? const StudentHomeScreen()
         : const WelcomeScreen();
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => destination),
-    );
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (_) => destination));
   }
 
   @override
@@ -110,8 +110,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Widget _circle(double size, Color color) => Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
+    height: size,
+    width: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 }
