@@ -4,11 +4,21 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models.dart';
+// Browser uses sessionStorage, tests use memory
+import 'session_stub.dart' if (dart.library.js_interop) 'session_web.dart';
 
 class AppStore extends ChangeNotifier {
   List<Startup> startups = [];
 
+  // The signed-in startup's ID (saved per browser tab)
+  String? currentId;
+
+  // The signed-in startup, or null if no one is signed in
+  Startup? get currentStartup =>
+      startups.where((s) => s.id == currentId).firstOrNull;
+
   Future<void> load() async {
+    currentId = readFounderId();
     final prefs = await SharedPreferences.getInstance();
     final text = prefs.getString('synergy');
     if (text == null) {
@@ -38,6 +48,51 @@ class AppStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('synergy');
     startups = sampleStartups();
+    notifyListeners();
+  }
+
+  // Demo-only sign-in: plain email and password check
+  bool signIn(String email, String password) {
+    final cleanEmail = email.trim().toLowerCase();
+    final match = startups
+        .where((s) => s.email == cleanEmail && s.password == password)
+        .firstOrNull;
+    if (match == null) return false;
+    _setCurrent(match.id);
+    return true;
+  }
+
+  // Create a startup and sign in as it. False if the email is taken.
+  Future<bool> register(String name, String email, String password) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (startups.any((s) => s.email == cleanEmail)) return false;
+    final startup = Startup(
+      id: 'startup-${DateTime.now().millisecondsSinceEpoch}',
+      email: cleanEmail,
+      password: password,
+      name: name.trim(),
+      // The rest is filled in later on My startup
+      description: '',
+      industry: '',
+      stage: '',
+      teamSize: 1,
+      offerText: '',
+      needText: '',
+      offers: [],
+      needs: [],
+      savedIds: [],
+    );
+    await update(() => startups.add(startup));
+    _setCurrent(startup.id);
+    return true;
+  }
+
+  void signOut() => _setCurrent(null);
+
+  // Remember who is signed in for this tab and redraw the screens
+  void _setCurrent(String? id) {
+    currentId = id;
+    writeFounderId(id);
     notifyListeners();
   }
 }
