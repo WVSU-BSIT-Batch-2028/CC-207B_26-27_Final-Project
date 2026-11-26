@@ -4,32 +4,28 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:bahinko/data/mock_data.dart';
 import 'package:bahinko/models/group.dart';
-import 'package:bahinko/screens/bill/add_expense_screen.dart';
+import 'package:bahinko/screens/bill/manual_receipt_entry_screen.dart';
 import 'package:bahinko/screens/group/create_group_screen.dart';
 import 'package:bahinko/screens/group/group_detail_screen.dart';
-import 'package:bahinko/screens/group/join_group_screen.dart';
 import 'package:bahinko/screens/history/activity_history_screen.dart';
-import 'package:bahinko/screens/notifications/notifications_screen.dart';
-import 'package:bahinko/screens/profile/profile_screen.dart';
 import 'package:bahinko/screens/scan/scan_receipt_screen.dart';
 import 'package:bahinko/screens/settle/settle_up_screen.dart';
-import 'package:bahinko/screens/shell.dart';
-import 'package:bahinko/services/auth_service.dart';
-import 'package:bahinko/services/group_service.dart';
-import 'package:bahinko/services/settings_service.dart';
 import 'package:bahinko/theme/app_colors.dart';
 import 'package:bahinko/theme/app_theme.dart';
 import 'package:bahinko/utils/currency.dart';
 import 'package:bahinko/utils/navigation.dart';
-import 'package:bahinko/utils/notifications.dart';
-import 'package:bahinko/widgets/async_state_view.dart';
 import 'package:bahinko/widgets/icon_tile.dart';
 import 'package:bahinko/widgets/pill.dart';
 import 'package:bahinko/widgets/section_header.dart';
 
 class Home extends StatelessWidget {
   const Home({super.key});
+
+  // BACKEND STEP: these totals will be computed from the user's payments.
+  static const _owedToYouCents = 106000;
+  static const _youOweCents = 35000;
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
@@ -43,7 +39,10 @@ class Home extends StatelessWidget {
           children: [
             const Padding(
               padding: EdgeInsets.only(bottom: 44),
-              child: _BalanceHeader(),
+              child: _BalanceHeader(
+                owedToYouCents: _owedToYouCents,
+                youOweCents: _youOweCents,
+              ),
             ),
             const Positioned(
               left: 16,
@@ -70,14 +69,6 @@ class Home extends StatelessWidget {
                   Expanded(
                     child: Text('Active Groups', style: AppText.section),
                   ),
-                  TextButton(
-                    onPressed: () => go(context, const JoinGroupScreen()),
-                    style: TextButton.styleFrom(
-                      foregroundColor: green,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    child: const Text('Join'),
-                  ),
                   TextButton.icon(
                     onPressed: () => go(context, const CreateGroup()),
                     icon: const Icon(Icons.add, size: 16),
@@ -101,203 +92,76 @@ class Home extends StatelessWidget {
 }
 
 /// Green header: profile/notification icons, net balance, and two chips.
-/// Green header: net balance and "owed to you / you owe" across ALL my
-/// groups, computed live from real expenses and confirmed payments.
-class _BalanceHeader extends StatefulWidget {
-  const _BalanceHeader();
+class _BalanceHeader extends StatelessWidget {
+  const _BalanceHeader({
+    required this.owedToYouCents,
+    required this.youOweCents,
+  });
+
+  final int owedToYouCents;
+  final int youOweCents;
 
   @override
-  State<_BalanceHeader> createState() => _BalanceHeaderState();
-}
-
-class _BalanceHeaderState extends State<_BalanceHeader> {
-  late final Stream<({int owedToYou, int youOwe})> _totals = GroupService
-      .instance
-      .watchMyTotals();
-
-  /// The bell's badge: my notifications newer than the last visit.
-  late final Stream<List<GroupEvent>> _notifications = GroupService.instance
-      .watchNotifications();
-
-  /// Opens the bell list; when back, the badge recounts (now read).
-  Future<void> _openNotifications() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
+  Widget build(BuildContext context) {
+    final net = owedToYouCents - youOweCents;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 64),
+      decoration: const BoxDecoration(
+        gradient: brandGradient,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _HeaderIcon(Icons.person_outline, onTap: () {}),
+              _HeaderIcon(Icons.notifications_none, onTap: () {}),
+            ],
+          ),
+          const Text('Net balance', style: TextStyle(color: Colors.white70)),
+          Text(formatMoney(net), style: AppText.money(40, color: Colors.white)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              Pill(
+                'Owed to you ${formatMoney(owedToYouCents)}',
+                bg: lime,
+                fg: deep,
+              ),
+              Pill(
+                'You owe ${formatMoney(youOweCents)}',
+                bg: Colors.white,
+                fg: errorFg,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
-    if (mounted) setState(() {});
   }
-
-  /// Person icon → the Profile tab (or the Profile page outside the shell).
-  void _openProfile() {
-    final shell = context.findAncestorStateOfType<ShellState>();
-    if (shell != null) {
-      shell.select(Shell.profileTab);
-    } else {
-      go(context, const Profile());
-    }
-  }
-
-  /// First letter of my name, or null (then a person icon is shown).
-  String? get _initial {
-    try {
-      final name = AuthService.instance.displayName?.trim() ?? '';
-      return name.isEmpty ? null : name[0].toUpperCase();
-    } catch (_) {
-      return null; // Firebase not started (tests)
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      StreamBuilder<({int owedToYou, int youOwe})>(
-        stream: _totals,
-        builder: (context, snap) {
-          final totals = snap.data;
-          // Loading or error: show dashes instead of wrong numbers.
-          String money(int? cents) => cents == null ? '₱—' : formatMoney(cents);
-          final net = totals == null ? null : totals.owedToYou - totals.youOwe;
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 48, 20, 64),
-            decoration: const BoxDecoration(
-              gradient: brandGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _HeaderIcon(
-                      Icons.person_outline,
-                      key: const ValueKey('home-profile'),
-                      tooltip: 'Profile',
-                      letter: _initial,
-                      onTap: _openProfile,
-                    ),
-                    StreamBuilder<List<GroupEvent>>(
-                      stream: _notifications,
-                      builder: (context, snap) => _HeaderIcon(
-                        Icons.notifications_none,
-                        key: const ValueKey('home-bell'),
-                        tooltip: 'Notifications',
-                        badge: badgeLabel(
-                          unreadCount(
-                            snap.data ?? const [],
-                            SettingsService.instance.notificationsSeenAt,
-                          ),
-                        ),
-                        onTap: _openNotifications,
-                      ),
-                    ),
-                  ],
-                ),
-                const Text(
-                  'Net balance',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                Text(money(net), style: AppText.money(40, color: Colors.white)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    Pill(
-                      'Owed to you ${money(totals?.owedToYou)}',
-                      bg: lime,
-                      fg: deep,
-                    ),
-                    Pill(
-                      'You owe ${money(totals?.youOwe)}',
-                      bg: Colors.white,
-                      fg: errorFg,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      );
 }
 
 /// Small translucent round icon button used in the green header.
-/// [letter] replaces the icon (my initial); [badge] adds a red count
-/// ("3", "9+") on the corner.
 class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon(
-    this.icon, {
-    super.key,
-    required this.onTap,
-    required this.tooltip,
-    this.letter,
-    this.badge,
-  });
+  const _HeaderIcon(this.icon, {required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
-  final String tooltip;
-  final String? letter;
-  final String? badge;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: badge == null ? tooltip : '$tooltip ($badge new)',
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: Colors.white24,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: SizedBox(
-              width: 44, // easy to hit with a thumb
-              height: 44,
-              child: Center(
-                child: letter == null
-                    ? Icon(icon, color: Colors.white, size: 20)
-                    : Text(
-                        letter!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-        if (badge != null)
-          Positioned(
-            top: -4,
-            right: -6,
-            child: IgnorePointer(
-              child: Container(
-                key: const ValueKey('bell-badge'),
-                constraints: const BoxConstraints(minWidth: 20),
-                height: 20,
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: errorFg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-                child: Text(
-                  badge!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
+  Widget build(BuildContext context) => Material(
+    color: Colors.white24,
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
     ),
   );
 }
@@ -322,10 +186,11 @@ class _QuickActions extends StatelessWidget {
           label: 'Scan',
           onTap: () => go(context, const ScanReceipt()),
         ),
+        // TODO(M3): point "Add" to AddExpenseScreen (Frame 6) when ready.
         IconTile(
           Icons.add,
           label: 'Add',
-          onTap: () => go(context, const AddExpense()),
+          onTap: () => go(context, const ManualReceiptEntry()),
         ),
         IconTile(
           Icons.account_balance_wallet_outlined,
@@ -342,7 +207,7 @@ class _QuickActions extends StatelessWidget {
   );
 }
 
-/// Grid of group categories. Tapping one starts a new group of that type.
+/// 4×2 grid of categories. Tapping one starts a new group of that type.
 class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid();
 
@@ -354,53 +219,34 @@ class _CategoryGrid extends StatelessWidget {
     mainAxisSpacing: 8,
     childAspectRatio: 0.9,
     children: [
-      // "Custom" is left out here; it's still offered in Create Group.
       for (final category in groupCategories)
-        if (category.name != 'Custom')
-          IconTile(
-            category.icon,
-            label: category.name,
-            onTap: () => go(context, CreateGroup(initialCategory: category)),
-          ),
+        IconTile(
+          // The last tile reads "More" on Home but means "Custom".
+          category.icon == Icons.add ? Icons.grid_view : category.icon,
+          label: category.name == 'Custom' ? 'More' : category.name,
+          onTap: () => go(context, CreateGroup(initialCategory: category)),
+        ),
     ],
   );
 }
 
-/// Horizontal list of the user's groups, loaded live from [GroupService].
-/// Shows loading, empty, and error (with Retry) states.
-class _ActiveGroups extends StatefulWidget {
+/// Horizontal list of group cards. Rebuilds when [groups] changes, so a
+/// group made on the Create Group screen shows up right away.
+class _ActiveGroups extends StatelessWidget {
   const _ActiveGroups();
 
   @override
-  State<_ActiveGroups> createState() => _ActiveGroupsState();
-}
-
-class _ActiveGroupsState extends State<_ActiveGroups> {
-  /// Created once in initState. Creating the stream inside build() would
-  /// open a new Firestore listener every time the screen rebuilds.
-  late Stream<List<Group>> _groups;
-
-  @override
-  void initState() {
-    super.initState();
-    _groups = GroupService.instance.watchMyGroups();
-  }
-
-  /// Retry button: open a fresh stream after an error.
-  void _reload() =>
-      setState(() => _groups = GroupService.instance.watchMyGroups());
-
-  @override
-  Widget build(BuildContext context) => StreamBuilder<List<Group>>(
-    stream: _groups,
-    builder: (context, snapshot) => AsyncStateView<List<Group>>(
-      snapshot: snapshot,
-      compact: true,
-      onRetry: _reload,
-      isEmpty: (list) => list.isEmpty,
-      emptyIcon: Icons.groups_outlined,
-      emptyMessage: 'No groups yet. Tap "New group" to start one.',
-      builder: (list) => SizedBox(
+  Widget build(BuildContext context) => ValueListenableBuilder<List<Group>>(
+    valueListenable: groups,
+    builder: (context, list, _) {
+      // Empty state: no groups yet.
+      if (list.isEmpty) {
+        return Text(
+          'No groups yet. Tap "New group" to start one.',
+          style: AppText.caption,
+        );
+      }
+      return SizedBox(
         height: 140,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
@@ -409,8 +255,8 @@ class _ActiveGroupsState extends State<_ActiveGroups> {
           itemBuilder: (context, i) =>
               _GroupCard(group: list[i], highlighted: i == 0),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -425,7 +271,7 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = highlighted ? Colors.white : deep;
     return GestureDetector(
-      onTap: () => go(context, GroupDetail(groupId: group.id)),
+      onTap: () => go(context, GroupDetail(group: group)),
       child: Container(
         width: 220,
         padding: const EdgeInsets.all(16),
@@ -443,11 +289,17 @@ class _GroupCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppText.display(18, color: fg),
             ),
-            Text(
-              '${group.members.length} members · ${group.unpaidCount} unpaid',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: fg.withValues(alpha: 0.8), fontSize: 12),
+            ValueListenableBuilder(
+              valueListenable: group.members,
+              builder: (context, members, _) => Text(
+                '${members.length} members · ${group.unpaidCount} unpaid',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: fg.withValues(alpha: 0.8),
+                  fontSize: 12,
+                ),
+              ),
             ),
             const Spacer(),
             Text(
