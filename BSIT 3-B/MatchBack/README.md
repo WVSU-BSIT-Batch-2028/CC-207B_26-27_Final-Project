@@ -5,8 +5,9 @@ MatchBack is a Flutter web application for managing campus lost-and-found report
 ## Team
 
 - Sven Catalan - project lead and Flutter/Firebase developer
-
-Add every other member's real name and contribution before submission. Do not list a person who did not contribute to the project.
+- Ric Christian Bocatija
+- Jesse Antoine Tacluyan
+- Caryll Ann Calibjo
 
 ## Core Features
 
@@ -21,7 +22,7 @@ Also included: student and staff sign-in, and a staff-only view of the private i
 
 ## AI Feature
 
-MatchBack uses Firebase AI Logic with Gemini (`gemini-3.5-flash`) to compare public lost-item and found-item details. AI suggestions are clearly labeled and do not decide ownership. Users can dismiss any suggestion, and staff verify every claim.
+MatchBack uses Firebase AI Logic with Gemini (`gemini-3.8-flash`) to compare public lost-item and found-item details. AI suggestions are clearly labeled and do not decide ownership. Users can dismiss any suggestion, and staff verify every claim.
 
 Users can still browse reports and submit a claim manually if AI matching is unavailable (for example, a timeout or service error).
 
@@ -36,13 +37,13 @@ The AI feature does not send private identifying details, claimant names, or ite
 - Firebase App Check
 - `cloud_firestore` 7.1.0, `firebase_auth` 7.0.1, `firebase_core` 5.1.0
 - `firebase_ai` 5.1.0, `firebase_app_check` 0.5.1
-- `image_picker` 1.2.4, `google_fonts` 9.0.0, `cupertino_icons` 1.0.8
+- `image_picker` 1.2.4, `google_fonts` 9.0.0, `cupertino_icons` 1.0.9
 - `flutter_lints` 6.0.0 for static analysis
 
 ## Run Locally
 
 1. Install Flutter 3.47.8 or a compatible Flutter SDK, Google Chrome, and the Firebase CLI.
-2. Clone the repository and open its root folder.
+2. Clone the repository and open the `BSIT 3-B/MatchBack` project folder.
 3. Install the package dependencies:
 
 ```powershell
@@ -61,8 +62,9 @@ Use the fixed port `5000` so the App Check debug token stays the same between ru
 
 The Emulator is the recommended way to test Firestore security rules without changing live Firebase data.
 
+Start the Emulator in one terminal with `firebase emulators:start`. Keep it open, then run the app in a second terminal:
+
 ```powershell
-firebase emulators:start
 flutter run -d chrome --web-port=5000 --dart-define=USE_FIREBASE_EMULATOR=true
 ```
 
@@ -89,7 +91,7 @@ staff/{USER_UID}
   role: "staff"
 ```
 
-The document ID must exactly match the Authentication User UID. Students sign in with a student ID and optional name; staff-only controls are not displayed to student accounts.
+The document ID must exactly match the Authentication User UID. Students provide a student ID and full name; staff-only controls are not displayed to student accounts. A matching ID and name do not verify a student's identity.
 
 ## Testing
 
