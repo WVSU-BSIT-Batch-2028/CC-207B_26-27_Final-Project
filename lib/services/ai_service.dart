@@ -17,6 +17,8 @@ class FoodWiseAiResult {
     required this.detectedLabels,
     required this.aiSuggestions,
     required this.restrictionsToConfirm,
+    this.excludedFoods = const <String>[],
+    this.requestedFoods = const <String>[],
     this.modelError,
   });
 
@@ -24,6 +26,14 @@ class FoodWiseAiResult {
   final List<String> detectedLabels;
   final List<FoodWiseAiSuggestion> aiSuggestions;
   final List<String> restrictionsToConfirm;
+
+  /// Foods explicitly rejected in the current request. These are hard
+  /// exclusions and must override likes or optional model suggestions.
+  final List<String> excludedFoods;
+
+  /// Foods positively requested in the current search. Used only to relax
+  /// flexible saved preferences and eating patterns for this search.
+  final List<String> requestedFoods;
 
   /// When set, explicit parsing still worked but the ML model was unavailable.
   final String? modelError;
@@ -43,12 +53,6 @@ class FoodWiseAiService {
     'allergy_egg',
     'allergy_gluten',
     'restriction_gluten',
-    'avoid_peanuts',
-    'avoid_dairy',
-    'avoid_seafood',
-    'avoid_egg',
-    'avoid_gluten',
-    'avoid_spicy',
   };
 
   static const Set<String> _softLabels = {
@@ -84,6 +88,35 @@ class FoodWiseAiService {
     'gluten': r'gluten|wheat|trigo',
   };
 
+  /// Expanded terms for direct food exclusions. Seafood is deliberately
+  /// separate from fish so "no fish" does not automatically reject shellfish.
+  static const Map<String, String> _excludedFoodWords = {
+    'chicken': r'chicken|manok',
+    'fish': r'fish|isda|bangus|tilapia|salmon|tuna|sardines?|anchovies?|mackerel|cod',
+    'vegetables': r'vegetables?|veggies|gulay|salad|carrots?|tomatoes?|potatoes?|cabbage|lettuce|broccoli|spinach|pechay|kangkong|eggplant|talong|okra|squash|kalabasa|sitaw|ampalaya',
+    'rice': r'rice|kanin|sinangag|silog|tapsilog|longsilog|hotsilog|fried rice|garlic rice',
+    'noodles': r'noodles?|pancit|ramen|pasta|mami|spaghetti|sotanghon|bihon|misua|udon|soba|macaroni',
+    'egg': r'eggs?|itlog|mayonnaise|mayo|albumin|egg white|egg yolk|egg powder',
+    'fruit': r'fruits?|prutas|banana|mango|apple|orange|pineapple|papaya|watermelon|melon|grapes?|strawberr(y|ies)|avocado',
+    'spicy': r'spicy|chilli|chili|maanghang|hot sauce|sriracha|cayenne|jalapeno|siling labuyo|siling haba',
+    'dairy': r'dairy|milk|gatas|cheese|keso|butter|cream|yogurt|yoghurt|whey|casein|lactose|buttermilk|ghee',
+    'peanuts': r'peanuts?|mani|groundnuts?|peanut butter|peanut sauce',
+    'seafood': r'seafood|shellfish|shrimp|prawns?|hipon|crab|lobster|oyster|mussel|clam|scallop|squid|octopus|lamang dagat|lamang-dagat',
+    'gluten': r'gluten|wheat|trigo|barley|rye|triticale|malt|seitan|semolina|durum|bulgur|couscous',
+  };
+
+  /// Preference labels that can be suggested by the model. A matching direct
+  /// exclusion always takes priority over these positive labels.
+  static const Map<String, String> _preferenceFoods = {
+    'pref_chicken': 'chicken',
+    'pref_fish': 'fish',
+    'pref_vegetables': 'vegetables',
+    'pref_rice': 'rice',
+    'pref_noodles': 'noodles',
+    'pref_egg': 'egg',
+    'pref_fruit': 'fruit',
+  };
+
   static const Map<String, String> _meals = {
     'meal_breakfast': r'breakfast|almusal|umaga|this morning',
     'meal_lunch': r'lunch|tanghalian|midday|noon',
@@ -92,7 +125,7 @@ class FoodWiseAiService {
   };
 
   static const String _negate =
-      r'(?:no|without|avoid|exclude|skip|leave out|do not want|dont want|do not eat|dont eat|walang|ayoko ng|ayaw ko ng|hindi ako kumakain ng|wag|pakiwasan|bawal)';
+      r'(?:no|not|without|avoid|exclude|skip|leave out|do not want|dont want|do not eat|dont eat|do not like|dont like|walang|ayoko ng|ayaw ko ng|hindi ako kumakain ng|wag|pakiwasan|bawal)';
 
   static const String _restriction =
       r'doctor|medical|strict|must|require|restriction|dietary restriction|kailangan|bawal sa diet';
@@ -155,7 +188,16 @@ class FoodWiseAiService {
   }
 
   FoodWiseAiResult analyze(String request) {
-    final explicit = _extractExplicit(request);
+    final excludedFoods = _extractExcludedFoods(request);
+    final explicit = _extractExplicit(
+      request,
+      excludedFoods: excludedFoods.toSet(),
+    );
+    final requestedFoods = _extractRequestedFoods(
+      request,
+      excludedFoods: excludedFoods.toSet(),
+      detectedLabels: explicit,
+    );
     final suggestions = <FoodWiseAiSuggestion>[];
 
     if (_interpreter != null && request.trim().isNotEmpty) {
@@ -168,7 +210,13 @@ class FoodWiseAiService {
           final score = output[0][i];
           if (score < _threshold || !_softLabels.contains(label)) continue;
           if (explicit.contains(label)) continue;
-          if (_skipUnsupportedSuggestion(label, explicit)) continue;
+          if (_skipUnsupportedSuggestion(
+            label,
+            explicit,
+            excludedFoods: excludedFoods.toSet(),
+          )) {
+            continue;
+          }
           suggestions.add(FoodWiseAiSuggestion(label: label, score: score));
         }
         suggestions.sort((a, b) => b.score.compareTo(a.score));
@@ -185,6 +233,8 @@ class FoodWiseAiService {
       detectedLabels: explicit,
       aiSuggestions: suggestions,
       restrictionsToConfirm: explicit.where(_safetyLabels.contains).toList(),
+      excludedFoods: excludedFoods,
+      requestedFoods: requestedFoods,
       modelError: _modelError,
     );
   }
@@ -208,7 +258,16 @@ class FoodWiseAiService {
     return ids;
   }
 
-  bool _skipUnsupportedSuggestion(String label, List<String> explicit) {
+  bool _skipUnsupportedSuggestion(
+    String label,
+    List<String> explicit, {
+    Set<String> excludedFoods = const <String>{},
+  }) {
+    final suggestedFood = _preferenceFoods[label];
+    if (suggestedFood != null && excludedFoods.contains(suggestedFood)) {
+      return true;
+    }
+
     // These are dependable only when the user actually requests them.
     // Prevents the observed false 'budget_friendly' guess for breakfast.
     if (label == 'budget_friendly' || label == 'filling') return true;
@@ -307,7 +366,152 @@ class FoodWiseAiService {
     return false;
   }
 
-  List<String> _extractExplicit(String text) {
+  /// Extracts direct food exclusions independently from positive food likes.
+  /// Examples: "I don't want chicken", "no chicken or fish", and
+  /// "without eggs". A contrast/positive clause starts a new scope so
+  /// "no chicken, but I like fish" does not reject fish.
+  List<String> _extractExcludedFoods(String text) {
+    var normalized = text.toLowerCase().replaceAll('’', "'");
+    normalized = normalized
+        .replaceAll("don't", 'dont')
+        .replaceAll("won't", 'wont')
+        .replaceAll("can't", 'cant');
+
+    // Keep coordinated exclusions together, but split clear new clauses.
+    normalized = normalized.replaceAll(RegExp(r'[.;!?]'), ' | ');
+    normalized = normalized.replaceAll(
+      RegExp(
+        r',\s*(?=(?:i\s+(?:want|like|prefer|need|would\s+like)|gusto\s+ko|mas\s+gusto|prefer|want|like)\b)',
+      ),
+      ' | ',
+    );
+    normalized = normalized.replaceAll(RegExp(r'[^\w\s|]'), ' ');
+    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    final clauses = normalized.split(
+      RegExp(r'\b(?:but|however|except|instead|although|though|pero)\b|\|'),
+    );
+    final negationPattern = RegExp(
+      r'\b(?:no|not|without|avoid|exclude|skip|leave\s+out|do\s+not\s+want|dont\s+want|do\s+not\s+eat|dont\s+eat|do\s+not\s+like|dont\s+like|walang|ayoko\s+ng|ayaw\s+ko\s+ng|hindi\s+ako\s+kumakain\s+ng|wag|pakiwasan|bawal)\b',
+    );
+    final positiveBoundary = RegExp(
+      r'\b(?:i\s+(?:want|like|prefer|need|would\s+like)|gusto\s+ko(?:\s+ng)?|mas\s+gusto\s+ko(?:\s+ng)?|okay\s+with|fine\s+with)\b',
+    );
+    final excluded = <String>{};
+
+    for (final clause in clauses) {
+      for (final negation in negationPattern.allMatches(clause)) {
+        var tail = clause.substring(negation.end);
+
+        // "Not allergic to peanuts" is an allergy denial, not a food exclusion.
+        if (negation.group(0) == 'not' &&
+            RegExp(r'^\s+allerg').hasMatch(tail)) {
+          continue;
+        }
+
+        final positiveStart = positiveBoundary.firstMatch(tail);
+        if (positiveStart != null) {
+          tail = tail.substring(0, positiveStart.start);
+        }
+        for (final entry in _excludedFoodWords.entries) {
+          if (_has(tail, entry.value)) {
+            excluded.add(entry.key);
+          }
+        }
+      }
+
+      // Also recognize phrases such as "chicken-free" after punctuation
+      // normalization has converted the hyphen to a space.
+      for (final entry in _excludedFoodWords.entries) {
+        if (RegExp(r'\b(?:' + entry.value + r')\s+free\b').hasMatch(clause)) {
+          excluded.add(entry.key);
+        }
+      }
+    }
+
+    return excluded.toList()..sort();
+  }
+
+  /// Finds positive food requests separately from exclusions.
+  ///
+  /// This is intentionally conservative for foods that are also common
+  /// allergens: an allergy statement or an allergy denial is not treated as
+  /// a request to eat that food.
+  List<String> _extractRequestedFoods(
+    String text, {
+    required Set<String> excludedFoods,
+    required List<String> detectedLabels,
+  }) {
+    const preferenceLabels = <String, String>{
+      'pref_chicken': 'chicken',
+      'pref_fish': 'fish',
+      'pref_vegetables': 'vegetables',
+      'pref_rice': 'rice',
+      'pref_noodles': 'noodles',
+      'pref_egg': 'egg',
+      'pref_fruit': 'fruit',
+    };
+
+    final requested = <String>{
+      for (final entry in preferenceLabels.entries)
+        if (detectedLabels.contains(entry.key)) entry.value,
+    };
+
+    final normalized = _normalizeForRules(text);
+    const flexibleFoods = <String, String>{
+      'spicy': r'spicy|chilli|chili|maanghang|hot sauce|sriracha',
+      'dairy': r'dairy|milk|gatas|cheese|keso|butter|cream|yogurt|yoghurt',
+      'peanuts': r'peanuts?|mani|groundnuts?|peanut butter|peanut sauce',
+      'seafood': r'seafood|shellfish|shrimp|prawns?|hipon|crab|lobster|oyster|mussel|clam|scallop|squid|octopus|lamang dagat',
+      'gluten': r'gluten|wheat|trigo|barley|rye|malt|seitan|bread|flour',
+    };
+    final positiveIntent = RegExp(
+      r'\b(?:i\s+(?:want|like|prefer|crave|need)|i\s+am\s+craving|'
+      r'looking\s+for|gusto\s+ko(?:\s+ng)?|mas\s+gusto\s+ko(?:\s+ng)?|'
+      r'craving|with|containing|include|add)\b',
+    );
+    final allergyDenial = RegExp(r'\b(?:not|no)\s+allerg\w*\b');
+
+    for (final entry in flexibleFoods.entries) {
+      if (excludedFoods.contains(entry.key) ||
+          _reportedAllergy(normalized, entry.value)) {
+        continue;
+      }
+
+      final foodMatches = RegExp(r'\b(?:' + entry.value + r')\b')
+          .allMatches(normalized);
+      for (final foodMatch in foodMatches) {
+        final start = (foodMatch.start - 64)
+            .clamp(0, normalized.length)
+            .toInt();
+        final prefix = normalized.substring(start, foodMatch.start);
+        final nearby = normalized.substring(
+          foodMatch.start,
+          (foodMatch.end + 28).clamp(0, normalized.length).toInt(),
+        );
+
+        // "I'm not allergic to peanuts" is not an instruction to include
+        // peanuts. A later explicit "I want peanuts" can still be recognized.
+        final deniedAllergyNearby =
+            allergyDenial.hasMatch(prefix) && !positiveIntent.hasMatch(prefix);
+        if (deniedAllergyNearby) continue;
+
+        if (positiveIntent.hasMatch(prefix) ||
+            foodMatch.start <= 12 ||
+            positiveIntent.hasMatch(nearby)) {
+          requested.add(entry.key);
+          break;
+        }
+      }
+    }
+
+    return requested.toList()..sort();
+  }
+
+  List<String> _extractExplicit(
+    String text, {
+    Set<String> excludedFoods = const <String>{},
+  }) {
     final normalized = _normalizeForRules(text);
     final found = <String>{};
 
@@ -341,7 +545,10 @@ class FoodWiseAiService {
       'gluten': 'avoid_gluten',
     };
     for (final entry in avoid.entries) {
-      if (_explicitAvoid(normalized, _words[entry.key]!)) {
+      final pattern = entry.key == 'seafood'
+          ? _excludedFoodWords['seafood']!
+          : _words[entry.key]!;
+      if (_explicitAvoid(normalized, pattern)) {
         found.add(entry.value);
       }
     }
@@ -373,7 +580,8 @@ class FoodWiseAiService {
       'fruit': 'pref_fruit',
     };
     for (final entry in preferences.entries) {
-      if (_has(normalized, _words[entry.key]!)) {
+      if (!excludedFoods.contains(entry.key) &&
+          _has(normalized, _words[entry.key]!)) {
         found.add(entry.value);
       }
     }
