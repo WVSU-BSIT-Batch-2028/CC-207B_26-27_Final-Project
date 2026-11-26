@@ -1,0 +1,25 @@
+{
+  "_notice": "DEMO FIXTURES. Invented entrances, walkways and floor plan placed near the approximate WVSU Main Campus centre. Not surveyed, not official.",
+  "entrances": [
+    { "id": "ent-demo-cb-main", "buildingId": "bldg-demo-cb", "name": "Demo CB main entrance", "lng": 122.56175, "lat": 10.71585, "nodeId": "n-cb" },
+    { "id": "ent-demo-admin-main", "buildingId": "bldg-demo-admin", "name": "Demo Admin main entrance", "lng": 122.56092, "lat": 10.71638, "nodeId": "n-admin" },
+    { "id": "ent-demo-lib-main", "buildingId": "bldg-demo-library", "name": "Demo Library entrance", "lng": 122.56220, "lat": 10.71655, "nodeId": "n-lib" }
+  ],
+  "nodes": [
+    { "id": "n-cb", "lng": 122.56175, "lat": 10.71585 },
+    { "id": "n-admin", "lng": 122.56092, "lat": 10.71638 },
+    { "id": "n-lib", "lng": 122.56220, "lat": 10.71655 },
+    { "id": "j-west", "lng": 122.56130, "lat": 10.71615 },
+    { "id": "j-east", "lng": 122.56185, "lat": 10.71630 }
+  ],
+  "edges": [
+    { "id": "w1", "from": "n-admin", "to": "j-west" },
+    { "id": "w2", "from": "j-west", "to": "n-cb" },
+    { "id": "w3", "from": "j-west", "to": "j-east" },
+    { "id": "w4", "from": "j-east", "to": "n-lib" },
+    { "id": "w5", "from": "j-east", "to": "n-cb" }
+  ],
+  "floorPlans": [
+    { "id": "fp-demo-cb-2", "buildingId": "bldg-demo-cb", "floor": 2, "label": "Demo CB floor 2", "imageUrl": "/demo/floorplan-cb-2.svg" }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "_notice": "DEMO FIXTURES. Invented for development. Not official WVSU information. Names, room codes, floors and coordinates are placeholders until the team verifies them.",
+  "places": [
+    {
+      "id": "bldg-demo-cb",
+      "kind": "building",
+      "name": "Demo College Building",
+      "shortName": "CB",
+      "lng": 122.5618,
+      "lat": 10.7157,
+      "status": "demo"
+    },
+    {
+      "id": "bldg-demo-admin",
+      "kind": "building",
+      "name": "Demo Administration Building",
+      "shortName": "ADMIN",
+      "lng": 122.5608,
+      "lat": 10.7165,
+      "status": "demo"
+    },
+    {
+      "id": "bldg-demo-library",
+      "kind": "building",
+      "name": "Demo Library",
+      "shortName": "LIB",
+      "lng": 122.5623,
+      "lat": 10.7167,
+      "status": "demo"
+    },
+    {
+      "id": "room-demo-cb-203",
+      "kind": "room",
+      "name": "Demo Room CB 203",
+      "roomCode": "CB203",
+      "floor": 2,
+      "parentId": "bldg-demo-cb",
+      "status": "demo"
+    },
+    {
+      "id": "room-demo-cb-101",
+      "kind": "room",
+      "name": "Demo Room CB 101",
+      "roomCode": "CB101",
+      "floor": 1,
+      "parentId": "bldg-demo-cb",
+      "status": "demo"
+    },
+    {
+      "id": "room-demo-lib-1",
+      "kind": "room",
+      "name": "Demo Reading Room LIB 1",
+      "roomCode": "LIB1",
+      "floor": 1,
+      "parentId": "bldg-demo-library",
+      "status": "demo"
+    },
+    {
+      "id": "office-demo-registrar",
+      "kind": "office",
+      "name": "Demo Office of the Registrar",
+      "parentId": "bldg-demo-admin",
+      "floor": 1,
+      "status": "demo"
+    },
+    {
+      "id": "office-demo-long",
+      "kind": "office",
+      "name": "Demo Office of the Vice President for Academic Affairs, Research, Extension and Quality Assurance Services",
+      "parentId": "bldg-demo-admin",
+      "floor": 2,
+      "status": "demo"
+    },
+    {
+      "id": "col-demo-cit",
+      "kind": "college",
+      "name": "Demo College of Information Technology",
+      "status": "demo"
+    },
+    {
+      "id": "room-demo-nocoords",
+      "kind": "room",
+      "name": "Demo Faculty Room (no map location)",
+      "floor": 3,
+      "status": "demo"
+    },
+    {
+      "id": "office-demo-cashier",
+      "kind": "office",
+      "name": "Demo Cashier's Office",
+      "parentId": "bldg-demo-admin",
+      "floor": 1,
+      "status": "demo"
+    },
+    {
+      "id": "office-demo-osa",
+      "kind": "office",
+      "name": "Demo Office of Student Affairs",
+      "parentId": "bldg-demo-library",
+      "floor": 1,
+      "status": "demo"
+    }
+  ]
+}
