@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../app_store.dart';
 import '../models.dart';
+import '../rules.dart';
 import '../widgets/demo_controls.dart';
 import '../widgets/milestone_panel.dart';
+import '../widgets/review_panel.dart';
 import '../widgets/terms_panel.dart';
 
 // Readable name for an exchange stage
@@ -11,6 +13,8 @@ String stageLabel(String stage) => switch (stage) {
   'pending' => 'Pending',
   'accepted' => 'Accepted',
   'termsAgreed' => 'Terms agreed',
+  'launched' => 'Launched',
+  'reviewed' => 'Reviewed',
   'declined' => 'Declined',
   'withdrawn' => 'Withdrawn',
   _ => stage,
@@ -38,8 +42,14 @@ class RoomScreen extends StatelessWidget {
             return const Center(child: Text('This room no longer exists.'));
           }
 
-          // Signed-in startup on the left, partner on the right
           final me = store.currentId;
+          if (me == null || !Rules.isParticipant(e, me)) {
+            return const Center(
+              child: Text("You don't have access to this room."),
+            );
+          }
+
+          // Signed-in startup on the left, partner on the right
           final partnerId = e.senderId == me ? e.recipientId : e.senderId;
           final theme = Theme.of(context);
 
@@ -51,7 +61,7 @@ class RoomScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _startupCard(context, me ?? '')),
+                      Expanded(child: _startupCard(context, me)),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 8),
                         child: Icon(Icons.handshake_outlined),
@@ -70,11 +80,10 @@ class RoomScreen extends StatelessWidget {
                   TermsPanel(store: store, exchange: e),
                   MilestonePanel(key: ValueKey(e.id), store: store, exchange: e),
 
-                  // Filled in by later milestones
-                  _placeholder(
-                    context,
-                    'Review (M5)',
-                    'Rate each other once the exchange is launched.',
+                  ReviewPanel(
+                    key: ValueKey((e.id, me)),
+                    store: store,
+                    exchange: e,
                   ),
                   const SizedBox(height: 12),
                   DemoControls(store: store),
@@ -108,29 +117,6 @@ class RoomScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: text.bodySmall,
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder(BuildContext context, String title, String hint) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
-              hint,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
           ],
         ),
       ),

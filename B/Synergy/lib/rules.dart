@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'app_store.dart' show sampleReviewRating;
 import 'models.dart';
 
 // The four tags founders can pick. Use these exact spellings.
@@ -13,7 +14,7 @@ const allTags = [
 // Exchanges at these stages show as rooms
 const roomStages = ['accepted', 'termsAgreed', 'launched', 'reviewed'];
 
-// Who can do what. Pure Dart, no Flutter, easy to test.
+// Who can do what.
 class Rules {
   // Stages that close an exchange, so a new invite is allowed again
   static const _closedStages = ['declined', 'withdrawn'];
@@ -102,6 +103,25 @@ class Rules {
             (e.feedbackNote.isNotEmpty || note.trim().isNotEmpty));
   }
 
+  static bool hasReviewed(Exchange e, String id) => e.ratings.containsKey(id);
+
+  static bool bothReviewed(Exchange e) =>
+      hasReviewed(e, e.senderId) && hasReviewed(e, e.recipientId);
+
+  static bool canReview(Exchange e, String actorId, int rating) =>
+      isParticipant(e, actorId) &&
+      e.stage == 'launched' &&
+      !hasReviewed(e, actorId) &&
+      rating >= 1 &&
+      rating <= 5;
+
+  static bool canSeeReview(Exchange e, String viewerId, String authorId) {
+    if (!isParticipant(e, viewerId) || !isParticipant(e, authorId)) {
+      return false;
+    }
+    return viewerId == authorId ? hasReviewed(e, viewerId) : bothReviewed(e);
+  }
+
   // Simulated partner's next step, or null if nothing to do.
   static String? nextPartnerAction(Exchange e, String partnerId) {
     if (canAccept(e, partnerId)) return 'accept';
@@ -115,6 +135,7 @@ class Rules {
         canConfirmStep(e, 2, partnerId, '')) {
       return 'confirmStep2';
     }
+    if (canReview(e, partnerId, sampleReviewRating)) return 'review';
     return null;
   }
 

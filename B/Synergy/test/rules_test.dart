@@ -140,6 +140,17 @@ void main() {
       e.step2ConfirmedBy.add(bb);
       expect(Rules.nextPartnerAction(e, cg), 'confirmStep2');
     });
+
+    test('review as soon as the room launches, once per partner', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+
+      e.stage = 'launched';
+      expect(Rules.nextPartnerAction(e, cg), 'review');
+
+      e.ratings[cg] = 5;
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+    });
   });
 
   group('validTerms', () {
@@ -207,6 +218,56 @@ void main() {
 
     test('an outsider in the list does not count', () {
       expect(Rules.termsLocked(room(agreedBy: [bb, pp])), isFalse);
+    });
+  });
+
+  group('canReview', () {
+    test(
+      'allows participants only after launch and only for ratings 1 to 5',
+      () {
+        final e = room()..stage = 'termsAgreed';
+        expect(Rules.canReview(e, bb, 4), isFalse);
+
+        e.stage = 'launched';
+        expect(Rules.canReview(e, bb, 1), isTrue);
+        expect(Rules.canReview(e, cg, 5), isTrue);
+        expect(Rules.canReview(e, bb, 0), isFalse);
+        expect(Rules.canReview(e, bb, 6), isFalse);
+        expect(Rules.canReview(e, 'printpal', 4), isFalse);
+      },
+    );
+
+    test('blocks a second review from the same startup', () {
+      final e = room()..stage = 'launched';
+      e.ratings[bb] = 4;
+      expect(Rules.canReview(e, bb, 5), isFalse);
+      expect(Rules.canReview(e, cg, 5), isTrue);
+    });
+  });
+
+  group('canSeeReview', () {
+    test(
+      'before release, only the submitted review is visible to its author',
+      () {
+        final e = room()..stage = 'launched';
+        e.ratings[bb] = 4;
+        expect(Rules.canSeeReview(e, bb, bb), isTrue);
+        expect(Rules.canSeeReview(e, bb, cg), isFalse);
+        expect(Rules.canSeeReview(e, cg, bb), isFalse);
+        expect(Rules.canSeeReview(e, cg, cg), isFalse);
+      },
+    );
+
+    test('after release, both participants can see both reviews', () {
+      final e = room()..stage = 'reviewed';
+      e.ratings.addAll({bb: 4, cg: 5});
+
+      for (final author in [bb, cg]) {
+        expect(Rules.canSeeReview(e, bb, author), isTrue);
+        expect(Rules.canSeeReview(e, cg, author), isTrue);
+        expect(Rules.canSeeReview(e, 'printpal', author), isFalse);
+      }
+      expect(Rules.canSeeReview(e, bb, 'printpal'), isFalse);
     });
   });
 

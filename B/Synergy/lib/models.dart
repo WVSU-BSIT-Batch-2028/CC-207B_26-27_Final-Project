@@ -78,16 +78,20 @@ class Exchange {
     List<String>? step1ConfirmedBy,
     List<String>? step2ConfirmedBy,
     this.feedbackNote = '',
+    Map<String, int>? ratings,
+    Map<String, String>? reviewNotes,
   }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
        termsAgreedBy = termsAgreedBy ?? [],
        step1ConfirmedBy = [...?step1ConfirmedBy],
-       step2ConfirmedBy = [...?step2ConfirmedBy];
+       step2ConfirmedBy = [...?step2ConfirmedBy],
+       ratings = {...?ratings},
+       reviewNotes = {...?reviewNotes};
 
   String id;
   String senderId;
   String recipientId;
   String note;
-  // pending, declined, withdrawn, accepted, termsAgreed or launched
+  // pending, declined, withdrawn, accepted, termsAgreed, launched or reviewed
   String stage;
 
   // Terms (empty until someone proposes them)
@@ -99,6 +103,8 @@ class Exchange {
   List<String> step1ConfirmedBy;
   List<String> step2ConfirmedBy;
   String feedbackNote;
+  Map<String, int> ratings;
+  Map<String, String> reviewNotes;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -114,6 +120,8 @@ class Exchange {
     'step1ConfirmedBy': step1ConfirmedBy,
     'step2ConfirmedBy': step2ConfirmedBy,
     'feedbackNote': feedbackNote,
+    'ratings': ratings,
+    'reviewNotes': reviewNotes,
   };
 
   // Older saves use defaults for missing fields
@@ -131,5 +139,7 @@ class Exchange {
     step1ConfirmedBy: (json['step1ConfirmedBy'] as List?)?.cast<String>(),
     step2ConfirmedBy: (json['step2ConfirmedBy'] as List?)?.cast<String>(),
     feedbackNote: json['feedbackNote'] as String? ?? '',
+    ratings: Map<String, int>.from(json['ratings'] ?? {}),
+    reviewNotes: Map<String, String>.from(json['reviewNotes'] ?? {}),
   );
 }

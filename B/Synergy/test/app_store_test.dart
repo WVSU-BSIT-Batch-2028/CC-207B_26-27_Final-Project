@@ -117,6 +117,34 @@ void main() {
     expect(saved.stage, 'launched');
   });
 
+  test(
+    'the second review completes the exchange and both reviews persist',
+    () async {
+      final (store, e) = await acceptedRoom();
+      await store.update(() => e.stage = 'launched');
+
+      expect(
+        await store.submitReview(e, cg, sampleReviewRating, sampleReviewNote),
+        isTrue,
+      );
+      expect(e.stage, 'launched');
+      expect(await store.submitReview(e, cg, 1, 'Replacement'), isFalse);
+      expect(e.ratings[cg], sampleReviewRating);
+      expect(e.reviewNotes[cg], sampleReviewNote);
+
+      expect(await store.submitReview(e, bb, 4, ''), isTrue);
+      expect(e.stage, 'reviewed');
+
+      final reloaded = AppStore();
+      addTearDown(reloaded.dispose);
+      await reloaded.load();
+      final saved = reloaded.exchanges.single;
+      expect(saved.stage, 'reviewed');
+      expect(saved.ratings, {cg: sampleReviewRating, bb: 4});
+      expect(saved.reviewNotes, {cg: sampleReviewNote, bb: ''});
+    },
+  );
+
   group('terms', () {
     test('A saves → termsAgreedBy is [A]', () async {
       final (store, e) = await acceptedRoom();
@@ -188,6 +216,8 @@ void main() {
       expect(e.step1ConfirmedBy, isEmpty);
       expect(e.step2ConfirmedBy, isEmpty);
       expect(e.feedbackNote, isEmpty);
+      expect(e.ratings, isEmpty);
+      expect(e.reviewNotes, isEmpty);
       // Terms can now be added to the old exchange
       expect(await bbSaves(store, e), isTrue);
       expect(await store.agreeTerms(e, cg), isTrue);
