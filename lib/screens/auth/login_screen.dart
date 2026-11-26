@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // AuthGate automatically switches to PatientShell or DoctorShell on success.
+
     } on AuthException catch (e) {
       if (mounted) {
         setState(() => _errorMessage = e.message);
