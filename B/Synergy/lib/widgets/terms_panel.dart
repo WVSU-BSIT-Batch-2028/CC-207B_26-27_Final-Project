@@ -161,9 +161,10 @@ class _TermsPanelState extends State<TermsPanel> {
               DropdownButtonFormField<String>(
                 key: ValueKey(_loaded), // refresh when saved terms change
                 initialValue: _window,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Testing window',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  enabled: !locked, // grey like the other fields once agreed
                 ),
                 items: [
                   for (final w in testingWindows)

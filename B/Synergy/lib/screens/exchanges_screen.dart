@@ -130,6 +130,7 @@ class ExchangesScreen extends StatelessWidget {
                   final status = switch (e.stage) {
                     'pending' => 'Pending — waiting for $name',
                     'accepted' => 'Accepted',
+                    'termsAgreed' => 'Terms agreed',
                     'declined' => 'Declined by $name',
                     'withdrawn' => 'Withdrawn',
                     _ => e.stage,
