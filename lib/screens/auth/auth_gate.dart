@@ -11,11 +11,6 @@ import '../doctor/doctor_shell.dart';
 import '../patient/patient_shell.dart';
 import 'login_screen.dart';
 
-/// Listens to Firebase Auth state and routes users to LoginScreen,
-/// PatientShell, or DoctorShell.
-///
-/// Caches the Firestore role lookup per UID so widget rebuilds
-/// do not cause unnecessary reads.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -29,8 +24,6 @@ class _AuthGateState extends State<AuthGate> {
   String? _cachedUid;
   Future<UserRole>? _roleFuture;
 
-  /// Retries briefly if the user profile is still being written
-  /// to Firestore immediately after account creation.
   Future<UserRole> _fetchRoleWithRetry(String uid) async {
     const maxAttempts = 5;
     const retryDelay = Duration(milliseconds: 350);
@@ -53,8 +46,6 @@ class _AuthGateState extends State<AuthGate> {
     return _authService.getUserRole(uid);
   }
 
-  /// Returns the cached role lookup or starts a new one
-  /// when the authenticated user's UID changes.
   Future<UserRole> _getOrFetchRole(String uid) {
     if (_cachedUid != uid || _roleFuture == null) {
       _cachedUid = uid;
@@ -64,7 +55,6 @@ class _AuthGateState extends State<AuthGate> {
     return _roleFuture!;
   }
 
-  /// Clears the cached lookup and retries role retrieval.
   void _retryRoleFetch(String uid) {
     setState(() {
       _cachedUid = uid;
