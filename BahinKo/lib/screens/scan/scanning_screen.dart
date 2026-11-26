@@ -11,7 +11,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import 'package:bahinko/screens/bill/assign_items_screen.dart';
+import 'package:bahinko/screens/scan/scanned_items_screen.dart';
 import 'package:bahinko/screens/bill/manual_receipt_entry_screen.dart';
 import 'package:bahinko/screens/scan/camera_capture_screen.dart';
 import 'package:bahinko/services/receipt_scanner.dart';
@@ -78,7 +78,7 @@ class _ScanningScreenState extends State<ScanningScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => AssignItems(scan: result, groupId: widget.groupId),
+          builder: (_) => ScannedItems(scan: result, groupId: widget.groupId),
         ),
       );
     } on ScanFailure catch (e) {
