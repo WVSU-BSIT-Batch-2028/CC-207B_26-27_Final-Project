@@ -68,8 +68,6 @@ lib/
     ai/         AI assistant
     shared/     module_placeholder
 test/           AI fallback tests
-docs/           topic coverage + AI usage log starters
-AGENTS.md       instructions for AI tools (read this first if you use one)
 ```
 
 ## Colours and dark mode (read before styling)
@@ -81,7 +79,7 @@ so they are **getters, not constants**. Do not use them inside a `const` widget;
 
 ## For teammates
 
-1. Read **AGENTS.md**. It explains the rules, the design system, where your module goes, and the checklist of feedback items each owner must cover (section 5.1). If you use an AI tool, send it the prototype PDF, this project's zip and AGENTS.md; it will write one commented screen at a time and explain it to you.
+1. Read FIREBASE_SETUP.md to run the app with Firebase on your computer.
 2. Work on a feature branch; open a pull request reviewed by a teammate.
-3. Log any AI help in the AI Usage Log (`docs/ai_usage_log_entry.md` has the format).
+3. Log any AI help in the team's AI Usage Log.
 4. **Never commit API keys.** `.env` and key files are in `.gitignore`.
