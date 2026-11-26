@@ -61,3 +61,37 @@ class Startup {
     savedIds: List<String>.from(json['savedIds'] as List),
   );
 }
+
+// One partnership between two startups (invitation fields only for now)
+class Exchange {
+  Exchange({
+    String? id,
+    required this.senderId,
+    required this.recipientId,
+    required this.note,
+    this.stage = 'pending',
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+  String id;
+  String senderId;
+  String recipientId;
+  String note;
+  // 'pending', 'declined', 'withdrawn' or 'accepted'
+  String stage;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'senderId': senderId,
+    'recipientId': recipientId,
+    'note': note,
+    'stage': stage,
+  };
+
+  factory Exchange.fromJson(Map<String, dynamic> json) => Exchange(
+    id: json['id'] as String,
+    senderId: json['senderId'] as String,
+    recipientId: json['recipientId'] as String,
+    note: json['note'] as String,
+    stage: json['stage'] as String,
+  );
+}
