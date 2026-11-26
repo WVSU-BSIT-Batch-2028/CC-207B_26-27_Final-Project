@@ -56,6 +56,7 @@ class ExchangesScreen extends StatelessWidget {
 
         final text = Theme.of(context).textTheme;
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, // full-width cards
           children: [
             for (final e in waiting)
               Card(
@@ -116,6 +117,7 @@ class ExchangesScreen extends StatelessWidget {
 
         final text = Theme.of(context).textTheme;
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, // full-width cards
           children: [
             for (final e in sent)
               Builder(

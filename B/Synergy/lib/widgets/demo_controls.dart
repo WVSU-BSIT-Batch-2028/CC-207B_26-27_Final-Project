@@ -84,6 +84,7 @@ class _DemoControlsState extends State<DemoControls> {
     return Card(
       child: ExpansionTile(
         title: const Text('Demo controls · simulated partner'),
+        expandedAlignment: Alignment.centerLeft,
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
