@@ -18,11 +18,8 @@ import 'auth_service.dart';
 import 'prescription_service.dart';
 import 'records_service.dart';
 
-/// Notification on/off switches, keyed by category.
 typedef NotificationPrefsMap = Map<String, bool>;
 
-/// Personal information, notification switches and notification history
-/// for the signed-in user (Firestore `users/{uid}`, with a device copy).
 class ProfileService {
   ProfileService._();
   static final ProfileService instance = ProfileService._();
@@ -53,7 +50,6 @@ class ProfileService {
     String resolvedName = d.fullName;
     String resolvedEmail = d.email;
 
-    // Fields saved in `users/{uid}` (null = not loaded; use the device copy).
     Map<String, dynamic>? account;
 
     if (Firebase.apps.isNotEmpty) {
@@ -75,12 +71,11 @@ class ProfileService {
             resolvedEmail = fsEmail.trim();
           }
         } catch (_) {
-          // Firestore offline: use the Firebase Auth name and email.
+
         }
       }
     }
 
-    // Firestore value when available, otherwise the device copy.
     String read(String field, String fallback) {
       final cloud = account?[field];
       if (cloud is String && cloud.trim().isNotEmpty) return cloud.trim();
@@ -99,7 +94,6 @@ class ProfileService {
     );
   }
 
-  /// Saves personal information in `users/{uid}`, plus a device copy.
   async.Future<void> save(UserRole role, UserProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key(role, 'fullName'), profile.fullName);
@@ -123,15 +117,11 @@ class ProfileService {
           },
           fs.SetOptions(merge: true),
         );
-        // Drop the cached profile so the new name shows right away.
         AuthService.forgetCachedProfile();
       }
     }
   }
 
-  /// Notification history (newest first), built from the user's data in
-  /// Firestore. A part that fails to load is skipped. Read state is saved
-  /// on the device.
   async.Future<List<NotificationItem>> loadNotificationHistory(UserRole role) async {
     final prefs = await SharedPreferences.getInstance();
     final readIds = (prefs.getStringList('${role.name}_notif_read') ?? const <String>[]).toSet();
@@ -147,10 +137,8 @@ class ProfileService {
     return [for (final i in items) i.copyWith(read: readIds.contains(i.id))];
   }
 
-  /// "Mon, Nov 30 at 10:00 AM".
   String _when(DateTime d) => '${formatWeekdayDate(d)} at ${formatTime(d)}';
 
-  /// Entries from the user's appointments (patient or doctor side).
   async.Future<List<NotificationItem>> _appointmentNotifications(UserRole role) async {
     final List<Appointment> all;
     try {
@@ -231,7 +219,6 @@ class ProfileService {
     return items;
   }
 
-  /// Patient: refill requests the doctor approved or declined.
   async.Future<List<NotificationItem>> _refillAnswerNotifications() async {
     try {
       final answers = await PrescriptionService.instance.fetchMyAnsweredRefills();
@@ -254,7 +241,6 @@ class ProfileService {
     }
   }
 
-  /// Patient: consultation notes and lab results from the last 30 days.
   async.Future<List<NotificationItem>> _recordNotifications() async {
     try {
       final since = DateTime.now().subtract(const Duration(days: 30));
@@ -279,7 +265,6 @@ class ProfileService {
     }
   }
 
-  /// Doctor: refill requests still waiting for an answer.
   async.Future<List<NotificationItem>> _refillNotifications() async {
     try {
       final notices = await PrescriptionService.instance.fetchPendingRefillNotices();
