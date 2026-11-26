@@ -133,6 +133,21 @@ class AppStore extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> confirmStep(
+    Exchange e,
+    int step,
+    String actorId, {
+    String note = '',
+  }) async {
+    if (!Rules.canConfirmStep(e, step, actorId, note)) return false;
+    await update(() {
+      Rules.confirmedBy(e, step).add(actorId);
+      if (step == 2 && e.feedbackNote.isEmpty) e.feedbackNote = note.trim();
+      if (Rules.progress(e) == 2) e.stage = 'launched';
+    });
+    return true;
+  }
+
   // Save or unsave another startup for the signed-in founder
   Future<void> toggleSaved(String otherId) async {
     final me = currentStartup;

@@ -115,10 +115,30 @@ void main() {
       expect(Rules.nextPartnerAction(room(), cg), 'agreeTerms');
     });
 
-    test('nothing after the partner agreed or the terms locked', () {
+    test('nothing when the partner already agreed to proposed terms', () {
       expect(Rules.nextPartnerAction(room(agreedBy: [cg]), cg), isNull);
-      final locked = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
-      expect(Rules.nextPartnerAction(locked, cg), isNull);
+    });
+
+    test('nothing before BudgetBuddy checks step 1', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+    });
+
+    test('confirmStep1 after BudgetBuddy checks step 1', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.nextPartnerAction(e, cg), 'confirmStep1');
+      e.step1ConfirmedBy.add(cg);
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+    });
+
+    test('confirmStep2 after BudgetBuddy checks with a feedback note', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      e.feedbackNote = 'Feedback';
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+      e.step2ConfirmedBy.add(bb);
+      expect(Rules.nextPartnerAction(e, cg), 'confirmStep2');
     });
   });
 
@@ -187,6 +207,42 @@ void main() {
 
     test('an outsider in the list does not count', () {
       expect(Rules.termsLocked(room(agreedBy: [bb, pp])), isFalse);
+    });
+  });
+
+  group('canConfirmStep', () {
+    late Exchange e;
+
+    setUp(() {
+      e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+    });
+
+    test('blocks confirmation before terms are locked', () {
+      expect(Rules.canConfirmStep(room(), 1, bb, ''), isFalse);
+    });
+
+    test('blocks step 2 until both confirm step 1', () {
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.canConfirmStep(e, 2, cg, 'Feedback'), isFalse);
+    });
+
+    test('first step 2 confirmation requires a note', () {
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      expect(Rules.canConfirmStep(e, 2, bb, '  '), isFalse);
+      expect(Rules.canConfirmStep(e, 2, bb, 'Feedback'), isTrue);
+    });
+
+    test('second step 2 confirmation needs no note', () {
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      e.step2ConfirmedBy.add(bb);
+      e.feedbackNote = 'Feedback';
+      expect(Rules.canConfirmStep(e, 2, cg, ''), isTrue);
+    });
+
+    test('blocks confirming the same step twice', () {
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.canConfirmStep(e, 1, bb, ''), isFalse);
+      expect(Rules.canConfirmStep(e, 1, cg, ''), isTrue);
     });
   });
 

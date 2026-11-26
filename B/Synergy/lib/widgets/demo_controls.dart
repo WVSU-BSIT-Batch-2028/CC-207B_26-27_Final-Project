@@ -67,12 +67,38 @@ class _DemoControlsState extends State<DemoControls> {
       );
     }
 
+    if (action == 'confirmStep1') {
+      return _button(
+        'Simulate Campus Grocer confirming Testers assigned',
+        () => _simulate(
+          () => store.confirmStep(e!, 1, campusGrocerId),
+          'Campus Grocer confirmed Testers assigned',
+        ),
+      );
+    }
+    if (action == 'confirmStep2') {
+      return _button(
+        'Simulate Campus Grocer confirming feedback',
+        () => _simulate(
+          () => store.confirmStep(e!, 2, campusGrocerId),
+          'Campus Grocer confirmed feedback',
+        ),
+      );
+    }
+
     // Nothing to do: disabled, and the label says why
     final String reason;
+    final me = store.currentId;
     if (e == null) {
       reason = 'Send Campus Grocer an introduction first.';
     } else if (e.stage == 'accepted' && !Rules.hasTerms(e)) {
       reason = 'Campus Grocer is waiting for you to propose terms.';
+    } else if (Rules.termsLocked(e) && !e.step1ConfirmedBy.contains(me)) {
+      reason = 'Campus Grocer is waiting for you to check Testers assigned.';
+    } else if (Rules.termsLocked(e) &&
+        Rules.stepDone(e, 1) &&
+        !e.step2ConfirmedBy.contains(me)) {
+      reason = 'Campus Grocer is waiting for your feedback note and check.';
     } else {
       reason = 'Campus Grocer has nothing to do right now.';
     }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_store.dart';
 import '../models.dart';
 import '../widgets/demo_controls.dart';
+import '../widgets/milestone_panel.dart';
 import '../widgets/terms_panel.dart';
 
 // Readable name for an exchange stage
@@ -67,13 +68,9 @@ class RoomScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   TermsPanel(store: store, exchange: e),
+                  MilestonePanel(key: ValueKey(e.id), store: store, exchange: e),
 
                   // Filled in by later milestones
-                  _placeholder(
-                    context,
-                    'Milestones (M4)',
-                    'Testers assigned, then feedback submitted.',
-                  ),
                   _placeholder(
                     context,
                     'Review (M5)',

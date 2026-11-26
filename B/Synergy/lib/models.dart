@@ -62,7 +62,7 @@ class Startup {
   );
 }
 
-// One partnership between two startups (invitation and terms for now)
+// One partnership between two startups
 class Exchange {
   Exchange({
     String? id,
@@ -75,14 +75,19 @@ class Exchange {
     this.testingWindow = '',
     this.deliverables = '',
     List<String>? termsAgreedBy,
+    List<String>? step1ConfirmedBy,
+    List<String>? step2ConfirmedBy,
+    this.feedbackNote = '',
   }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-       termsAgreedBy = termsAgreedBy ?? [];
+       termsAgreedBy = termsAgreedBy ?? [],
+       step1ConfirmedBy = [...?step1ConfirmedBy],
+       step2ConfirmedBy = [...?step2ConfirmedBy];
 
   String id;
   String senderId;
   String recipientId;
   String note;
-  // 'pending', 'declined', 'withdrawn', 'accepted' or 'termsAgreed'
+  // pending, declined, withdrawn, accepted, termsAgreed or launched
   String stage;
 
   // Terms (empty until someone proposes them)
@@ -91,6 +96,9 @@ class Exchange {
   String testingWindow;
   String deliverables;
   List<String> termsAgreedBy; // IDs of startups that agreed
+  List<String> step1ConfirmedBy;
+  List<String> step2ConfirmedBy;
+  String feedbackNote;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -103,9 +111,12 @@ class Exchange {
     'testingWindow': testingWindow,
     'deliverables': deliverables,
     'termsAgreedBy': termsAgreedBy,
+    'step1ConfirmedBy': step1ConfirmedBy,
+    'step2ConfirmedBy': step2ConfirmedBy,
+    'feedbackNote': feedbackNote,
   };
 
-  // Missing terms fields use the defaults, so older saves still load
+  // Older saves use defaults for missing fields
   factory Exchange.fromJson(Map<String, dynamic> json) => Exchange(
     id: json['id'] as String,
     senderId: json['senderId'] as String,
@@ -117,5 +128,8 @@ class Exchange {
     testingWindow: json['testingWindow'] as String? ?? '',
     deliverables: json['deliverables'] as String? ?? '',
     termsAgreedBy: List<String>.from(json['termsAgreedBy'] as List? ?? []),
+    step1ConfirmedBy: (json['step1ConfirmedBy'] as List?)?.cast<String>(),
+    step2ConfirmedBy: (json['step2ConfirmedBy'] as List?)?.cast<String>(),
+    feedbackNote: json['feedbackNote'] as String? ?? '',
   );
 }
