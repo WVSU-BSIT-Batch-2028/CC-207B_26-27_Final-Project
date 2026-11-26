@@ -1,5 +1,9 @@
 import 'models.dart';
 
+// The four tags founders can pick. Use these exact spellings.
+const allTags = ['Beta Testers', 'Product Feedback', 'User Research',
+                 'Technical Development'];
+
 // Who can do what. Pure Dart, no Flutter, easy to test.
 class Rules {
   // Stages that close an exchange, so a new invite is allowed again
