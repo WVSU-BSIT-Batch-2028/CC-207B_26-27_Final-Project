@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_store.dart';
+import '../rules.dart';
 import '../widgets/demo_controls.dart';
 import 'room_screen.dart';
 
@@ -170,10 +171,8 @@ class ExchangesScreen extends StatelessWidget {
     );
   }
 
-  // Accepted exchanges. Tap one to open its room.
+  // Accepted exchanges and later stages. Tap one to open its room.
   Widget _rooms(BuildContext context) {
-    // Later milestones add more stages here
-    const roomStages = ['accepted'];
     return ListenableBuilder(
       listenable: store,
       builder: (context, _) {

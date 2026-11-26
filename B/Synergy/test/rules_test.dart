@@ -16,6 +16,19 @@ Exchange invite({String stage = 'pending'}) => Exchange(
   stage: stage,
 );
 
+// An accepted room. withTerms = BudgetBuddy has proposed terms.
+Exchange room({bool withTerms = true, List<String>? agreedBy}) => Exchange(
+  id: 'x1',
+  senderId: bb,
+  recipientId: cg,
+  note: 'Could your students test our signup?',
+  stage: 'accepted',
+  goal: withTerms ? 'Test our signup flow' : '',
+  testerCount: withTerms ? 3 : 0,
+  deliverables: withTerms ? 'A short feedback note' : '',
+  termsAgreedBy: agreedBy ?? (withTerms ? [bb] : []),
+);
+
 void main() {
   group('canSendInvite', () {
     test('allowed when there is no exchange yet', () {
@@ -96,6 +109,74 @@ void main() {
     test('nothing once accepted or declined', () {
       expect(Rules.nextPartnerAction(invite(stage: 'accepted'), cg), isNull);
       expect(Rules.nextPartnerAction(invite(stage: 'declined'), cg), isNull);
+    });
+  });
+
+  group('validTerms', () {
+    test('blank goal is not valid', () {
+      expect(Rules.validTerms('  ', 3, 'A short feedback note'), isFalse);
+    });
+
+    test('0 testers is not valid', () {
+      expect(Rules.validTerms('Test our signup', 0, 'Feedback'), isFalse);
+    });
+
+    test('blank deliverables is not valid', () {
+      expect(Rules.validTerms('Test our signup', 3, ''), isFalse);
+    });
+
+    test('good terms are valid', () {
+      expect(Rules.validTerms('Test our signup', 3, 'Feedback'), isTrue);
+    });
+  });
+
+  group('canEditTerms', () {
+    test('both startups in the room can edit', () {
+      expect(Rules.canEditTerms(room(), bb), isTrue);
+      expect(Rules.canEditTerms(room(), cg), isTrue);
+    });
+
+    test('an outsider cannot edit', () {
+      expect(Rules.canEditTerms(room(), pp), isFalse);
+    });
+
+    test('cannot edit once the terms are agreed', () {
+      final locked = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      expect(Rules.canEditTerms(locked, bb), isFalse);
+    });
+  });
+
+  group('canAgreeTerms', () {
+    test('the partner can agree to proposed terms', () {
+      expect(Rules.canAgreeTerms(room(), cg), isTrue);
+    });
+
+    test('no one can agree before terms exist', () {
+      expect(Rules.canAgreeTerms(room(withTerms: false), cg), isFalse);
+      expect(Rules.canAgreeTerms(room(withTerms: false), bb), isFalse);
+    });
+
+    test('cannot agree twice', () {
+      expect(Rules.canAgreeTerms(room(), bb), isFalse);
+    });
+
+    test('an outsider cannot agree', () {
+      expect(Rules.canAgreeTerms(room(), pp), isFalse);
+    });
+  });
+
+  group('termsLocked', () {
+    test('not locked with one agreement', () {
+      expect(Rules.termsLocked(room(agreedBy: [bb])), isFalse);
+      expect(Rules.termsLocked(room(agreedBy: [cg])), isFalse);
+    });
+
+    test('locked once both startups agree', () {
+      expect(Rules.termsLocked(room(agreedBy: [bb, cg])), isTrue);
+    });
+
+    test('an outsider in the list does not count', () {
+      expect(Rules.termsLocked(room(agreedBy: [bb, pp])), isFalse);
     });
   });
 
