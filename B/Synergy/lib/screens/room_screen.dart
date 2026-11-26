@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../app_store.dart';
 import '../models.dart';
+import '../widgets/demo_controls.dart';
+import '../widgets/terms_panel.dart';
 
 // Readable name for an exchange stage
 String stageLabel(String stage) => switch (stage) {
   'pending' => 'Pending',
   'accepted' => 'Accepted',
+  'termsAgreed' => 'Terms agreed',
   'declined' => 'Declined',
   'withdrawn' => 'Withdrawn',
   _ => stage,
@@ -63,12 +66,9 @@ class RoomScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
+                  TermsPanel(store: store, exchange: e),
+
                   // Filled in by later milestones
-                  _placeholder(
-                    context,
-                    'Terms (M3)',
-                    'Goal, tester count, testing window and deliverables.',
-                  ),
                   _placeholder(
                     context,
                     'Milestones (M4)',
@@ -79,6 +79,8 @@ class RoomScreen extends StatelessWidget {
                     'Review (M5)',
                     'Rate each other once the exchange is launched.',
                   ),
+                  const SizedBox(height: 12),
+                  DemoControls(store: store),
                 ],
               ),
             ),

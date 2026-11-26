@@ -30,52 +30,66 @@ class _DemoControlsState extends State<DemoControls> {
         .lastOrNull;
   }
 
-  Future<void> _simulateAccept(Exchange e) async {
+  // Run Campus Grocer's step with the same store action a founder uses
+  Future<void> _simulate(Future<bool> Function() action, String done) async {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _simulating = true);
-    // Same action a real founder uses, with Campus Grocer as the actor
-    final ok = await widget.store.acceptInvite(e, campusGrocerId);
+    final ok = await action();
     if (mounted) setState(() => _simulating = false);
     messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Campus Grocer accepted your introduction'
-              : "That action isn't allowed anymore.",
-        ),
-      ),
+      SnackBar(content: Text(ok ? done : "That action isn't allowed anymore.")),
     );
   }
 
   Widget _simulateButton() {
+    final store = widget.store;
     final e = _latestWithPartner();
     final action = e == null
         ? null
         : Rules.nextPartnerAction(e, campusGrocerId);
 
     if (action == 'accept') {
-      return FilledButton.icon(
-        onPressed: _simulating ? null : () => _simulateAccept(e!),
-        icon: _simulating
-            ? const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.smart_toy_outlined),
-        label: const Text('Simulate Campus Grocer accepting'),
+      return _button(
+        'Simulate Campus Grocer accepting',
+        () => _simulate(
+          () => store.acceptInvite(e!, campusGrocerId),
+          'Campus Grocer accepted your introduction',
+        ),
+      );
+    }
+    if (action == 'agreeTerms') {
+      return _button(
+        'Simulate Campus Grocer agreeing',
+        () => _simulate(
+          () => store.agreeTerms(e!, campusGrocerId),
+          'Campus Grocer agreed to the terms',
+        ),
       );
     }
 
     // Nothing to do: disabled, and the label says why
-    final open = e != null && !['declined', 'withdrawn'].contains(e.stage);
-    return FilledButton(
-      onPressed: null,
-      child: Text(
-        open
-            ? 'Campus Grocer has nothing to do right now.'
-            : 'Campus Grocer has nothing to do yet. '
-                  'Send them an introduction first.',
-      ),
+    final String reason;
+    if (e == null) {
+      reason = 'Send Campus Grocer an introduction first.';
+    } else if (e.stage == 'accepted' && !Rules.hasTerms(e)) {
+      reason = 'Campus Grocer is waiting for you to propose terms.';
+    } else {
+      reason = 'Campus Grocer has nothing to do right now.';
+    }
+    return FilledButton(onPressed: null, child: Text(reason));
+  }
+
+  // The simulate button, with a spinner while it saves
+  Widget _button(String label, VoidCallback onPressed) {
+    return FilledButton.icon(
+      onPressed: _simulating ? null : onPressed,
+      icon: _simulating
+          ? const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.smart_toy_outlined),
+      label: Text(label),
     );
   }
 

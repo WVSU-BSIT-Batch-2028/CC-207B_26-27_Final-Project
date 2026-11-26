@@ -62,7 +62,7 @@ class Startup {
   );
 }
 
-// One partnership between two startups (invitation fields only for now)
+// One partnership between two startups (invitation and terms for now)
 class Exchange {
   Exchange({
     String? id,
@@ -70,14 +70,27 @@ class Exchange {
     required this.recipientId,
     required this.note,
     this.stage = 'pending',
-  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+    this.goal = '',
+    this.testerCount = 0,
+    this.testingWindow = '',
+    this.deliverables = '',
+    List<String>? termsAgreedBy,
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+       termsAgreedBy = termsAgreedBy ?? [];
 
   String id;
   String senderId;
   String recipientId;
   String note;
-  // 'pending', 'declined', 'withdrawn' or 'accepted'
+  // 'pending', 'declined', 'withdrawn', 'accepted' or 'termsAgreed'
   String stage;
+
+  // Terms (empty until someone proposes them)
+  String goal;
+  int testerCount;
+  String testingWindow;
+  String deliverables;
+  List<String> termsAgreedBy; // IDs of startups that agreed
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -85,13 +98,24 @@ class Exchange {
     'recipientId': recipientId,
     'note': note,
     'stage': stage,
+    'goal': goal,
+    'testerCount': testerCount,
+    'testingWindow': testingWindow,
+    'deliverables': deliverables,
+    'termsAgreedBy': termsAgreedBy,
   };
 
+  // Missing terms fields use the defaults, so older saves still load
   factory Exchange.fromJson(Map<String, dynamic> json) => Exchange(
     id: json['id'] as String,
     senderId: json['senderId'] as String,
     recipientId: json['recipientId'] as String,
     note: json['note'] as String,
     stage: json['stage'] as String,
+    goal: json['goal'] as String? ?? '',
+    testerCount: json['testerCount'] as int? ?? 0,
+    testingWindow: json['testingWindow'] as String? ?? '',
+    deliverables: json['deliverables'] as String? ?? '',
+    termsAgreedBy: List<String>.from(json['termsAgreedBy'] as List? ?? []),
   );
 }

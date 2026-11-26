@@ -10,6 +10,9 @@ const allTags = [
   'Technical Development',
 ];
 
+// Exchanges at these stages show as rooms
+const roomStages = ['accepted', 'termsAgreed', 'launched', 'reviewed'];
+
 // Who can do what. Pure Dart, no Flutter, easy to test.
 class Rules {
   // Stages that close an exchange, so a new invite is allowed again
@@ -38,10 +41,40 @@ class Rules {
   static bool canWithdraw(Exchange e, String actorId) =>
       e.stage == 'pending' && e.senderId == actorId;
 
+  // True if id is the sender or the recipient
+  static bool isParticipant(Exchange e, String id) =>
+      e.senderId == id || e.recipientId == id;
+
+  // Goal and deliverables filled in, at least one tester
+  static bool validTerms(String goal, int testerCount, String deliverables) =>
+      goal.trim().isNotEmpty &&
+      deliverables.trim().isNotEmpty &&
+      testerCount > 0;
+
+  // Either startup can edit the terms until both have agreed
+  static bool canEditTerms(Exchange e, String actorId) =>
+      isParticipant(e, actorId) && e.stage == 'accepted';
+
+  // Someone has proposed terms
+  static bool hasTerms(Exchange e) => e.goal.isNotEmpty;
+
+  // A startup in the room that hasn't agreed to the current terms yet
+  static bool canAgreeTerms(Exchange e, String actorId) =>
+      isParticipant(e, actorId) &&
+      e.stage == 'accepted' &&
+      hasTerms(e) &&
+      !e.termsAgreedBy.contains(actorId);
+
+  // Both startups agreed, so the terms are final
+  static bool termsLocked(Exchange e) =>
+      e.termsAgreedBy.contains(e.senderId) &&
+      e.termsAgreedBy.contains(e.recipientId);
+
   // Simulated partner's next step, or null if nothing to do.
-  // Only 'accept' for now, later milestones add more.
+  // 'accept' or 'agreeTerms' for now, later milestones add more.
   static String? nextPartnerAction(Exchange e, String partnerId) {
     if (canAccept(e, partnerId)) return 'accept';
+    if (canAgreeTerms(e, partnerId)) return 'agreeTerms';
     return null;
   }
 

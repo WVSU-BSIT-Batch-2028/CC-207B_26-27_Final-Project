@@ -102,6 +102,37 @@ class AppStore extends ChangeNotifier {
     return true;
   }
 
+  // Save the terms. The saver agrees, and the partner must agree again.
+  Future<bool> saveTerms(
+    Exchange e,
+    String actorId,
+    String goal,
+    int testerCount,
+    String testingWindow,
+    String deliverables,
+  ) async {
+    if (!Rules.canEditTerms(e, actorId)) return false;
+    if (!Rules.validTerms(goal, testerCount, deliverables)) return false;
+    await update(() {
+      e.goal = goal.trim();
+      e.testerCount = testerCount;
+      e.testingWindow = testingWindow.trim();
+      e.deliverables = deliverables.trim();
+      e.termsAgreedBy = [actorId]; // clears the partner's agreement
+    });
+    return true;
+  }
+
+  // Agree to the current terms. Both agreed = terms locked.
+  Future<bool> agreeTerms(Exchange e, String actorId) async {
+    if (!Rules.canAgreeTerms(e, actorId)) return false;
+    await update(() {
+      e.termsAgreedBy.add(actorId);
+      if (Rules.termsLocked(e)) e.stage = 'termsAgreed';
+    });
+    return true;
+  }
+
   // Save or unsave another startup for the signed-in founder
   Future<void> toggleSaved(String otherId) async {
     final me = currentStartup;
