@@ -115,10 +115,30 @@ void main() {
       expect(Rules.nextPartnerAction(room(), cg), 'agreeTerms');
     });
 
-    test('nothing after the partner agreed or the terms locked', () {
+    test('nothing when the partner already agreed to proposed terms', () {
       expect(Rules.nextPartnerAction(room(agreedBy: [cg]), cg), isNull);
-      final locked = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
-      expect(Rules.nextPartnerAction(locked, cg), isNull);
+    });
+
+    test('nothing before BudgetBuddy checks step 1', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+    });
+
+    test('confirmStep1 after BudgetBuddy checks step 1', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.nextPartnerAction(e, cg), 'confirmStep1');
+      e.step1ConfirmedBy.add(cg);
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+    });
+
+    test('confirmStep2 after BudgetBuddy checks with a feedback note', () {
+      final e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      e.feedbackNote = 'Feedback';
+      expect(Rules.nextPartnerAction(e, cg), isNull);
+      e.step2ConfirmedBy.add(bb);
+      expect(Rules.nextPartnerAction(e, cg), 'confirmStep2');
     });
   });
 

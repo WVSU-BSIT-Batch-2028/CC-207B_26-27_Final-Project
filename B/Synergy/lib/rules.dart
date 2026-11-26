@@ -103,10 +103,18 @@ class Rules {
   }
 
   // Simulated partner's next step, or null if nothing to do.
-  // 'accept' or 'agreeTerms' for now, later milestones add more.
   static String? nextPartnerAction(Exchange e, String partnerId) {
     if (canAccept(e, partnerId)) return 'accept';
     if (canAgreeTerms(e, partnerId)) return 'agreeTerms';
+    final otherId = partnerId == e.senderId ? e.recipientId : e.senderId;
+    if (e.step1ConfirmedBy.contains(otherId) &&
+        canConfirmStep(e, 1, partnerId, '')) {
+      return 'confirmStep1';
+    }
+    if (e.step2ConfirmedBy.contains(otherId) &&
+        canConfirmStep(e, 2, partnerId, '')) {
+      return 'confirmStep2';
+    }
     return null;
   }
 
