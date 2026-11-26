@@ -129,11 +129,8 @@ class ExchangesScreen extends StatelessWidget {
                       'Unknown startup';
                   final status = switch (e.stage) {
                     'pending' => 'Pending — waiting for $name',
-                    'accepted' => 'Accepted',
-                    'termsAgreed' => 'Terms agreed',
                     'declined' => 'Declined by $name',
-                    'withdrawn' => 'Withdrawn',
-                    _ => e.stage,
+                    _ => stageLabel(e.stage),
                   };
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),

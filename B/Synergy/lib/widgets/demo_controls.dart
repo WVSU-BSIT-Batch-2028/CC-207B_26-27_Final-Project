@@ -85,12 +85,28 @@ class _DemoControlsState extends State<DemoControls> {
         ),
       );
     }
+    if (action == 'review') {
+      return _button(
+        'Simulate Campus Grocer reviewing',
+        () => _simulate(
+          () => store.submitReview(
+            e!,
+            campusGrocerId,
+            sampleReviewRating,
+            sampleReviewNote,
+          ),
+          'Campus Grocer submitted a review',
+        ),
+      );
+    }
 
     // Nothing to do: disabled, and the label says why
     final String reason;
     final me = store.currentId;
     if (e == null) {
       reason = 'Send Campus Grocer an introduction first.';
+    } else if (e.stage == 'reviewed') {
+      reason = 'Both reviews are in. This exchange is complete.';
     } else if (e.stage == 'accepted' && !Rules.hasTerms(e)) {
       reason = 'Campus Grocer is waiting for you to propose terms.';
     } else if (Rules.termsLocked(e) && !e.step1ConfirmedBy.contains(me)) {

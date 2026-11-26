@@ -148,6 +148,21 @@ class AppStore extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> submitReview(
+    Exchange e,
+    String actorId,
+    int rating,
+    String note,
+  ) async {
+    if (!Rules.canReview(e, actorId, rating)) return false;
+    await update(() {
+      e.ratings[actorId] = rating;
+      e.reviewNotes[actorId] = note;
+      if (Rules.bothReviewed(e)) e.stage = 'reviewed';
+    });
+    return true;
+  }
+
   // Save or unsave another startup for the signed-in founder
   Future<void> toggleSaved(String otherId) async {
     final me = currentStartup;
@@ -202,6 +217,9 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+const sampleReviewRating = 5;
+const sampleReviewNote = 'Clear onboarding, quick to recruit for.';
 
 List<Startup> sampleStartups() => [
   Startup(
