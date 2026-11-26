@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../models/user_role.dart';
 
-/// Typed exception for all Firebase Authentication and role lookup failures.
 class AuthException implements Exception {
   const AuthException(this.message, {this.code});
 
@@ -17,7 +16,7 @@ class AuthException implements Exception {
 }
 
 typedef UserProfileMap = Map<String, dynamic>;
-/// Handles Firebase Email/Password authentication and Firestore user role storage.
+
 class AuthService {
   bool get isConfigured => Firebase.apps.isNotEmpty;
 
@@ -27,13 +26,11 @@ class AuthService {
   static String? _cachedUid;
   static Map<String, dynamic>? _cachedProfile;
 
-  /// Emits the current Firebase User whenever sign-in or sign-out occurs.
   async.Stream<User?> get authStateChanges =>
       isConfigured ? _auth.authStateChanges() : async.Stream.value(null);
 
   User? get currentUser => isConfigured ? _auth.currentUser : null;
 
-  /// Creates a new Firebase Auth account and saves their profile + role in Firestore `users/{uid}`.
   async.Future<void> register({
     required String fullName,
     required String email,
@@ -59,7 +56,7 @@ class AuthService {
         'uid': uid,
         'fullName': fullName.trim(),
         'email': email.trim(),
-        'role': role.name, // Stores 'patient' or 'doctor'
+        'role': role.name, 
         'privacyAccepted': privacyAccepted,
         'createdAt': fs.FieldValue.serverTimestamp(),
       };
@@ -74,7 +71,6 @@ class AuthService {
     }
   }
 
-  /// Signs an existing user in with email and password.
   async.Future<void> signIn({
     required String email,
     required String password,
@@ -95,7 +91,6 @@ class AuthService {
     }
   }
 
-  /// Fetches and caches the user's Firestore profile document from `users/{uid}`.
   async.Future<UserProfileMap?> getUserProfile(String uid) async {
     if (!isConfigured) return null;
     if (_cachedUid == uid && _cachedProfile != null) {
@@ -112,8 +107,6 @@ class AuthService {
     }
   }
 
-  /// Reads the user's assigned role ('patient' or 'doctor') from Firestore `users/{uid}`.
-  /// Throws [AuthException] on network/permission failure so errors are surfaced explicitly.
   async.Future<UserRole> getUserRole(String uid) async {
     if (!isConfigured) return UserRole.patient;
     try {
@@ -134,7 +127,6 @@ class AuthService {
     }
   }
 
-  /// Re-authenticates the signed-in user and updates their password.
   async.Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -158,7 +150,6 @@ class AuthService {
     }
   }
 
-  /// Sends a password reset link to the given email address.
   async.Future<void> sendPasswordReset(String email) async {
     if (!isConfigured) {
       throw const AuthException(
@@ -172,7 +163,6 @@ class AuthService {
     }
   }
 
-  /// Signs out the current user and clears cached profile data.
   async.Future<void> signOut() async {
     _clearCache();
     if (!isConfigured) return;
@@ -184,11 +174,8 @@ class AuthService {
     _cachedProfile = null;
   }
 
-  /// Forgets the cached `users/{uid}` document, so the next read gets the
-  /// latest values (called after Personal Information saves a new name).
   static void forgetCachedProfile() => _clearCache();
 
-  /// Converts Firebase error codes into typed [AuthException] objects.
   AuthException _mapAuthError(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
