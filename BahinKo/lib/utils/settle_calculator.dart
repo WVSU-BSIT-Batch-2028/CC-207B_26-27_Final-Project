@@ -52,34 +52,13 @@ Map<String, int> computeBalances(
 /// the MOST, as much as possible. Each step settles at least one person,
 /// so there are at most (people − 1) transfers.
 List<Transfer> smartSettle(Map<String, int> balances) {
-  // Sort biggest first; ties by ID so the result is always the same.
-  int byAmount(MapEntry<String, int> a, MapEntry<String, int> b) {
-    final c = b.value.abs().compareTo(a.value.abs());
-    return c != 0 ? c : a.key.compareTo(b.key);
+  final debtors = balances.entries.where((e) => e.value < 0).toList();
+  final creditors = balances.entries.where((e) => e.value > 0).toList();
+  final out = <Transfer>[];
+  for (var i = 0; i < debtors.length && i < creditors.length; i++) {
+    out.add(Transfer(debtors[i].key, creditors[i].key, -debtors[i].value));
   }
-
-  final debtors = [
-    for (final e in balances.entries)
-      if (e.value < 0) MapEntry(e.key, -e.value),
-  ]..sort(byAmount);
-  final creditors = [
-    for (final e in balances.entries)
-      if (e.value > 0) e,
-  ]..sort(byAmount);
-
-  final transfers = <Transfer>[];
-  var d = 0, c = 0;
-  var owe = debtors.isEmpty ? 0 : debtors[0].value;
-  var owed = creditors.isEmpty ? 0 : creditors[0].value;
-  while (d < debtors.length && c < creditors.length) {
-    final amount = owe < owed ? owe : owed;
-    transfers.add(Transfer(debtors[d].key, creditors[c].key, amount));
-    owe -= amount;
-    owed -= amount;
-    if (owe == 0 && ++d < debtors.length) owe = debtors[d].value;
-    if (owed == 0 && ++c < creditors.length) owed = creditors[c].value;
-  }
-  return transfers;
+  return out;
 }
 
 /// How many transfers there would be WITHOUT smart settle: everyone pays

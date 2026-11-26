@@ -16,6 +16,3 @@ Before submitting any activities, especially if it is your first time, please do
 4. Once cloned, navigate to your respective section folder, and create a new folder with your Final_Project_Name OR Final_Project_Team_Name, then push this to your GitHub repository.
 5. Make sure the you and your team members are actively committing, creating branches for fixes/features.
 6. For submission, create a Pull Request to my Main Repository.
-
-
-BahinKo
