@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_store.dart';
 import 'screens/sign_in_screen.dart';
+import 'widgets/demo_controls.dart';
 
 // Synergy brand colors
 const teal = Color(0xFF00726F); // buttons and main color
@@ -91,10 +92,10 @@ class _HomeShellState extends State<HomeShell> {
   int _page = 0; // which tab is open
 
   // Placeholder pages for now
-  static const _pages = [
-    Center(child: Text('Matches')),
-    Center(child: Text('Exchanges')),
-    Center(child: Text('My startup')),
+  List<Widget> get _pages => [
+    const Center(child: Text('Matches')),
+    const Center(child: Text('Exchanges')),
+    ListView(children: [DemoControls(store: widget.store)]),
   ];
 
   @override
