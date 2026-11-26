@@ -1,5 +1,27 @@
 # AI Usage Log
 
+## Review needed after the Git history rewrite
+
+The commit author labels below reflect the current local `main` history. They do not establish who prompted an AI tool, made individual edits, or performed a test. Earlier entries contain first-person descriptions and old commit hashes; the group must review those descriptions against its actual work before submission. Do not transfer first-person claims to a different person solely because a Git author label changed. Commit dates are not necessarily dates of AI use.
+
+### Current Git references
+
+| Recorded Git author | Member | Current commits and subjects |
+| --- | --- | --- |
+| jesseantoinetacluyan-max | Jesse Antoine Tacluyan | `1a8b5d2` AI model; `51792f1` student identity; `8749d4c` setup and AI documentation; `56fbd5b` Firestore security; `b377b85` AI errors and timeout; `696cdc6` server reads; `cc3beae` claim retry; `6d8aa1d` form limits; `26bafa4` AI log. |
+| ricchristianbocatija | Ric Christian Bocatija | `7ab914b` duplicate claims; `51e7984` notification tests; `d06e9b9` contact log; `13e22cd` student claim status; `c180a73` staff workflow; `f151a48` claim state; `1337e98` staff contact access; `775db31` contact fields; `12d2734` contact storage. |
+| issa-nn | Caryll Ann Calibjo | `0220e93` Philippine time; `79d60de` login name and notice; `2ffc06c` App Check comment; `7f51371` model tests; `3f52ac3` login, photos and AI cards; `f084d25` UI redesign; `e29133a` status badges. |
+| Sven Catalan | Sven Catalan | `22cb7db` Firebase cache; `6f4598c` reporting times; `4474969` Hosting; `e6ea613` macOS plugin list; `4a146bb` package removal; `366f428` ignore rules; `53745d5` date pickers; `e86d564` Firestore and AI fallback; `7875c61` status, tests and branding; `dac5ce8` status and candidates; `d2c519f` MVP. |
+| svencatalan-netizen | Sven Catalan | `791330e` merge of pull request #4. |
+
+### Codex assistance recorded in this session
+
+| Member or initiator | Date | AI tool | Use | Output | Follow-up / verification |
+| --- | --- | --- | --- | --- | --- |
+| Sven / project team | 2026-11-25 to 2026-11-27 | OpenAI Codex | Project review, Emulator security and workflow troubleshooting, source and README changes, presentation and documentation drafts, and AI Match troubleshooting. | Suggested and edited code, Firestore rules, setup instructions, demo data and draft documents. | The group must identify who reviewed and changed each output, verify test results and dates, and ensure every member can explain and modify their contributions. The latest AI Match attempt returned App Check 403; successful AI service operation was not verified. |
+
+## Earlier entries for member verification
+
 Tool: Claude (Anthropic). Dates are approximate and were taken from the chat and screenshots. Check them with `git log --format="%h %ad %s" --date=short` and correct any that are wrong.
 
 | Member | Date | AI tool | What it was used for | What was generated | What the member changed |

@@ -90,6 +90,11 @@ class HomeSections {
               onPressed: () => open(const LostReportScreen()),
             ),
             PaperButton(
+              label: 'Report Found Item',
+              icon: Icons.add_circle_outline_rounded,
+              onPressed: () => open(const FoundReportScreen()),
+            ),
+            PaperButton(
               label: 'Browse Reports',
               icon: Icons.grid_view_rounded,
               fill: Colors.white,
