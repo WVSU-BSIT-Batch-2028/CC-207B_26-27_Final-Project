@@ -30,7 +30,12 @@ enum _AppointmentFilter {
 /// appointment details modal, manage consultations, and record outcomes.
 class DoctorAppointmentsScreen extends StatefulWidget {
   /// Creates the doctor appointments screen.
-  const DoctorAppointmentsScreen({super.key});
+  const DoctorAppointmentsScreen({super.key, this.refreshToken = 0});
+
+  /// Changed by the shell when this data changes in Firestore; the screen
+  /// then reloads quietly (keeps the list and selected filter on screen).
+  final int refreshToken;
+
 
   @override
   State<DoctorAppointmentsScreen> createState() =>
@@ -53,6 +58,13 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
   void initState() {
     super.initState();
     _loadAppointments();
+  }
+
+  /// Reloads quietly when the shell reports new data.
+  @override
+  void didUpdateWidget(covariant DoctorAppointmentsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _loadAppointments(showLoading: false);
   }
 
   /// Retrieves appointments from the shared appointment service.
@@ -136,7 +148,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
       return matchesSearch && matchesFilter;
     }).toList();
 
-    filtered.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    // Newest date first.
+    filtered.sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
     return filtered;
   }

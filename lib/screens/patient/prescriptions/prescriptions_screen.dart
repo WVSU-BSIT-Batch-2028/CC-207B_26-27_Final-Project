@@ -20,7 +20,11 @@ enum _PrescriptionTab { active, history }
 /// Lists the patient's prescriptions, split into Active and History.
 class PrescriptionsScreen extends StatefulWidget {
   /// Creates the patient prescriptions screen.
-  const PrescriptionsScreen({super.key});
+  const PrescriptionsScreen({super.key, this.refreshToken = 0});
+
+  /// Changed by the shell when this data changes in Firestore; the screen
+  /// then reloads quietly (keeps the list and selected filter on screen).
+  final int refreshToken;
 
   @override
   State<PrescriptionsScreen> createState() => _PrescriptionsScreenState();
@@ -38,6 +42,13 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Reloads quietly when the shell reports new data.
+  @override
+  void didUpdateWidget(covariant PrescriptionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _load(showLoading: false);
   }
 
   /// Asks the service for the prescriptions and updates the screen.

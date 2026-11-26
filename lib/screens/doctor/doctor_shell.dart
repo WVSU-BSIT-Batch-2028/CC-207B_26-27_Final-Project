@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/booking_doctor_service.dart';
 import '../../services/doctor_service.dart';
+import '../../services/live_updates_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/guide_service.dart';
 import '../../widgets/h360_bottom_nav.dart';
@@ -36,12 +39,32 @@ class _DoctorShellState extends State<DoctorShell> {
   String _drawerName = 'Doctor';
   String _drawerSpecialty = DoctorService.specialty;
 
+  /// Bumped when the doctor's appointments change; the tab reloads quietly.
+  /// (Doctor Home has its own live listener.)
+  int _appointmentsRefreshToken = 0;
+  StreamSubscription<LiveTopic>? _liveUpdates;
+  Timer? _reloadSoon;
+
   @override
   void initState() {
     super.initState();
     _loadDrawerHeader();
     // New accounts see the "How to use" guide before the dashboard.
     _checkGuide();
+    // Reload the Appointments tab by itself when bookings change.
+    _liveUpdates = LiveUpdatesService.instance.watch(UserRole.doctor).listen((_) {
+      _reloadSoon?.cancel();
+      _reloadSoon = Timer(const Duration(milliseconds: 400), () {
+        if (mounted) setState(() => _appointmentsRefreshToken++);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveUpdates?.cancel();
+    _reloadSoon?.cancel();
+    super.dispose();
   }
 
   /// Loads the doctor's name and specialty for the drawer (cached profile).
@@ -138,7 +161,7 @@ class _DoctorShellState extends State<DoctorShell> {
         index: _index,
         children: [
           DoctorHomeScreen(onNavigate: _goTo, onOpenDashboard: _openDashboard),
-          const DoctorAppointmentsScreen(),
+          DoctorAppointmentsScreen(refreshToken: _appointmentsRefreshToken),
           // Back arrow returns to Home.
           DoctorPatientsTab(onBack: () => _goTo(0)),
           const ProfileScreen(role: UserRole.doctor),

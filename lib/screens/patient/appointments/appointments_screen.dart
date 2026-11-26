@@ -6,6 +6,7 @@ import '../../../models/appointment.dart';
 import '../../../models/appointment_status.dart';
 import '../../../services/appointment_service.dart';
 import '../../../widgets/appointment_status_chip.dart';
+import '../../../widgets/status_chip.dart';
 import '../../../widgets/h360_button.dart';
 import '../../../widgets/h360_card.dart';
 import '../../../widgets/section_header.dart';
@@ -27,6 +28,7 @@ class AppointmentsScreen extends StatefulWidget {
     super.key,
     required this.onBookAppointment,
     required this.onJoinConsultation,
+    this.refreshToken = 0,
   });
 
   /// Called when the patient taps Book Appointment.
@@ -34,6 +36,10 @@ class AppointmentsScreen extends StatefulWidget {
 
   /// Called when the patient opens a video consultation.
   final ValueChanged<Appointment> onJoinConsultation;
+
+  /// Changed by the shell when this data changes in Firestore; the screen
+  /// then reloads quietly (keeps the list and selected filter on screen).
+  final int refreshToken;
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -51,6 +57,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   void initState() {
     super.initState();
     _loadAppointments();
+  }
+
+  /// Reloads quietly when the shell reports new data.
+  @override
+  void didUpdateWidget(covariant AppointmentsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) _loadAppointments(showLoading: false);
   }
 
   /// Loads appointments from the appointment service.
@@ -144,11 +157,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       return appointment.dateTime.isBefore(now);
     }).toList();
 
-    filtered.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-
-    if (_filter == _AppointmentFilter.past) {
-      return filtered.reversed.toList();
-    }
+    // Newest date first, in both Upcoming and Past.
+    filtered.sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
     return filtered;
   }
@@ -526,7 +536,7 @@ class _AppointmentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              AppointmentStatusChip(status: appointment.status),
+              _PatientStatusChip(appointment: appointment),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -856,7 +866,7 @@ class _PatientAppointmentDetailsDialog extends StatelessWidget {
                       ],
                     ),
                   ),
-                  AppointmentStatusChip(status: appointment.status),
+                  _PatientStatusChip(appointment: appointment),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
@@ -1171,5 +1181,39 @@ class _DialogDetailRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Status label on the patient's appointment cards. Once the date has
+/// passed without the doctor recording an outcome, it shows "Expired"
+/// (request never confirmed) or "Awaiting outcome" (confirmed, not yet
+/// marked Done or No-show) instead of Pending or Confirmed.
+class _PatientStatusChip extends StatelessWidget {
+  /// Creates the status label for [appointment].
+  const _PatientStatusChip({required this.appointment});
+
+  final Appointment appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    final passed = appointment.dateTime.isBefore(DateTime.now()) &&
+        appointment.outcome == AppointmentOutcome.none;
+
+    if (passed && appointment.status == AppointmentStatus.pending) {
+      return StatusChip(
+        label: 'Expired',
+        color: AppColors.textMuted,
+        icon: Icons.event_busy_rounded,
+      );
+    }
+    if (passed && appointment.status == AppointmentStatus.confirmed) {
+      return const StatusChip(
+        label: 'Awaiting outcome',
+        color: AppColors.warning,
+        icon: Icons.hourglass_bottom_rounded,
+      );
+    }
+    // Done, No-show, Cancelled and upcoming ones keep their usual label.
+    return AppointmentStatusChip(status: appointment.status);
   }
 }
