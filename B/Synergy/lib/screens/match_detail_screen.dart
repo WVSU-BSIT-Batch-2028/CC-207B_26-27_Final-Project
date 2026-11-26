@@ -76,11 +76,14 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
       body: ListenableBuilder(
         listenable: widget.store,
         builder: (context, _) {
+          final me = widget.store.currentStartup!;
           final canSend = Rules.canSendInvite(
-            widget.store.currentId!,
+            me.id,
             s.id,
             widget.store.exchanges,
           );
+          final isSaved = me.savedIds.contains(s.id);
+          final stillNeed = Rules.theyStillNeed(me, s);
 
           return Center(
             child: ConstrainedBox(
@@ -99,6 +102,59 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                   TagRow(label: 'Offers', tags: s.offers),
                   const SizedBox(height: 8),
                   TagRow(label: 'Needs', tags: s.needs),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => widget.store.toggleSaved(s.id),
+                      icon: Icon(
+                        isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      ),
+                      label: Text(isSaved ? 'Saved' : 'Save'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Why this match: both directions and what is missing
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Why this match',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${Rules.matchFit(me, s)}% tag fit',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'They offer you: '
+                            '${tagList(Rules.theyOffer(me, s))}',
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'You offer them: '
+                            '${tagList(Rules.youOffer(me, s))}',
+                          ),
+                          if (stillNeed.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              "They also need (you don't offer): "
+                              '${stillNeed.join(', ')}',
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 32),
 
                   // Introduction form
