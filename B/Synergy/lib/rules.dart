@@ -28,6 +28,13 @@ class Rules {
   static bool canWithdraw(Exchange e, String actorId) =>
       e.stage == 'pending' && e.senderId == actorId;
 
+  // Simulated partner's next step, or null if nothing to do.
+  // Only 'accept' for now, later milestones add more.
+  static String? nextPartnerAction(Exchange e, String partnerId) {
+    if (canAccept(e, partnerId)) return 'accept';
+    return null;
+  }
+
   // True if the exchange links a and b, in either direction
   static bool _isBetween(Exchange e, String a, String b) =>
       (e.senderId == a && e.recipientId == b) ||

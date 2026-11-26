@@ -82,4 +82,19 @@ void main() {
       expect(Rules.canWithdraw(invite(stage: 'accepted'), bb), isFalse);
     });
   });
+
+  group('nextPartnerAction', () {
+    test('accept when the partner has a pending invite', () {
+      expect(Rules.nextPartnerAction(invite(), cg), 'accept');
+    });
+
+    test('nothing for the sender of the invite', () {
+      expect(Rules.nextPartnerAction(invite(), bb), isNull);
+    });
+
+    test('nothing once accepted or declined', () {
+      expect(Rules.nextPartnerAction(invite(stage: 'accepted'), cg), isNull);
+      expect(Rules.nextPartnerAction(invite(stage: 'declined'), cg), isNull);
+    });
+  });
 }
