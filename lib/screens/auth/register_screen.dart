@@ -5,9 +5,6 @@ import '../../core/utils/validators.dart';
 import '../../models/user_role.dart';
 import '../../services/auth_service.dart';
 
-/// Registration screen for creating a new Health360 patient account.
-/// Doctor accounts are provisioned exclusively by clinic administrators
-/// to prevent unauthorized provider impersonation.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -61,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!mounted) return;
-      // Pop back to AuthGate so it routes the signed-in user automatically.
+
       Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -202,7 +199,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // RA 10173 (Data Privacy Act of 2012) Consent
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () => setState(() {
@@ -268,8 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Provider onboarding notice
+                    
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
