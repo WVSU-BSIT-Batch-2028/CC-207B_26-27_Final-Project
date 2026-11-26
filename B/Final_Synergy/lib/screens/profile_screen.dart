@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app_store.dart';
+import '../rules.dart';
+import '../tag_ai.dart';
 import '../widgets/demo_controls.dart';
 import '../widgets/tag_editor.dart';
 
@@ -28,6 +30,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _stage;
   List<String> _offers = [];
   List<String> _needs = [];
+  final _suggestions = <TextEditingController, List<String>>{};
+  final _suggestionRequests = <TextEditingController, Future<List<String>>>{};
+  final _loading = <TextEditingController>{}; // boxes waiting on the AI
+  final _noTags = <TextEditingController>{}; // boxes where the AI found nothing
   bool _triedSave = false; // show tag errors only after Save
 
   @override
@@ -70,6 +76,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return null;
   }
 
+  // Ask the AI for tags, with a loading state and a 10-second limit
+  Future<void> _suggest(TextEditingController field) async {
+    final request = suggestTags(
+      field.text,
+    ).timeout(const Duration(seconds: 10));
+    _suggestionRequests[field] = request;
+    setState(() {
+      _loading.add(field);
+      _noTags.remove(field);
+      _suggestions.remove(field);
+    });
+    var tags = <String>[];
+    try {
+      tags = await request;
+    } catch (_) {
+      // Error or timeout: treat as no tags
+    } finally {
+      if (mounted) setState(() => _loading.remove(field)); // button back on
+    }
+    // Skip old results, e.g. the founder typed while it ran
+    if (!mounted || _suggestionRequests[field] != request) return;
+    _suggestionRequests.remove(field);
+    setState(() {
+      if (tags.isEmpty) {
+        _noTags.add(field);
+      } else {
+        _suggestions[field] = tags;
+      }
+    });
+  }
+
+  // Suggest tags button plus its loading or "no tags" text
+  Widget _suggestRow(TextEditingController field, {bool privacyNote = false}) {
+    final loading = _loading.contains(field);
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    // Rebuild as the founder types so the button turns on and off
+    final row = ValueListenableBuilder<TextEditingValue>(
+      valueListenable: field,
+      builder: (context, value, _) {
+        final hasText = splitPieces(value.text).isNotEmpty;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton(
+              onPressed: loading || !hasText ? null : () => _suggest(field),
+              child: const Text('Suggest tags'),
+            ),
+            if (loading) ...[
+              const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              Text('Reading your description…', style: muted),
+            ] else if (!hasText)
+              Text('Write a description first.', style: muted)
+            else if (_noTags.contains(field))
+              Text('No tags found. Choose them manually.', style: muted),
+          ],
+        );
+      },
+    );
+    if (!privacyNote) return row;
+    // Privacy: the model runs in the browser
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row,
+        const SizedBox(height: 4),
+        Text(
+          'The AI runs in your browser. Your text stays on this laptop.',
+          style: muted,
+        ),
+      ],
+    );
+  }
+
+  // x on a suggestion: drop it from the suggestions only
+  void _removeSuggestion(TextEditingController field, String tag) {
+    setState(() {
+      _suggestions[field] = [
+        for (final t in _suggestions[field] ?? const <String>[])
+          if (t != tag) t,
+      ];
+    });
+  }
+
+  // Selected tags plus the applied ones, no duplicates, in chip order
+  List<String> _merge(List<String> selected, List<String> applied) => [
+    for (final t in allTags)
+      if (selected.contains(t) || applied.contains(t)) t,
+  ];
+
+  // Ignore, Apply and typing all clear the suggestions row
+  void _clearSuggestions(TextEditingController field, {VoidCallback? apply}) {
+    _suggestionRequests.remove(field);
+    final shown = _suggestions.containsKey(field) || _noTags.contains(field);
+    if (!shown && apply == null) return;
+    setState(() {
+      _suggestions.remove(field);
+      _noTags.remove(field);
+      apply?.call();
+    });
+  }
+
+  // Save writes the selected tags only, never the suggestions
   Future<void> _save() async {
     setState(() => _triedSave = true);
     final fieldsOk = _formKey.currentState!.validate();
@@ -175,9 +291,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             minLines: 2,
                             maxLines: 4,
+                            onChanged: (_) => _clearSuggestions(_offerText),
                             validator: (v) =>
                                 _required(v, 'Describe what you can offer'),
                           ),
+                          _suggestRow(_offerText, privacyNote: true),
                           const SizedBox(height: 12),
                           TagEditor(
                             label: 'We offer',
@@ -187,6 +305,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             errorText: _triedSave && _offers.isEmpty
                                 ? 'Pick at least one offer tag'
                                 : null,
+                            suggestions: _suggestions[_offerText] ?? const [],
+                            onRemoveSuggestion: (tag) =>
+                                _removeSuggestion(_offerText, tag),
+                            onApply: (tags) => _clearSuggestions(
+                              _offerText,
+                              apply: () => _offers = _merge(_offers, tags),
+                            ),
+                            onIgnore: () => _clearSuggestions(_offerText),
                           ),
                           const SizedBox(height: 24),
                           TextFormField(
@@ -196,9 +322,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             minLines: 2,
                             maxLines: 4,
+                            onChanged: (_) => _clearSuggestions(_needText),
                             validator: (v) =>
                                 _required(v, 'Describe what you need'),
                           ),
+                          _suggestRow(_needText),
                           const SizedBox(height: 12),
                           TagEditor(
                             label: 'We need',
@@ -208,6 +336,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             errorText: _triedSave && _needs.isEmpty
                                 ? 'Pick at least one need tag'
                                 : null,
+                            suggestions: _suggestions[_needText] ?? const [],
+                            onRemoveSuggestion: (tag) =>
+                                _removeSuggestion(_needText, tag),
+                            onApply: (tags) => _clearSuggestions(
+                              _needText,
+                              apply: () => _needs = _merge(_needs, tags),
+                            ),
+                            onIgnore: () => _clearSuggestions(_needText),
                           ),
                           const SizedBox(height: 24),
                           Align(
