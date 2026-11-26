@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'app_store.dart';
 import 'screens/exchanges_screen.dart';
 import 'screens/matches_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/sign_in_screen.dart';
-import 'widgets/demo_controls.dart';
 
 // Synergy brand colors
 const teal = Color(0xFF00726F); // buttons and main color
@@ -96,7 +96,7 @@ class _HomeShellState extends State<HomeShell> {
   List<Widget> get _pages => [
     MatchesScreen(store: widget.store),
     ExchangesScreen(store: widget.store),
-    ListView(children: [DemoControls(store: widget.store)]),
+    ProfileScreen(store: widget.store),
   ];
 
   @override

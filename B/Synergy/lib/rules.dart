@@ -1,4 +1,14 @@
+import 'dart:math';
+
 import 'models.dart';
+
+// The four tags founders can pick. Use these exact spellings.
+const allTags = [
+  'Beta Testers',
+  'Product Feedback',
+  'User Research',
+  'Technical Development',
+];
 
 // Who can do what. Pure Dart, no Flutter, easy to test.
 class Rules {
@@ -34,6 +44,29 @@ class Rules {
     if (canAccept(e, partnerId)) return 'accept';
     return null;
   }
+
+  // 0–100: how well a and b cover each other's needs.
+  // The weaker direction sets the score. No needs = 0.
+  static int matchFit(Startup a, Startup b) {
+    final aNeeds = a.needs.toSet();
+    final bNeeds = b.needs.toSet();
+    if (aNeeds.isEmpty || bNeeds.isEmpty) return 0;
+    final share1 = theyOffer(a, b).length / aNeeds.length;
+    final share2 = youOffer(a, b).length / bNeeds.length;
+    return (100 * min(share1, share2)).round();
+  }
+
+  // Tags B offers that A needs
+  static List<String> theyOffer(Startup a, Startup b) =>
+      a.needs.toSet().where(b.offers.contains).toList();
+
+  // Tags A offers that B needs
+  static List<String> youOffer(Startup a, Startup b) =>
+      b.needs.toSet().where(a.offers.contains).toList();
+
+  // Tags B needs that A does not offer
+  static List<String> theyStillNeed(Startup a, Startup b) =>
+      b.needs.toSet().where((t) => !a.offers.contains(t)).toList();
 
   // True if the exchange links a and b, in either direction
   static bool _isBetween(Exchange e, String a, String b) =>

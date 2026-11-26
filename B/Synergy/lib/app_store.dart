@@ -102,6 +102,15 @@ class AppStore extends ChangeNotifier {
     return true;
   }
 
+  // Save or unsave another startup for the signed-in founder
+  Future<void> toggleSaved(String otherId) async {
+    final me = currentStartup;
+    if (me == null || otherId == me.id) return;
+    await update(() {
+      if (!me.savedIds.remove(otherId)) me.savedIds.add(otherId);
+    });
+  }
+
   // Demo-only sign-in: plain email and password check
   bool signIn(String email, String password) {
     final cleanEmail = email.trim().toLowerCase();

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:synergy_flutter/app_store.dart';
 import 'package:synergy_flutter/models.dart';
 import 'package:synergy_flutter/rules.dart';
 
@@ -97,4 +98,88 @@ void main() {
       expect(Rules.nextPartnerAction(invite(stage: 'declined'), cg), isNull);
     });
   });
+
+  group('matchFit', () {
+    final budgetBuddy = sampleStartups().firstWhere((s) => s.id == bb);
+    final campusGrocer = sampleStartups().firstWhere((s) => s.id == cg);
+
+    // Campus Grocer with one extra need BudgetBuddy can't cover
+    Startup grocerPlusResearch() => withTags(
+      offers: ['Beta Testers'],
+      needs: ['Product Feedback', 'User Research'],
+    );
+
+    test('sample pair scores 100', () {
+      expect(Rules.matchFit(budgetBuddy, campusGrocer), 100);
+      expect(Rules.matchFit(campusGrocer, budgetBuddy), 100);
+    });
+
+    test('extra need User Research drops it to 50', () {
+      expect(Rules.matchFit(budgetBuddy, grocerPlusResearch()), 50);
+    });
+
+    test('one side with no needs scores 0', () {
+      final noNeeds = withTags(offers: ['Beta Testers'], needs: []);
+      expect(Rules.matchFit(budgetBuddy, noNeeds), 0);
+      expect(Rules.matchFit(noNeeds, budgetBuddy), 0);
+    });
+
+    test('no overlap at all scores 0', () {
+      final other = withTags(
+        offers: ['Technical Development'],
+        needs: ['User Research'],
+      );
+      expect(Rules.matchFit(budgetBuddy, other), 0);
+    });
+
+    test('2 of 3 needs covered rounds to 67', () {
+      final a = withTags(
+        offers: ['Product Feedback'],
+        needs: ['Beta Testers', 'User Research', 'Technical Development'],
+      );
+      final b = withTags(
+        offers: ['Beta Testers', 'User Research'],
+        needs: ['Product Feedback'],
+      );
+      expect(Rules.matchFit(a, b), 67);
+    });
+
+    test('a repeated tag counts once', () {
+      final twice = withTags(
+        offers: ['Beta Testers'],
+        needs: ['Product Feedback', 'Product Feedback'],
+      );
+      expect(Rules.matchFit(budgetBuddy, twice), 100);
+    });
+
+    test('theyOffer and youOffer show both directions', () {
+      expect(Rules.theyOffer(budgetBuddy, campusGrocer), ['Beta Testers']);
+      expect(Rules.youOffer(budgetBuddy, campusGrocer), ['Product Feedback']);
+    });
+
+    test('theyStillNeed shows the gap in the 50% case', () {
+      expect(Rules.theyStillNeed(budgetBuddy, grocerPlusResearch()), [
+        'User Research',
+      ]);
+      expect(Rules.theyStillNeed(budgetBuddy, campusGrocer), isEmpty);
+    });
+  });
 }
+
+// A test startup with only the tags filled in
+Startup withTags({required List<String> offers, required List<String> needs}) =>
+    Startup(
+      id: 'test',
+      email: 'test@demo.test',
+      password: 'demo123',
+      name: 'Test',
+      description: '',
+      industry: '',
+      stage: '',
+      teamSize: 1,
+      offerText: '',
+      needText: '',
+      offers: offers,
+      needs: needs,
+      savedIds: [],
+    );
