@@ -70,6 +70,38 @@ class Rules {
       e.termsAgreedBy.contains(e.senderId) &&
       e.termsAgreedBy.contains(e.recipientId);
 
+  static List<String> confirmedBy(Exchange e, int step) => switch (step) {
+    1 => e.step1ConfirmedBy,
+    2 => e.step2ConfirmedBy,
+    _ => const [],
+  };
+
+  static bool stepDone(Exchange e, int step) {
+    final ids = confirmedBy(e, step);
+    return ids.contains(e.senderId) && ids.contains(e.recipientId);
+  }
+
+  static int progress(Exchange e) =>
+      (stepDone(e, 1) ? 1 : 0) + (stepDone(e, 2) ? 1 : 0);
+
+  static bool canConfirmStep(
+    Exchange e,
+    int step,
+    String actorId,
+    String note,
+  ) {
+    if (step != 1 && step != 2) return false;
+    if (!isParticipant(e, actorId) ||
+        !termsLocked(e) ||
+        e.stage == 'launched') {
+      return false;
+    }
+    if (confirmedBy(e, step).contains(actorId)) return false;
+    return step == 1 ||
+        (stepDone(e, 1) &&
+            (e.feedbackNote.isNotEmpty || note.trim().isNotEmpty));
+  }
+
   // Simulated partner's next step, or null if nothing to do.
   // 'accept' or 'agreeTerms' for now, later milestones add more.
   static String? nextPartnerAction(Exchange e, String partnerId) {

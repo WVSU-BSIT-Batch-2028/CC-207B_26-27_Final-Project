@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:synergy_flutter/app_store.dart';
 import 'package:synergy_flutter/models.dart';
+import 'package:synergy_flutter/rules.dart';
 
 const bb = 'budgetbuddy';
 const cg = campusGrocerId;
@@ -86,6 +87,36 @@ void main() {
     expect(prefs.containsKey('synergy'), isFalse);
   });
 
+  test('both startups confirm each milestone before launch', () async {
+    final (store, e) = await acceptedRoom();
+    await bbSaves(store, e);
+    expect(await store.confirmStep(e, 1, bb), isFalse);
+    expect(e.step1ConfirmedBy, isEmpty);
+    await store.agreeTerms(e, cg);
+
+    expect(await store.confirmStep(e, 1, bb), isTrue);
+    expect(Rules.progress(e), 0);
+    expect(await store.confirmStep(e, 1, cg), isTrue);
+    expect(Rules.progress(e), 1);
+
+    expect(await store.confirmStep(e, 2, bb, note: 'First note'), isTrue);
+    expect(Rules.progress(e), 1);
+    expect(e.stage, 'termsAgreed');
+    expect(await store.confirmStep(e, 2, cg, note: 'Second note'), isTrue);
+    expect(Rules.progress(e), 2);
+    expect(e.stage, 'launched');
+    expect(e.feedbackNote, 'First note');
+
+    final reloaded = AppStore();
+    addTearDown(reloaded.dispose);
+    await reloaded.load();
+    final saved = reloaded.exchanges.single;
+    expect(saved.step1ConfirmedBy, [bb, cg]);
+    expect(saved.step2ConfirmedBy, [bb, cg]);
+    expect(saved.feedbackNote, 'First note');
+    expect(saved.stage, 'launched');
+  });
+
   group('terms', () {
     test('A saves → termsAgreedBy is [A]', () async {
       final (store, e) = await acceptedRoom();
@@ -154,6 +185,9 @@ void main() {
       expect(e.goal, '');
       expect(e.testerCount, 0);
       expect(e.termsAgreedBy, isEmpty);
+      expect(e.step1ConfirmedBy, isEmpty);
+      expect(e.step2ConfirmedBy, isEmpty);
+      expect(e.feedbackNote, isEmpty);
       // Terms can now be added to the old exchange
       expect(await bbSaves(store, e), isTrue);
       expect(await store.agreeTerms(e, cg), isTrue);

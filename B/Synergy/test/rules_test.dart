@@ -190,6 +190,42 @@ void main() {
     });
   });
 
+  group('canConfirmStep', () {
+    late Exchange e;
+
+    setUp(() {
+      e = room(agreedBy: [bb, cg])..stage = 'termsAgreed';
+    });
+
+    test('blocks confirmation before terms are locked', () {
+      expect(Rules.canConfirmStep(room(), 1, bb, ''), isFalse);
+    });
+
+    test('blocks step 2 until both confirm step 1', () {
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.canConfirmStep(e, 2, cg, 'Feedback'), isFalse);
+    });
+
+    test('first step 2 confirmation requires a note', () {
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      expect(Rules.canConfirmStep(e, 2, bb, '  '), isFalse);
+      expect(Rules.canConfirmStep(e, 2, bb, 'Feedback'), isTrue);
+    });
+
+    test('second step 2 confirmation needs no note', () {
+      e.step1ConfirmedBy.addAll([bb, cg]);
+      e.step2ConfirmedBy.add(bb);
+      e.feedbackNote = 'Feedback';
+      expect(Rules.canConfirmStep(e, 2, cg, ''), isTrue);
+    });
+
+    test('blocks confirming the same step twice', () {
+      e.step1ConfirmedBy.add(bb);
+      expect(Rules.canConfirmStep(e, 1, bb, ''), isFalse);
+      expect(Rules.canConfirmStep(e, 1, cg, ''), isTrue);
+    });
+  });
+
   group('matchFit', () {
     final budgetBuddy = sampleStartups().firstWhere((s) => s.id == bb);
     final campusGrocer = sampleStartups().firstWhere((s) => s.id == cg);
