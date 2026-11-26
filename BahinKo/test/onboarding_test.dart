@@ -19,7 +19,16 @@ void main() {
     AppLockService.instance = AppLockService(); // fresh, no PIN yet
   });
 
+  // The welcome screen is sized from its width, so test it on a phone-sized
+  // surface (the default 800x600 is a wide window and makes it overflow).
+  void usePhoneSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+
   testWidgets('Get Started opens Create account', (tester) async {
+    usePhoneSurface(tester);
     await tester.pumpWidget(const MaterialApp(home: Onboarding()));
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
@@ -27,6 +36,7 @@ void main() {
   });
 
   testWidgets('"I already have an account" opens Sign in', (tester) async {
+    usePhoneSurface(tester);
     await tester.pumpWidget(const MaterialApp(home: Onboarding()));
     await tester.tap(find.byKey(const ValueKey('have-account')));
     await tester.pumpAndSettle();
