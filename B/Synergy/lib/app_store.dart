@@ -4,11 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models.dart';
+import 'rules.dart';
 // Browser uses sessionStorage, tests use memory
 import 'session_stub.dart' if (dart.library.js_interop) 'session_web.dart';
 
+// Fixed ID so the simulated partner survives Reset
+const campusGrocerId = 'campus-grocer';
+
 class AppStore extends ChangeNotifier {
   List<Startup> startups = [];
+  List<Exchange> exchanges = [];
 
   // The signed-in startup's ID (saved per browser tab)
   String? currentId;
@@ -23,12 +28,18 @@ class AppStore extends ChangeNotifier {
     final text = prefs.getString('synergy');
     if (text == null) {
       startups = sampleStartups();
+      exchanges = [];
       return;
     }
     final data = jsonDecode(text) as Map<String, dynamic>;
     startups = [
       for (final s in data['startups'] as List)
         Startup.fromJson(s as Map<String, dynamic>),
+    ];
+    // Older saves have no exchanges yet
+    exchanges = [
+      for (final e in (data['exchanges'] as List?) ?? [])
+        Exchange.fromJson(e as Map<String, dynamic>),
     ];
   }
 
@@ -39,6 +50,7 @@ class AppStore extends ChangeNotifier {
       'synergy',
       jsonEncode({
         'startups': [for (final s in startups) s.toJson()],
+        'exchanges': [for (final e in exchanges) e.toJson()],
       }),
     );
     notifyListeners();
@@ -48,7 +60,46 @@ class AppStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('synergy');
     startups = sampleStartups();
+    exchanges = [];
     notifyListeners();
+  }
+
+  Startup? startupById(String id) =>
+      startups.where((s) => s.id == id).firstOrNull;
+
+  // Every exchange this startup sent or received
+  List<Exchange> exchangesFor(String startupId) => exchanges
+      .where((e) => e.senderId == startupId || e.recipientId == startupId)
+      .toList();
+
+  // Each action checks its rule first. False means the rule said no.
+
+  Future<bool> sendInvite(String fromId, String toId, String note) async {
+    if (!Rules.canSendInvite(fromId, toId, exchanges)) return false;
+    await update(
+      () => exchanges.add(
+        Exchange(senderId: fromId, recipientId: toId, note: note.trim()),
+      ),
+    );
+    return true;
+  }
+
+  Future<bool> acceptInvite(Exchange e, String actorId) async {
+    if (!Rules.canAccept(e, actorId)) return false;
+    await update(() => e.stage = 'accepted');
+    return true;
+  }
+
+  Future<bool> declineInvite(Exchange e, String actorId) async {
+    if (!Rules.canDecline(e, actorId)) return false;
+    await update(() => e.stage = 'declined');
+    return true;
+  }
+
+  Future<bool> withdrawInvite(Exchange e, String actorId) async {
+    if (!Rules.canWithdraw(e, actorId)) return false;
+    await update(() => e.stage = 'withdrawn');
+    return true;
   }
 
   // Demo-only sign-in: plain email and password check
@@ -114,7 +165,7 @@ List<Startup> sampleStartups() => [
     savedIds: [],
   ),
   Startup(
-    id: 'campusgrocer',
+    id: campusGrocerId,
     email: 'campusgrocer@demo.test',
     password: 'demo123',
     name: 'Campus Grocer',

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'app_store.dart';
+import 'screens/exchanges_screen.dart';
+import 'screens/matches_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'widgets/demo_controls.dart';
 
@@ -91,10 +93,9 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _page = 0; // which tab is open
 
-  // Placeholder pages for now
   List<Widget> get _pages => [
-    const Center(child: Text('Matches')),
-    const Center(child: Text('Exchanges')),
+    MatchesScreen(store: widget.store),
+    ExchangesScreen(store: widget.store),
     ListView(children: [DemoControls(store: widget.store)]),
   ];
 
