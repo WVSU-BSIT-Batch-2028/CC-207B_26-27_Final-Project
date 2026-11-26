@@ -1,0 +1,125 @@
+// Firestore security rules for AgosUgnayan.
+// Deploy with: firebase deploy --only firestore:rules
+// Rule of thumb: everyone must be logged in; people can only change their
+// own things; only the admin can write prices.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Profiles: anyone logged in can read (to show names); you can create
+    // and edit only your own, and you can't make yourself admin.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if isMe(uid) && request.resource.data.role in ['farmer', 'buyer'];
+      allow update: if isMe(uid) && request.resource.data.role == resource.data.role;
+
+      // Following: private to each user.
+      match /following/{targetId} {
+        allow read, write: if isMe(uid);
+      }
+    }
+
+    // Listings: farmers create their own; only the owner edits or deletes.
+    match /listings/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && myRole() == 'farmer'
+        && request.resource.data.farmerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.farmerId == request.auth.uid;
+    }
+
+    // Farmers' own crop photos (we have no Storage on the free plan, so the
+    // shrunk JPEG is saved as text). Only the listing's owner writes it, and
+    // it must stay small. getAfter() checks the listing as it will be after
+    // the same batch, because a new listing and its photo are saved together.
+    match /listing_photos/{listingId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.farmerId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/listings/$(listingId)).data.farmerId == request.auth.uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 450000;
+      allow delete: if signedIn() && resource.data.farmerId == request.auth.uid;
+    }
+
+    // Buyer requests: buyers create their own; only the owner edits or deletes.
+    match /requests/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && myRole() == 'buyer'
+        && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.buyerId == request.auth.uid;
+    }
+
+    // Chats: only the two people in the chat can read or write it.
+    match /chats/{chatId} {
+      allow read, update: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if signedIn() && request.resource.data.senderId == request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+
+    // Orders between one buyer and one farmer (see docs/inventory-design.md).
+    // Only the two people in the order can see it. Stock lives on the
+    // listing, which only its farmer can write (see /listings above).
+    match /orders/{id} {
+      function newOrder() { return request.resource.data; }
+      function isBuyer() { return request.auth.uid == resource.data.buyerId; }
+      function isFarmer() { return request.auth.uid == resource.data.farmerId; }
+      function changesOnly(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+      function was(status) { return resource.data.status == status; }
+      function becomes(status) { return request.resource.data.status == status; }
+
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+
+      // The amounts must make sense and the total must be qty x price. A
+      // buyer may only ask (pending, from a listing of that farmer); a
+      // farmer may only offer (offered).
+      allow create: if signedIn()
+        && newOrder().qty is number && newOrder().qty > 0
+        && newOrder().price is number && newOrder().price > 0
+        && math.abs(newOrder().total - newOrder().qty * newOrder().price) < 0.01
+        && newOrder().buyerId != newOrder().farmerId
+        && newOrder().participants == [newOrder().buyerId, newOrder().farmerId]
+        && newOrder().createdAt == request.time
+        && (
+          (newOrder().buyerId == request.auth.uid
+            && newOrder().status == 'pending' && newOrder().source == 'listing'
+            && get(/databases/$(database)/documents/listings/$(newOrder().listingId)).data.farmerId == newOrder().farmerId)
+          || (newOrder().farmerId == request.auth.uid
+            && newOrder().status == 'offered' && newOrder().source == 'offer')
+        );
+
+      // Nobody edits the other person's fields: only the status, its date
+      // and the hold's end date change, and only in these steps.
+      allow update: if signedIn()
+        && changesOnly(['status', 'updatedAt', 'reservedUntil'])
+        && (
+          (isBuyer() && changesOnly(['status', 'updatedAt'])
+            && ((was('pending') && becomes('cancelled'))
+              || (was('offered') && (becomes('reserved') || becomes('declined')))))
+          || (isFarmer()
+            && ((was('pending') && (becomes('reserved') || becomes('declined')))
+              || (was('reserved') && (becomes('reserved') || becomes('completed') || becomes('cancelled')))
+              || (was('offered') && becomes('cancelled'))))
+        );
+    }
+
+    // Reference prices: everyone logged in reads, only the admin writes.
+    match /prices/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && myRole() == 'admin';
+    }
+  }
+}
