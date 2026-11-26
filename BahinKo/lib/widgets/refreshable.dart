@@ -11,10 +11,20 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:bahinko/services/group_service.dart';
 import 'package:bahinko/theme/app_colors.dart';
+import 'package:bahinko/widgets/app_toast.dart';
 
-/// Hook for server sync. No backend sync here, so it always succeeds.
-Future<bool> syncNow(BuildContext context) async => true;
+/// Checks the server; returns false (after a message) if it couldn't.
+Future<bool> syncNow(BuildContext context) async {
+  try {
+    await GroupService.instance.refresh();
+    return true;
+  } on GroupFailure catch (e) {
+    if (context.mounted) showAppToast(context, e.message);
+    return false;
+  }
+}
 
 /// The green spinner used by every refreshable page.
 class PullToRefresh extends StatelessWidget {

@@ -78,7 +78,7 @@ class ScanReceipt extends StatelessWidget {
         ),
         Btn(
           'Enter Manually',
-          () => go(context, ManualReceiptEntry()),
+          () => go(context, ManualReceiptEntry(groupId: groupId)),
           outlined: true,
         ),
         const SizedBox(height: 16),

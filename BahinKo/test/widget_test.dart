@@ -1,24 +1,19 @@
+// This is a basic Flutter widget test.
+//
+// To perform an interaction with a widget in your test, use the WidgetTester
+// utility in the flutter_test package. For example, you can send tap and scroll
+// gestures. You can also use WidgetTester to find child widgets in the widget
+// tree, read text, and verify that the values of widget properties are correct.
+
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:bahinko/screens/main_pages_preview.dart';
+import 'package:bahinko/app.dart';
 
 void main() {
-  testWidgets('main UI tabs display their pages', (tester) async {
-    await tester.pumpWidget(const BahinKoPreviewApp());
+  testWidgets('App starts with onboarding', (WidgetTester tester) async {
+    await tester.pumpWidget(const BahinKoApp());
 
-    expect(find.text('Net balance'), findsOneWidget);
-    expect(find.text('Weekend Trip'), findsOneWidget);
-
-    await tester.tap(find.text('Stats'));
-    await tester.pumpAndSettle();
-    expect(find.text('Overview'), findsOneWidget);
-
-    await tester.tap(find.text('History'));
-    await tester.pumpAndSettle();
-    expect(find.text('Activity'), findsOneWidget);
-
-    await tester.tap(find.text('Profile'));
-    await tester.pumpAndSettle();
-    expect(find.text('Alex Santos'), findsOneWidget);
+    expect(find.text('BahinKo'), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
   });
 }

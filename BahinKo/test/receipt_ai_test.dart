@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bahinko/data/mock_data.dart';
-import 'package:bahinko/screens/scan/scanned_items_screen.dart';
+import 'package:bahinko/screens/bill/assign_items_screen.dart';
 import 'package:bahinko/screens/scan/scanning_screen.dart';
 import 'package:bahinko/services/receipt_ai_service.dart';
 import 'package:bahinko/services/receipt_scanner.dart';
@@ -239,7 +239,25 @@ void main() {
       );
       await tester.pump(); // scan finishes
       await tester.pump(const Duration(seconds: 1)); // page transition
-      expect(find.byType(ScannedItems), findsOneWidget);
+      expect(find.byType(AssignItems), findsOneWidget);
+      expect(find.text('AI-detected'), findsOneWidget);
+      expect(find.text('Needs review'), findsOneWidget);
+
+      // Fix the unsure item in the Edit Item sheet.
+      await tester.tap(find.text('Soju x3'));
+      await tester.pumpAndSettle(); // let the sheet finish sliding up
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-price')),
+        '450',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-name')),
+        'Soju x3',
+      );
+      await tester.tap(find.byType(Switch)); // un-flag
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Needs review'), findsNothing);
     });
 
     testWidgets('Scanning shows Retake / Enter manually when it fails', (
@@ -254,6 +272,22 @@ void main() {
       expect(find.text("Couldn't scan this receipt"), findsOneWidget);
       expect(find.text('Retake photo'), findsOneWidget);
       expect(find.text('Enter manually'), findsOneWidget);
+    });
+
+    testWidgets('Confirm Split asks first when items still need review', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(home: AssignItems(scan: reviewAiReceipt(goodAnswer))),
+      );
+      await tester.pump(); // groups load, enabling Confirm Split
+      await tester.tap(find.text('Confirm Split'));
+      await tester.pumpAndSettle();
+      expect(find.text('Some items need review'), findsOneWidget);
+      expect(find.text('Split anyway'), findsOneWidget);
     });
   });
 }

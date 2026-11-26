@@ -317,7 +317,7 @@ class _CameraCaptureState extends State<CameraCapture>
                         ? null
                         : () => go(
                             context,
-                            ManualReceiptEntry(),
+                            ManualReceiptEntry(groupId: widget.groupId),
                           ),
                     child: const Text('Enter manually'),
                   ),
