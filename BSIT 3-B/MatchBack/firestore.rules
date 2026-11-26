@@ -1,0 +1,294 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return signedIn() &&
+          exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function hasOnlyKeys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    function hasRequiredKeys(keys) {
+      return request.resource.data.keys().hasAll(keys);
+    }
+
+    function validText(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function validPublicReport() {
+      return hasOnlyKeys([
+          'id', 'category', 'name', 'description', 'location', 'dateLost',
+          'status', 'hasImage', 'createdAt'
+        ]) &&
+        hasRequiredKeys([
+          'id', 'category', 'name', 'description', 'location', 'dateLost',
+          'status', 'hasImage', 'createdAt'
+        ]) &&
+        request.resource.data.id == request.resource.id &&
+        validText(request.resource.data.category, 40) &&
+        validText(request.resource.data.name, 100) &&
+        validText(request.resource.data.description, 500) &&
+        validText(request.resource.data.location, 100) &&
+        validText(request.resource.data.dateLost, 30) &&
+        request.resource.data.status == 'lost' &&
+        request.resource.data.hasImage is bool &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    function validFoundReport() {
+      return hasOnlyKeys([
+          'id', 'category', 'name', 'description', 'locationFound', 'dateFound',
+          'status', 'hasImage', 'createdAt'
+        ]) &&
+        hasRequiredKeys([
+          'id', 'category', 'name', 'description', 'locationFound', 'dateFound',
+          'status', 'hasImage', 'createdAt'
+        ]) &&
+        request.resource.data.id == request.resource.id &&
+        validText(request.resource.data.category, 40) &&
+        validText(request.resource.data.name, 100) &&
+        validText(request.resource.data.description, 500) &&
+        validText(request.resource.data.locationFound, 100) &&
+        validText(request.resource.data.dateFound, 30) &&
+        request.resource.data.status == 'found' &&
+        request.resource.data.hasImage is bool &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    function validFoundStatusChange() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'readyAt', 'returnedAt']) &&
+        (
+          (resource.data.status == 'found' &&
+            request.resource.data.status == 'claim_pending') ||
+          (resource.data.status == 'claim_pending' &&
+            request.resource.data.status == 'ready' &&
+            request.resource.data.readyAt is timestamp) ||
+          (resource.data.status == 'ready' &&
+            request.resource.data.status == 'returned' &&
+            request.resource.data.returnedAt is timestamp)
+        );
+    }
+
+    function validClaimCreate() {
+      return hasOnlyKeys([
+          'id', 'foundItemId', 'foundItemName', 'claimantName', 'reason',
+          'privateDetail', 'status', 'submittedAt', 'studentId', 'ownerUid',
+          'createdAt'
+        ]) &&
+        hasRequiredKeys([
+          'id', 'foundItemId', 'foundItemName', 'claimantName', 'reason',
+          'privateDetail', 'status', 'submittedAt', 'studentId', 'ownerUid',
+          'createdAt'
+        ]) &&
+        request.resource.data.id == request.resource.id &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        validText(request.resource.data.foundItemId, 80) &&
+        validText(request.resource.data.foundItemName, 100) &&
+        validText(request.resource.data.claimantName, 80) &&
+        validText(request.resource.data.reason, 500) &&
+        validText(request.resource.data.privateDetail, 500) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.submittedAt is string &&
+        request.resource.data.studentId is string &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    function validClaimStatusChange() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'status', 'approvedAt', 'rejectedAt', 'readyAt', 'returnedAt'
+          ]) &&
+        (
+          (resource.data.status == 'pending' &&
+            request.resource.data.status == 'approved' &&
+            request.resource.data.approvedAt is timestamp) ||
+          (resource.data.status == 'pending' &&
+            request.resource.data.status == 'rejected' &&
+            request.resource.data.rejectedAt is timestamp) ||
+          (resource.data.status == 'approved' &&
+            request.resource.data.status == 'ready' &&
+            request.resource.data.readyAt is timestamp) ||
+          (resource.data.status == 'ready' &&
+            request.resource.data.status == 'returned' &&
+            request.resource.data.returnedAt is timestamp)
+        );
+    }
+
+    function validContact() {
+      return hasOnlyKeys([
+          'fullName', 'email', 'phone', 'kind', 'refId', 'ownerUid', 'createdAt'
+        ]) &&
+        hasRequiredKeys([
+          'fullName', 'email', 'phone', 'kind', 'refId', 'ownerUid', 'createdAt'
+        ]) &&
+        validText(request.resource.data.fullName, 80) &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 120 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() <= 20 &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    function validImage() {
+      return hasOnlyKeys([
+          'type', 'reportId', 'mime', 'data', 'ownerUid', 'createdAt'
+        ]) &&
+        hasRequiredKeys([
+          'type', 'reportId', 'mime', 'data', 'ownerUid', 'createdAt'
+        ]) &&
+        request.resource.data.type in ['lost', 'found'] &&
+        validText(request.resource.data.reportId, 80) &&
+        request.resource.data.mime in ['image/jpeg', 'image/png', 'image/webp'] &&
+        request.resource.data.data is string &&
+        request.resource.data.data.size() <= 820000 &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow create: if signedIn() && uid == request.auth.uid &&
+        hasOnlyKeys(['role', 'studentId', 'name', 'createdAt']) &&
+        hasRequiredKeys(['role', 'studentId', 'name', 'createdAt']) &&
+        request.resource.data.role == 'student' &&
+        validText(request.resource.data.studentId, 20) &&
+        validText(request.resource.data.name, 80) &&
+        getAfter(/databases/$(database)/documents/student_ids/$(request.resource.data.studentId)).data.name == request.resource.data.name &&
+        request.resource.data.createdAt is timestamp;
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow list, update, delete: if false;
+    }
+
+    // A student ID is permanently paired with its first submitted name. This
+    // lets later anonymous sessions use the same ID only when the name matches.
+    match /student_ids/{studentId} {
+      allow get: if signedIn();
+      allow create: if signedIn() &&
+        hasOnlyKeys(['studentId', 'name', 'ownerUid', 'createdAt']) &&
+        hasRequiredKeys(['studentId', 'name', 'ownerUid', 'createdAt']) &&
+        request.resource.data.studentId == studentId &&
+        validText(request.resource.data.studentId, 20) &&
+        validText(request.resource.data.name, 80) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.createdAt is timestamp;
+      allow list, update, delete: if false;
+    }
+
+    match /staff/{uid} {
+      allow get: if signedIn() && uid == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /lost_reports/{reportId} {
+      allow get, list: if signedIn();
+      allow create: if signedIn() && validPublicReport();
+      allow update, delete: if false;
+    }
+
+    match /lost_report_private/{reportId} {
+      allow get, list: if isStaff();
+      allow create: if signedIn() &&
+        hasOnlyKeys(['privateDetail', 'ownerUid', 'createdAt']) &&
+        hasRequiredKeys(['privateDetail', 'ownerUid', 'createdAt']) &&
+        validText(request.resource.data.privateDetail, 500) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.createdAt is timestamp &&
+        getAfter(/databases/$(database)/documents/lost_reports/$(reportId)).data.id == reportId;
+      allow update, delete: if false;
+    }
+
+    match /found_reports/{reportId} {
+      allow get, list: if signedIn();
+      allow create: if signedIn() && validFoundReport();
+      allow update: if isStaff() && validFoundStatusChange();
+      allow delete: if false;
+    }
+
+    match /found_report_private/{reportId} {
+      allow get, list: if isStaff();
+      allow create: if signedIn() &&
+        hasOnlyKeys(['storageLocation', 'ownerUid', 'createdAt']) &&
+        hasRequiredKeys(['storageLocation', 'ownerUid', 'createdAt']) &&
+        validText(request.resource.data.storageLocation, 100) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.createdAt is timestamp &&
+        getAfter(/databases/$(database)/documents/found_reports/$(reportId)).data.id == reportId;
+      allow update, delete: if false;
+    }
+
+    match /claim_requests/{claimId} {
+      allow get, list: if isStaff() ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if signedIn() && validClaimCreate() &&
+        get(/databases/$(database)/documents/found_reports/$(request.resource.data.foundItemId)).data.status == 'found';
+      allow update: if isStaff() && validClaimStatusChange();
+      allow delete: if false;
+    }
+
+    match /contact_details/{contactId} {
+      allow get, list: if isStaff();
+      allow create: if signedIn() && validContact() &&
+        (
+          (request.resource.data.kind == 'lost' &&
+            getAfter(/databases/$(database)/documents/lost_reports/$(request.resource.data.refId)).data.id == request.resource.data.refId) ||
+          (request.resource.data.kind == 'claim' &&
+            getAfter(/databases/$(database)/documents/claim_requests/$(request.resource.data.refId)).data.ownerUid == request.auth.uid)
+        );
+      allow update, delete: if false;
+    }
+
+    match /report_images/{imageId} {
+      allow get, list: if signedIn();
+      allow create: if signedIn() && validImage() &&
+        (
+          (request.resource.data.type == 'lost' &&
+            getAfter(/databases/$(database)/documents/lost_reports/$(request.resource.data.reportId)).data.id == request.resource.data.reportId) ||
+          (request.resource.data.type == 'found' &&
+            getAfter(/databases/$(database)/documents/found_reports/$(request.resource.data.reportId)).data.id == request.resource.data.reportId)
+        );
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if isStaff() ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isStaff() &&
+        hasOnlyKeys([
+          'claimId', 'foundItemId', 'studentId', 'ownerUid', 'event',
+          'method', 'outcome', 'byUid', 'sentAt'
+        ]) &&
+        hasRequiredKeys([
+          'claimId', 'foundItemId', 'studentId', 'ownerUid', 'event',
+          'method', 'outcome', 'byUid', 'sentAt'
+        ]) &&
+        request.resource.data.ownerUid ==
+          get(/databases/$(database)/documents/claim_requests/$(request.resource.data.claimId)).data.ownerUid &&
+        request.resource.data.byUid == request.auth.uid &&
+        request.resource.data.event in ['approved', 'ready'] &&
+        request.resource.data.method in ['email', 'phone', 'text'] &&
+        request.resource.data.outcome in ['contacted', 'failed'] &&
+        request.resource.data.sentAt is timestamp;
+      allow update, delete: if false;
+    }
+
+    match /status_events/{eventId} {
+      allow get, list: if isStaff();
+      allow create: if isStaff() &&
+        hasOnlyKeys(['kind', 'claimId', 'foundItemId', 'fromStatus', 'toStatus', 'byUid', 'at']) &&
+        hasRequiredKeys(['kind', 'claimId', 'foundItemId', 'fromStatus', 'toStatus', 'byUid', 'at']) &&
+        request.resource.data.kind == 'claim' &&
+        request.resource.data.byUid == request.auth.uid &&
+        request.resource.data.at is timestamp;
+      allow update, delete: if false;
+    }
+  }
+}

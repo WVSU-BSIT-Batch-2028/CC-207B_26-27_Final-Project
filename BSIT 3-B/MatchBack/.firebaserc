@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "matchback-svencatalan"
+  },
+  "targets": {
+    "matchback-svencatalan": {
+      "hosting": {
+        "matchback": [
+          "matchback"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
