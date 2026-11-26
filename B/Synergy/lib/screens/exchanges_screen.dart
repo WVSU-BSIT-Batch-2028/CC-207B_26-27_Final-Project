@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_store.dart';
 import '../widgets/demo_controls.dart';
+import 'room_screen.dart';
 
 // Exchanges page: invites to answer, invites sent, and open rooms
 class ExchangesScreen extends StatelessWidget {
@@ -167,8 +168,58 @@ class ExchangesScreen extends StatelessWidget {
     );
   }
 
-  Widget _rooms(BuildContext context) =>
-      _placeholder(context, 'Accepted exchanges will show here.');
+  // Accepted exchanges. Tap one to open its room.
+  Widget _rooms(BuildContext context) {
+    // Later milestones add more stages here
+    const roomStages = ['accepted'];
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final me = store.currentId!;
+        final rooms = store
+            .exchangesFor(me)
+            .where((e) => roomStages.contains(e.stage))
+            .toList()
+            .reversed; // newest first
+        if (rooms.isEmpty) {
+          return _placeholder(
+            context,
+            'No rooms yet. Rooms open when an introduction is accepted.',
+          );
+        }
+
+        return Column(
+          children: [
+            for (final e in rooms)
+              Card(
+                key: ValueKey(e.id),
+                margin: const EdgeInsets.only(bottom: 12),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  title: Text(
+                    store
+                            .startupById(
+                              e.senderId == me ? e.recipientId : e.senderId,
+                            )
+                            ?.name ??
+                        'Unknown startup',
+                  ),
+                  subtitle: Text(stageLabel(e.stage)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          RoomScreen(store: store, exchangeId: e.id),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _placeholder(BuildContext context, String text) {
     final theme = Theme.of(context);
