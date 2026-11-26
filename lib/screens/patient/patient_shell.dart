@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
@@ -5,6 +7,7 @@ import '../../models/appointment.dart';
 import '../../models/doctor.dart';
 import '../../models/user_role.dart';
 import '../../services/guide_service.dart';
+import '../../services/live_updates_service.dart';
 import '../../services/prescription_service.dart';
 import '../../services/reminder_scheduler.dart';
 import '../../widgets/h360_bottom_nav.dart';
@@ -38,11 +41,21 @@ class PatientShell extends StatefulWidget {
 
 class _PatientShellState extends State<PatientShell> {
   int _index = 0;
+
+  /// Bumped when appointments change; the tab reloads quietly.
   int _appointmentsRefreshToken = 0;
 
-  /// Bumped when the Prescriptions tab opens. Tabs stay alive in an
-  /// IndexedStack, so this forces a fresh load.
+  /// Bumped when the Prescriptions tab opens or prescriptions change. Tabs
+  /// stay alive in an IndexedStack, so this makes the tab reload quietly.
   int _prescriptionsRefreshToken = 0;
+
+  /// Bumped when records change; the Records tab is rebuilt.
+  int _recordsRefreshToken = 0;
+
+  /// Live updates: Firestore changes waiting for the next reload.
+  StreamSubscription<LiveTopic>? _liveUpdates;
+  final Set<LiveTopic> _changedTopics = {};
+  Timer? _reloadSoon;
 
   void _goTo(int index) {
     if (!mounted) return;
@@ -146,12 +159,34 @@ class _PatientShellState extends State<PatientShell> {
 
     // Medicine reminders are checked while the patient side is open.
     ReminderScheduler.instance.start(this, _onReminderDue);
+
+    // Reload tabs by themselves when the patient's data changes.
+    _liveUpdates = LiveUpdatesService.instance.watch(UserRole.patient).listen(_onDataChanged);
   }
 
   @override
   void dispose() {
     ReminderScheduler.instance.stop(this);
+    _liveUpdates?.cancel();
+    _reloadSoon?.cancel();
     super.dispose();
+  }
+
+  /// Collects changes for 400 ms, then reloads the affected tabs once.
+  /// Home always reloads, since it shows a bit of everything.
+  void _onDataChanged(LiveTopic topic) {
+    _changedTopics.add(topic);
+    _reloadSoon?.cancel();
+    _reloadSoon = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() {
+        if (_changedTopics.contains(LiveTopic.appointments)) _appointmentsRefreshToken++;
+        if (_changedTopics.contains(LiveTopic.prescriptions)) _prescriptionsRefreshToken++;
+        if (_changedTopics.contains(LiveTopic.records)) _recordsRefreshToken++;
+        _homeRefreshToken++;
+        _changedTopics.clear();
+      });
+    });
   }
 
   /// Due reminders wait here while a popup is already open.
@@ -246,12 +281,13 @@ class _PatientShellState extends State<PatientShell> {
             onOpenAssistant: _openAssistant,
           ),
           AppointmentsScreen(
-            key: ValueKey(_appointmentsRefreshToken),
+            refreshToken: _appointmentsRefreshToken,
             onBookAppointment: _openDoctorSelection,
             onJoinConsultation: _openVideoConsultation,
           ),
-          PrescriptionsScreen(key: ValueKey(_prescriptionsRefreshToken)),
+          PrescriptionsScreen(refreshToken: _prescriptionsRefreshToken),
           RecordsScreen(
+            key: ValueKey(_recordsRefreshToken),
             onBack: () => _goTo(0),
           ),
           const ProfileScreen(
