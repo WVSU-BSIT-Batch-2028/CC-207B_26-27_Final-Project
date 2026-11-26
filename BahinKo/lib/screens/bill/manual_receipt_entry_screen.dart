@@ -5,16 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:bahinko/models/receipt_line_item.dart';
 import 'package:bahinko/utils/currency.dart';
 import 'package:bahinko/utils/navigation.dart';
-import 'package:bahinko/screens/scan/scanned_items_screen.dart';
+import 'package:bahinko/screens/bill/assign_items_screen.dart';
 import 'package:bahinko/widgets/app_page.dart';
 import 'package:bahinko/widgets/box.dart';
 import 'package:bahinko/widgets/btn.dart';
 
 class ManualReceiptEntry extends StatefulWidget {
-  const ManualReceiptEntry({super.key, this.groupId});
-
-  /// The group to save the expense into (null = choose on Assign Items).
-  final String? groupId;
+  const ManualReceiptEntry({super.key});
 
   @override
   State<ManualReceiptEntry> createState() => _ManualReceiptEntryState();
@@ -61,9 +58,8 @@ class _ManualReceiptEntryState extends State<ManualReceiptEntry> {
     final storeName = _storeController.text.trim();
     go(
       context,
-      ScannedItems(
+      AssignItems(
         receiptItems: receiptItems,
-        groupId: widget.groupId,
         storeName: storeName.isEmpty ? 'Manual Receipt' : storeName,
       ),
     );

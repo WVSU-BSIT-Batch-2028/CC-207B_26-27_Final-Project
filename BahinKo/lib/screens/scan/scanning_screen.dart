@@ -94,7 +94,7 @@ class _ScanningScreenState extends State<ScanningScreen>
   void _enterManually() => Navigator.pushReplacement(
     context,
     MaterialPageRoute(
-      builder: (_) => ManualReceiptEntry(groupId: widget.groupId),
+      builder: (_) => ManualReceiptEntry(),
     ),
   );
 
