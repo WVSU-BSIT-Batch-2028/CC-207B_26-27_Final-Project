@@ -64,9 +64,29 @@ class HomeScreen extends StatelessWidget {
       const SizedBox(height: 6),
       const Text('Hi! Where do you need to go?', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.15)),
       const SizedBox(height: 14),
-      const SearchField(),
-      const SizedBox(height: 8),
       const NextClassCard(),
+      const SizedBox(height: 8),
+      ListenableBuilder(
+        listenable: AppScope.of(context).schedule,
+        builder: (context, _) {
+          final today = manila(appClock()).weekday;
+          final sessions = AppScope.of(context).schedule.classes.where((c) => c.weekday == today).toList()
+            ..sort((a, b) => a.start.compareTo(b.start));
+          if (sessions.isEmpty) return const SizedBox.shrink();
+          return Column(children: [
+            Row(children: [
+              const Expanded(child: Text('Today’s classes', style: TextStyle(color: navy, fontWeight: FontWeight.bold))),
+              TextButton(onPressed: () => context.go('/schedule'), child: const Text('See week')),
+            ]),
+            for (final c in sessions) Card(child: ListTile(
+              onTap: () => context.go('/schedule/${c.id}'),
+              leading: Text(formatClock(c.start)), title: Text(c.subject),
+              subtitle: Text([c.roomCodeRaw, ?c.professor].where((s) => s.isNotEmpty).join(' · ')),
+            )),
+          ]);
+        },
+      ),
+      const SearchField(),
       const SizedBox(height: 8),
       GridView.count(
         crossAxisCount: 2,
@@ -139,9 +159,10 @@ class _NextClassCardState extends State<NextClassCard> {
                 const SizedBox(height: 6),
                 const Text('See your next class here', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                const Text('Add your weekly classes once. WayFinder shows the next one, its room, and directions.', style: TextStyle(color: muted)),
+                const Text('Upload your IUIS schedule or COR. WayFinder fills in your classes and shows the next room and professor.', style: TextStyle(color: muted)),
                 const SizedBox(height: 12),
-                SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/schedule/new'), child: const Text('Add my schedule'))),
+                SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/schedule/import'), child: const Text('Add my Schedule'))),
+                TextButton(onPressed: () => context.go('/schedule'), child: const Text('My Schedule')),
               ]),
             ),
           );
@@ -174,7 +195,7 @@ class _NextClassCardState extends State<NextClassCard> {
                 decoration: BoxDecoration(color: blueSoft, borderRadius: BorderRadius.circular(12)),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                   const Text('ROOM  ', style: TextStyle(fontSize: 11, letterSpacing: 1.2, color: muted, fontWeight: FontWeight.w700)),
-                  Flexible(child: Text(s.roomCodeRaw, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: navy))),
+                  Flexible(child: Text(s.roomCodeRaw.isEmpty ? 'Room not specified' : s.roomCodeRaw, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: navy))),
                 ]),
               ),
               if (s.roomPlaceId == null) ...[const SizedBox(height: 8), const Unconfirmed('Room location unconfirmed')],
@@ -186,7 +207,7 @@ class _NextClassCardState extends State<NextClassCard> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: () => context.go(s.roomPlaceId != null ? '/map?to=${Uri.encodeQueryComponent(s.roomPlaceId!)}' : '/search?q=${Uri.encodeQueryComponent(s.roomCodeRaw)}'),
+                  onPressed: s.roomCodeRaw.isEmpty ? null : () => context.go(s.roomPlaceId != null ? '/map?to=${Uri.encodeQueryComponent(s.roomPlaceId!)}' : '/search?q=${Uri.encodeQueryComponent(s.roomCodeRaw)}'),
                   icon: const Icon(Icons.place_outlined, size: 18),
                   label: const Text('Find room'),
                 ),
