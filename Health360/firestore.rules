@@ -1,0 +1,342 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // AUTHENTICATION AND ROLE HELPERS
+    // ==========================================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userExists(uid) {
+      return exists(
+        /databases/$(database)/documents/users/$(uid)
+      );
+    }
+
+    function isDoctor() {
+      return signedIn() &&
+        userExists(request.auth.uid) &&
+        get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.get('role', '') == 'doctor';
+    }
+
+    function isPatient() {
+      return signedIn() &&
+        userExists(request.auth.uid) &&
+        get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.get('role', '') == 'patient';
+    }
+
+    function doctorExists(doctorId) {
+      return doctorId is string &&
+        doctorId.size() > 0 &&
+        userExists(doctorId) &&
+        get(
+          /databases/$(database)/documents/users/$(doctorId)
+        ).data.get('role', '') == 'doctor';
+    }
+
+    // Every patient document stores the patient's uid in `patientId`.
+    function isMine() {
+      return signedIn() &&
+        resource.data.patientId == request.auth.uid;
+    }
+
+    function createdForMe() {
+      return signedIn() &&
+        request.resource.data.patientId == request.auth.uid;
+    }
+
+    function patientIdUnchanged() {
+      return request.resource.data.patientId ==
+        resource.data.patientId;
+    }
+
+    // Document IDs start with the patient's uid ("<uid>_<rest>").
+    function idIsMine(id) {
+      return signedIn() &&
+        id.split('_')[0] == request.auth.uid;
+    }
+
+
+    // ==========================================
+    // USER ACCOUNTS
+    // ==========================================
+
+    match /users/{uid} {
+
+      allow read: if signedIn() &&
+        (
+          request.auth.uid == uid ||
+          resource.data.get('role', '') == 'doctor' ||
+          isDoctor()
+        );
+
+      allow create: if signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.role == 'patient';
+
+      allow update: if signedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.get('patientId', null) ==
+          resource.data.get('patientId', null);
+    }
+
+
+    // ==========================================
+    // APPOINTMENTS
+    // ==========================================
+
+    match /appointments/{id} {
+
+      // PATIENT: Create an appointment.
+      allow create: if isPatient() &&
+        createdForMe() &&
+        doctorExists(request.resource.data.get('doctorId', ''));
+
+
+      // PATIENT AND DOCTOR: Read appointments.
+      allow read: if
+        (
+          isMine() &&
+          isPatient()
+        ) ||
+        (
+          isDoctor() &&
+          resource.data.get('doctorId', '') == request.auth.uid
+        );
+
+
+      // ------------------------------------------
+      // PATIENT: Cancel or submit change request.
+      // ------------------------------------------
+
+      allow update: if
+        isPatient() &&
+        isMine() &&
+        patientIdUnchanged() &&
+        request.resource.data.get('doctorId', '') ==
+          resource.data.get('doctorId', '') &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'status',
+            'changeRequest',
+            'editRequestCount'
+          ]) &&
+        (
+          // Patient cancellation.
+          (
+            request.resource.data.status == 'cancelled' &&
+            request.resource.data.get('changeRequest', null) == null &&
+            request.resource.data.get('editRequestCount', 0) ==
+              resource.data.get('editRequestCount', 0)
+          )
+
+          ||
+
+          // Patient submits a new change request.
+          (
+            request.resource.data.status == resource.data.status &&
+            request.resource.data.get('changeRequest', null) is map &&
+            request.resource.data.changeRequest.get('status', '') ==
+              'pending' &&
+            doctorExists(
+              request.resource.data.changeRequest.get('doctorId', '')
+            ) &&
+            request.resource.data.get('editRequestCount', 0) ==
+              resource.data.get('editRequestCount', 0) + 1 &&
+            resource.data.get('editRequestCount', 0) < 2
+          )
+        );
+
+
+      // ------------------------------------------
+      // DOCTOR: Manage assigned appointments.
+      // ------------------------------------------
+
+      allow update: if
+        isDoctor() &&
+        resource.data.get('doctorId', '') == request.auth.uid &&
+        patientIdUnchanged() &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'title',
+            'doctorId',
+            'doctorName',
+            'specialty',
+            'dateTime',
+            'location',
+            'status',
+            'isVideo',
+            'meetLink',
+            'fee',
+            'reminder',
+            'outcome',
+            'changeRequest'
+          ]) &&
+        (
+          // Normal doctor update:
+          // Assigned doctor remains the same.
+          (
+            request.resource.data.get('doctorId', '') ==
+              resource.data.get('doctorId', '')
+          )
+
+          ||
+
+          // Doctor approves a request to transfer
+          // the appointment to another registered doctor.
+          (
+            resource.data.get('changeRequest', null) is map &&
+            resource.data.changeRequest.get('status', '') == 'pending' &&
+            request.resource.data.get('changeRequest', null) is map &&
+            request.resource.data.changeRequest.get('status', '') ==
+              'approved' &&
+            request.resource.data.get('doctorId', '') ==
+              resource.data.changeRequest.get('doctorId', '') &&
+            doctorExists(request.resource.data.get('doctorId', ''))
+          )
+        );
+    }
+
+
+    // ==========================================
+    // REFILL REQUESTS
+    // ==========================================
+
+    match /refillRequests/{id} {
+
+      allow create: if createdForMe() &&
+        request.resource.data.status == 'pending';
+
+      allow get: if idIsMine(id) || isDoctor();
+
+      allow list: if isMine() || isDoctor();
+
+      allow update: if
+        (
+          isDoctor() &&
+          patientIdUnchanged() &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status in ['approved', 'declined'] &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'answeredAt'])
+        )
+        ||
+        (
+          isMine() &&
+          patientIdUnchanged() &&
+          resource.data.status == 'declined' &&
+          request.resource.data.status == 'pending'
+        );
+    }
+
+
+    // ==========================================
+    // MEDICINE REMINDERS
+    // ==========================================
+
+    match /reminders/{id} {
+
+      allow create: if createdForMe();
+
+      allow get: if idIsMine(id);
+
+      allow list: if isMine();
+
+      allow update: if isMine() &&
+        patientIdUnchanged();
+    }
+
+
+    // ==========================================
+    // VITAL READINGS
+    // ==========================================
+
+    match /vitalReadings/{id} {
+
+      allow create: if createdForMe();
+
+      allow read: if isMine() || isDoctor();
+    }
+
+
+    // ==========================================
+    // DOSE LOGS
+    // ==========================================
+
+    match /doseLogs/{id} {
+
+      allow create: if createdForMe();
+
+      allow get: if idIsMine(id) || isDoctor();
+
+      allow list: if isMine() || isDoctor();
+
+      allow update: if isMine() &&
+        patientIdUnchanged();
+    }
+
+
+    // ==========================================
+    // PRESCRIPTIONS
+    // ==========================================
+
+    match /prescriptions/{id} {
+
+      allow read: if isMine() || isDoctor();
+
+      allow write: if isDoctor();
+    }
+
+
+    // ==========================================
+    // CONSULTATIONS
+    // ==========================================
+
+    match /consultations/{id} {
+
+      allow read: if isMine() || isDoctor();
+
+      allow write: if isDoctor();
+    }
+
+
+    // ==========================================
+    // LAB RESULTS
+    // ==========================================
+
+    match /labResults/{id} {
+
+      allow read: if isMine() || isDoctor();
+
+      allow write: if isDoctor();
+    }
+
+
+    // ==========================================
+    // PATIENT PROFILES
+    // ==========================================
+
+    match /patientProfiles/{uid} {
+
+      allow read: if signedIn() &&
+        (
+          isDoctor() ||
+          uid == request.auth.uid
+        );
+
+      allow write: if isDoctor();
+    }
+
+  }
+}

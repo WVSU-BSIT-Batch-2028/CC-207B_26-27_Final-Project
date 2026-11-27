@@ -1,0 +1,10 @@
+{
+  "FIREBASE_API_KEY": "paste-from-the-firebase-console",
+  "FIREBASE_APP_ID": "paste-from-the-firebase-console",
+  "FIREBASE_MESSAGING_SENDER_ID": "paste-from-the-firebase-console",
+  "FIREBASE_PROJECT_ID": "paste-from-the-firebase-console",
+  "FIREBASE_AUTH_DOMAIN": "paste-from-the-firebase-console",
+  "FIREBASE_STORAGE_BUCKET": "paste-from-the-firebase-console",
+  "OPENFDA_API_KEY": "",
+  "RECAPTCHA_SITE_KEY": ""
+}
