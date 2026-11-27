@@ -1,0 +1,33 @@
+{
+    "project_info":  {
+                         "project_number":  "359574670183",
+                         "project_id":  "lookout-cf9df",
+                         "storage_bucket":  "lookout-cf9df.firebasestorage.app"
+                     },
+    "client":  [
+                   {
+                       "client_info":  {
+                                           "mobilesdk_app_id":  "1:359574670183:android:47cc0c7a32f07b0fbebdc2",
+                                           "android_client_info":  {
+                                                                       "package_name":  "com.example.final_project_look_out"
+                                                                   }
+                                       },
+                       "oauth_client":  [
+
+                                        ],
+                       "api_key":  [
+                                       {
+                                           "current_key":  "__FIREBASE_API_KEY__"
+                                       }
+                                   ],
+                       "services":  {
+                                        "appinvite_service":  {
+                                                                  "other_platform_oauth_client":  [
+
+                                                                                                  ]
+                                                              }
+                                    }
+                   }
+               ],
+    "configuration_version":  "1"
+}
