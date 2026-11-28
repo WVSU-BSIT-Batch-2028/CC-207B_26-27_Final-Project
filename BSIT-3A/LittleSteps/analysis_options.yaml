@@ -1,0 +1,24 @@
+# Configures static analysis for LittleSteps following Effective Dart and Flutter guidelines.
+# Reference: https://dart.dev/guides/language/analysis-options
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - web/**
+    - ios/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    comment_references: true
+    dangling_library_doc_comments: true
+    directives_ordering: true
+    prefer_const_constructors: true
+    public_member_api_docs: true
+    slash_for_doc_comments: true
+    use_super_parameters: true

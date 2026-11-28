@@ -1,0 +1,10 @@
+<svg width="430" height="96" viewBox="0 0 430 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g id="Growth symbol" transform="translate(16, 0)">
+    <path id="Young shoot" d="M56.0427 51.84C62.6839 41.2555 63.1583 33.0766 62.2096 27.3032C50.8246 30.1899 44.6578 22.9732 49.8759 13.3509C59.8377 13.3509 64.5814 18.1621 64.5814 25.8599C64.5814 13.3509 71.697 6.61535 79.7613 9.98315C84.5051 21.0487 75.9664 32.5955 67.4277 34.5199C66.0046 41.7366 62.6839 47.51 56.0427 51.84Z" fill="#71977A"/>
+    <path id="Growing leaf" d="M46.4656 89.3898C42.1351 72.5542 48.3902 55.2376 63.3063 45.6173C72.4484 39.8451 83.5151 37.921 94.1007 37.44C96.9877 57.1617 85.9209 73.5163 70.5237 82.6556C61.3816 87.9468 52.2395 90.8329 46.4656 89.3898Z" fill="#4F795D"/>
+    <path id="Parent embrace" d="M21.6074 34.56C8.66316 34.56 0.513078 44.16 0.0336618 55.2C-0.925171 73.44 18.7309 87.84 42.2223 87.84C32.634 76.32 20.6486 62.4 18.7309 52.32C25.9222 54.24 34.5517 61.92 44.14 71.04C44.6194 51.84 36.4693 36.48 21.6074 34.56Z" fill="#EC6A2C"/>
+    <circle id="Parent head" cx="24.24" cy="17.52" r="14.64" fill="#EC6A2C"/>
+  </g>
+  <text x="134" y="60" font-family="'Nunito Sans', 'Inter', system-ui, -apple-system, sans-serif" font-size="52" font-weight="800" fill="#286B58" letter-spacing="-0.5">LittleSteps</text>
+  <text x="136" y="82" font-family="'Nunito Sans', 'Inter', system-ui, -apple-system, sans-serif" font-size="16" font-weight="400" fill="#286B58" letter-spacing="0.2">Small steps. Brighter tomorrows.</text>
+</svg>

@@ -1,0 +1,37 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android build artifacts & local properties
+android/.gradle/
+android/local.properties
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/gradle/wrapper/gradle-wrapper.jar
+
+# Secrets, Keystores & Environment configurations (CC 207B Security Rule)
+*.jks
+*.keystore
+*.key
+key.properties
+config/production.json
+config/*.local.json
+.env*
+!.env.example
+
+# Symbols & Crash dumps
+*.symbols
+*.map
+
+# IDE configurations
+.idea/
+*.iml
+.vscode/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+{
+  "USE_FIREBASE_EMULATOR": "false",
+  "EMULATOR_HOST": "",
+  "API_BASE_URL": "https://asia-southeast1-<firebase-project-id>.cloudfunctions.net/api",
+  "FIREBASE_API_KEY": "<firebase-web-api-key>"
+}

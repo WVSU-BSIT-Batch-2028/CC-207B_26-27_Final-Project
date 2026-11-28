@@ -1,0 +1,6 @@
+# Copy to android/key.properties (gitignored) when signing a production release.
+# Reference: https://docs.flutter.dev/deployment/android#sign-the-app
+storePassword=replace-with-keystore-password
+keyPassword=replace-with-key-password
+keyAlias=upload
+storeFile=upload-keystore.jks

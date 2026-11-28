@@ -1,0 +1,39 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['BSIT-3A/LittleSteps/**', '.github/workflows/ci.yml']
+  pull_request:
+    branches: [main]
+    paths: ['BSIT-3A/LittleSteps/**', '.github/workflows/ci.yml']
+
+jobs:
+  verify:
+    name: Analyze and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: BSIT-3A/LittleSteps
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze project
+        run: flutter analyze
+
+      - name: Run widget tests
+        run: flutter test
